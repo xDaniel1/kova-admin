@@ -5,258 +5,52 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="light dark">
 <title>Kova Tower</title>
-<style>
-:root{color-scheme:light dark;--bg:#f5f6f8;--panel:#fff;--text:#18212d;--muted:#596575;--line:#dce1e8;--accent:#255dc2;--error:#a31d28}
-@media(prefers-color-scheme:dark){:root{--bg:#11151b;--panel:#1b222c;--text:#edf1f7;--muted:#acb8c9;--line:#394452;--accent:#97bdff;--error:#ffadb4}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,sans-serif}main{max-width:1320px;margin:auto;padding:24px}header,.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}h1{font-size:24px;margin:0}h2{font-size:20px}h3{font-size:16px;margin:0 0 8px}p{margin:8px 0}a{color:var(--accent)}nav{display:flex;gap:18px;flex-wrap:wrap;margin:24px 0}section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin:20px 0;scroll-margin-top:16px}label{display:flex;flex-direction:column;gap:5px}input,select,textarea,button{font:inherit;color:inherit;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:9px}button{cursor:pointer}button:hover{border-color:var(--accent)}button:disabled{opacity:.55;cursor:wait}input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}textarea{width:100%;min-height:70px;resize:vertical}input[type=checkbox]{width:22px;height:22px}.muted,small{color:var(--muted)}.tiles,.breakdowns{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}.tile{padding:16px;border:1px solid var(--line);border-radius:8px}.tile strong{display:block;font-size:28px}.scroll{overflow:auto}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{text-align:left;border-bottom:1px solid var(--line);padding:10px;vertical-align:top}th{white-space:nowrap}td{overflow-wrap:anywhere}#banner{border:1px solid var(--error);color:var(--error);padding:12px;border-radius:8px;margin-top:16px;white-space:pre-wrap}#notice{min-height:24px}.feedback-card{padding:16px 0;border-bottom:1px solid var(--line)}.message{white-space:pre-wrap;overflow-wrap:anywhere}.feedback-meta{display:flex;gap:12px;flex-wrap:wrap}.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}.paging{display:flex;align-items:center;gap:12px;margin-top:14px}.empty{padding:20px;color:var(--muted)}.badge{display:inline-block;min-width:20px;padding:0 6px;margin-left:6px;border-radius:10px;background:var(--accent);color:var(--panel);font-size:12px;line-height:20px;text-align:center;vertical-align:middle}.chart{margin-top:16px}.chart h3{margin-bottom:4px}.chart svg{display:block;width:100%;height:120px}.chart rect{fill:var(--accent)}.chart rect:hover{opacity:.75}.chart .axis{fill:var(--muted);font-size:11px}.chart line{stroke:var(--line)}.chart details{margin-top:6px}.chart summary{color:var(--muted);cursor:pointer;font-size:13px}.row-actions{white-space:nowrap}[hidden]{display:none!important}@media(max-width:600px){main{padding:12px}section{padding:14px}th,td{padding:8px}.toolbar>*{max-width:100%}}
-</style>
+<link rel="stylesheet" href="./styles.css">
+<script>
+// Apply the saved theme before first paint so there is no flash.
+try { const t = localStorage.getItem('tower-theme'); if (t) document.documentElement.dataset.theme = t; } catch {}
+</script>
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script defer src="./config.js"></script>
+<script type="module" src="./js/app.js"></script>
 </head>
 <body>
-<main>
-<header><div><h1>Kova Tower</h1><span class="muted">Kova Maps internal console</span></div><div id="session-controls" hidden><button id="refresh">Refresh</button> <button id="signout">Sign out</button></div></header>
-<div id="banner" role="alert" hidden></div>
-<p id="notice" role="status" aria-live="polite"></p>
-<section id="login"><h2>Admin sign-in</h2><p class="muted">Sign in with your developer email. Access is checked on the server.</p><form id="login-form"><label>Email<input id="email" type="email" autocomplete="email" required></label><p>
-      <button type="button" id="google-signin">Sign in with Google</button>
-      <p class="hint" style="opacity:.7;font-size:.9em">Or get a one-time link by email:</p>
-      <button id="send-link">Send magic link</button></p></form></section>
-<div id="dashboard" hidden>
-<nav aria-label="Sections"><a href="#overview">Overview</a><a href="#users">Users</a><a href="#feedback">Feedback<span id="feedback-badge" class="badge" hidden></span></a><a href="#reports">Reports</a><a href="#venues">Venues</a><a href="#feeds">Feeds</a></nav>
-<section id="overview"><h2>Overview</h2><div id="stats" class="tiles"></div><div id="breakdowns" class="breakdowns"></div><div id="trend"></div></section>
-<section id="users"><h2>Users</h2><form id="user-filter" class="toolbar"><label>Search email<input id="user-search" type="search" placeholder="Email contains…"></label><label>Last sign-in<select id="user-sort"><option value="desc">Newest first</option><option value="asc">Oldest first</option></select></label><button>Search</button></form><div id="users-list" class="scroll"></div><div class="paging"><button data-more="users">Load more</button><span id="users-page" class="muted"></span></div></section>
-<section id="feedback"><h2>Feedback</h2><form id="feedback-filter" class="toolbar"><label>Search message<input id="feedback-search" type="search" placeholder="Message contains…"></label><label>Kind<select id="feedback-kind"><option value="">All kinds</option><option>bug</option><option>idea</option><option>map_data</option><option>other</option></select></label><label>Status<select id="feedback-status"><option value="">All statuses</option><option>new</option><option>seen</option><option>done</option></select></label><button>Search</button></form><div id="feedback-list"></div><div class="paging"><button data-more="feedback">Load more</button><span id="feedback-page" class="muted"></span></div></section>
-<section id="reports"><h2>Reports</h2><div class="toolbar"><label>Range<select id="report-range"><option value="1">Last 24 hours</option><option value="7" selected>Last 7 days</option><option value="30">Last 30 days</option></select></label><label>Kind<select id="report-kind"><option value="">All kinds</option><option>Accident</option><option>Hazard</option><option>Road Closed</option><option>Slow Traffic</option><option>Speed Trap</option></select></label></div><div id="reports-list" class="scroll"></div><div class="paging"><button data-more="reports">Load more</button><span id="reports-page" class="muted"></span></div></section>
-<section id="venues"><h2>Venues</h2><details id="venue-details"><summary id="venue-summary">Add venue</summary><form id="venue-form"><div class="form-grid"><label>Short name<input name="short_name" required maxlength="100"></label><label>Name<input name="name" required maxlength="300"></label><label>Latitude<input name="latitude" type="number" step="any" min="-90" max="90" required></label><label>Longitude<input name="longitude" type="number" step="any" min="-180" max="180" required></label><label>Radius (m)<input name="radius_m" type="number" min="50" max="5000" step="1" value="200" required></label><label>Kind<select name="kind"><option>other</option><option>airport</option><option>station</option><option>mall</option></select></label><label>Sources (comma separated)<input name="sources" value="osm" required></label></div><p><button id="venue-submit">Add venue</button> <button type="button" id="venue-cancel" hidden>Cancel edit</button></p></form></details><div id="venues-list" class="scroll"></div><div class="paging"><button data-more="venues">Load more</button><span id="venues-page" class="muted"></span></div></section>
-<section id="feeds"><h2>Incident feeds</h2><details><summary>Add feed</summary><form id="feed-form"><div class="form-grid"><label>State<input name="state" required maxlength="2" pattern="[A-Za-z]{2}" title="Two-letter state code" placeholder="MN"></label><label>Name<input name="name" required maxlength="100" placeholder="Minnesota DOT"></label><label>Feed URL<input name="url" type="url" required maxlength="500" placeholder="https://…/wzdx"></label><label>Format<select name="format"><option>wzdx</option></select></label><label>Terms URL<input name="terms_url" type="url" maxlength="500" placeholder="Optional"></label></div><p><button>Add feed</button></p></form></details><div id="feeds-list" class="scroll"></div><div class="paging"><button data-more="feeds">Load more</button><span id="feeds-page" class="muted"></span></div></section>
+<a class="skip" href="#main">Skip to content</a>
+<div id="app">
+  <aside id="sidebar" aria-label="Navigation">
+    <a class="brand" href="#/" aria-label="Kova Tower home"><span class="brand-mark" aria-hidden="true">K</span><span class="brand-name">Kova Tower</span></a>
+    <nav id="nav" aria-label="Sections"></nav>
+    <div class="sidebar-foot">
+      <p class="muted small" id="signed-in"></p>
+      <button id="signout" type="button" class="ghost">Sign out</button>
+    </div>
+  </aside>
+  <button id="scrim" type="button" aria-label="Close menu" hidden></button>
+  <div id="frame">
+    <header id="topbar">
+      <button id="menu" type="button" class="icon" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false">☰</button>
+      <h1 id="page-title">Kova Tower</h1>
+      <form id="search-form" role="search"><input id="search" type="search" placeholder="Search users, feedback, venues…" aria-label="Search everything" autocomplete="off"></form>
+      <button id="theme" type="button" class="icon" aria-label="Toggle dark mode">◐</button>
+    </header>
+    <div id="banner" role="alert" hidden></div>
+    <p id="notice" role="status" aria-live="polite" hidden></p>
+    <main id="main" tabindex="-1">
+      <section id="login" class="card login" hidden>
+        <h2>Sign in to Tower</h2>
+        <p class="muted">Internal console for Kova Maps. Access is checked on the server; only listed admins get past this screen.</p>
+        <button type="button" id="google-signin" class="primary">Sign in with Google</button>
+        <form id="login-form" class="stack">
+          <p class="muted small">Or get a one-time link by email:</p>
+          <label>Email<input id="email" type="email" autocomplete="email" required></label>
+          <button id="send-link">Send magic link</button>
+        </form>
+      </section>
+      <div id="outlet"></div>
+    </main>
+  </div>
 </div>
-</main>
-<script>
-'use strict';
-window.addEventListener('DOMContentLoaded', async () => {
-  const $ = id => document.getElementById(id);
-  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const date = value => value ? new Date(value).toLocaleString() : 'Never';
-  const fail = error => { $('banner').textContent = error.message || String(error); $('banner').hidden = false; };
-  const notice = text => { $('notice').textContent = text; };
-  const unwrap = result => { if (result.error) throw result.error; return result.data; };
-  const safeURL = value => { try { const u = new URL(value); return ['https:', 'http:'].includes(u.protocol) ? u.href : null; } catch { return null; } };
-  const contact = value => { const v = String(value || '').trim(); if (!v) return 'Not provided'; return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? `<a href="mailto:${esc(encodeURIComponent(v))}?subject=${encodeURIComponent('Re: your Kova Maps feedback')}">${esc(v)}</a>` : esc(v); };
-  const link = (url, label) => { const safe = safeURL(url); return safe ? `<a href="${esc(safe)}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>` : esc(label); };
-  const table = (headers, rows) => rows.length ? `<table><thead><tr>${headers.map(h => `<th scope="col">${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(cells => `<tr>${cells.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>` : '<p class="empty">No results.</p>';
-  const config = window.KOVA_SUPABASE;
-  if (!window.supabase || !config?.url || !config?.anonKey || config.anonKey === 'REPLACE_ME') {
-    fail(new Error('Setup required: set the public anon key in admin/config.js and ensure the Supabase client loaded.'));
-    $('send-link').disabled = true; return;
-  }
-  const db = window.supabase.createClient(config.url, config.anonKey);
-  const names = ['users','feedback','reports','venues','feeds'];
-  const pages = Object.fromEntries(names.map(n => [n, {offset:0, version:0}]));
-  let authorized = false, epoch = 0, currentUser = null;
-  let reportSince = new Date(Date.now() - 7*86400000).toISOString();
-  function clearPrivate() {
-    authorized = false; currentUser = null; epoch++;
-    $('dashboard').hidden = true; $('session-controls').hidden = true; $('login').hidden = false;
-    $('stats').replaceChildren(); $('breakdowns').replaceChildren();
-    names.forEach(n => { pages[n].version++; pages[n].offset = 0; $(n+'-list').replaceChildren(); $(n+'-page').textContent = ''; });
-    $('feedback-badge').hidden = true; $('trend').replaceChildren();
-    if (typeof resetVenueForm === 'function') resetVenueForm();
-  }
-  async function stats() {
-    const token = epoch;
-    const s = unwrap(await db.rpc('admin_stats'));
-    if (!authorized || token !== epoch) return;
-    const tiles = [['Total users','total_users'],['New users · 7 days','users_new_7d'],['New users · 30 days','users_new_30d'],['Signed in · 7 days','users_signed_in_7d'],['Venues','venues_count'],['Feeds','feeds_count']];
-    $('stats').innerHTML = tiles.map(([label,key]) => `<div class="tile"><span>${esc(label)}</span><strong>${esc(s[key])}</strong></div>`).join('');
-    const fresh = Number(s.feedback_by_status?.new || 0); $('feedback-badge').textContent = fresh; $('feedback-badge').hidden = !fresh;
-    renderTrend(s);
-    $('breakdowns').innerHTML = [['Feedback by kind','feedback_by_kind'],['Feedback by status','feedback_by_status'],['Reports · 24 hours','reports_24h_by_kind'],['Reports · 7 days','reports_7d_by_kind']].map(([label,key]) => `<div><h3>${esc(label)}</h3>${table(['Category','Count'], Object.entries(s[key] || {}).map(([k,v]) => [esc(k),esc(v)]))}</div>`).join('');
-  }
-  // Series come from admin-v2.sql; older databases simply show no chart.
-  function renderTrend(s) {
-    const host = $('trend');
-    const series = [['Sign-ups · last 30 days','signups_by_day'],['Reports · last 30 days','reports_by_day']].filter(([,k]) => Array.isArray(s[k]));
-    if (!series.length) { host.replaceChildren(); return; }
-    host.innerHTML = series.map(([label,key]) => {
-      const days = s[key]; const max = Math.max(1,...days.map(d => +d.n)); const total = days.reduce((a,d) => a+ +d.n,0);
-      const w = 600, h = 100, pad = 2, bw = w/days.length;
-      const bars = days.map((d,i) => { const bh = Math.round(+d.n/max*(h-14)); const y = h-bh; const day = new Date(d.day+'T00:00:00');
-        return `<rect x="${(i*bw+pad).toFixed(1)}" y="${y}" width="${(bw-pad*2).toFixed(1)}" height="${bh}" rx="2"><title>${esc(day.toLocaleDateString(undefined,{month:'short',day:'numeric'}))}: ${esc(d.n)}</title></rect>`; }).join('');
-      const first = new Date(days[0].day+'T00:00:00'), last = new Date(days[days.length-1].day+'T00:00:00');
-      const fmt = d => d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
-      return `<div class="chart"><h3>${esc(label)} <span class="muted">· ${esc(total)} total, peak ${esc(max)}/day</span></h3><svg viewBox="0 0 ${w} ${h+14}" role="img" aria-label="${esc(label)}, ${esc(total)} total"><line x1="0" y1="${h}" x2="${w}" y2="${h}"/>${bars}<text class="axis" x="0" y="${h+12}">${esc(fmt(first))}</text><text class="axis" x="${w}" y="${h+12}" text-anchor="end">${esc(fmt(last))}</text></svg><details><summary>Show as table</summary>${table(['Day','Count'],days.filter(d => +d.n).map(d => [esc(d.day),esc(d.n)]))}</details></div>`;
-    }).join('');
-  }
-  function query(name) {
-    if (name === 'users') {
-      let q = db.rpc('admin_user_overview').order('last_sign_in_at',{ascending:$('user-sort').value === 'asc',nullsFirst:false}).order('user_id');
-      const search = $('user-search').value.trim();
-      if (search) q = q.ilike('email', '%'+search.replace(/[\\%_]/g, '\\$&')+'%');
-      return q;
-    }
-    if (name === 'feedback') {
-      let q = db.from('feedback').select('*').order('created_at',{ascending:false}).order('id');
-      if ($('feedback-kind').value) q = q.eq('kind',$('feedback-kind').value);
-      if ($('feedback-status').value) q = q.eq('status',$('feedback-status').value);
-      const search = $('feedback-search').value.trim();
-      if (search) q = q.ilike('message', '%'+search.replace(/[\\%_]/g, '\\$&')+'%');
-      return q;
-    }
-    if (name === 'reports') {
-      let q = db.from('traffic_reports').select('*').gte('created_at',reportSince).order('created_at',{ascending:false}).order('id');
-      if ($('report-kind').value) q = q.eq('kind',$('report-kind').value);
-      return q;
-    }
-    if (name === 'venues') return db.from('venues').select('*').order('short_name');
-    return db.from('incident_feeds').select('*').order('state').order('url');
-  }
-  async function load(name, offset = 0) {
-    if (!authorized) return;
-    const p = pages[name], version = ++p.version, token = epoch;
-    const more = document.querySelector(`[data-more="${name}"]`);
-    more.disabled = true;
-    try {
-      // Replace each page rather than accumulating unbounded DOM rows.
-      const rows = unwrap(await query(name).range(offset,offset+199));
-      if (token !== epoch || version !== p.version || !authorized) return;
-      p.offset = offset;
-      render(name,rows);
-      $(name+'-page').textContent = rows.length ? `Rows ${offset+1}–${offset+rows.length} · up to 200 per page` : 'No more results. Use Refresh to return to the first page.';
-      more.disabled = rows.length < 200;
-    } catch (error) { if (token === epoch && version === p.version) { fail(error); more.disabled = false; } }
-  }
-  function toggle(row, key) { return `<input type="checkbox" aria-label="Enabled: ${esc(row.name)}" data-toggle="${esc(row[key])}" ${row.enabled ? 'checked' : ''}>`; }
-  function render(name, rows) {
-    const host = $(name+'-list');
-    if (name === 'users') host.innerHTML = table(['Email / ID','Provider','Created','Last sign-in','Reports','Sync'],rows.map(r => [`${esc(r.email || 'No email')}<br><small>${esc(r.user_id)}</small>`,esc(r.provider),esc(date(r.created_at)),esc(date(r.last_sign_in_at)),esc(r.reports_count),r.has_sync ? 'Saved · '+esc(date(r.sync_updated_at))+(r.favorites_count != null ? `<br><small>${esc(r.favorites_count)} favorites · ${esc(r.recents_count)} recents</small>` : '') : 'No snapshot']));
-    if (name === 'reports') host.innerHTML = table(['Kind','Time','Location','User'],rows.map(r => [esc(r.kind),esc(date(r.created_at)),link('https://maps.apple.com/?ll='+encodeURIComponent(r.latitude+','+r.longitude),r.latitude+', '+r.longitude),esc(r.user_id)]));
-    if (name === 'venues') {
-      host.innerHTML = table(['Short name','Name','Location','Radius','Kind','Sources','Enabled',''],rows.map((r,i) => [esc(r.short_name),esc(r.name),link('https://maps.apple.com/?ll='+encodeURIComponent(r.latitude+','+r.longitude),r.latitude+', '+r.longitude),esc(r.radius_m)+' m',esc(r.kind),esc((r.sources || []).join(', ')),toggle(r,'short_name'),`<span class="row-actions"><button type="button" data-edit="${i}">Edit</button></span>`]));
-      host.querySelectorAll('[data-edit]').forEach(el => el.onclick = () => editVenue(rows[+el.dataset.edit]));
-    }
-    if (name === 'feeds') host.innerHTML = table(['State','Name','Format','Feed','Terms','Enabled'],rows.map(r => [esc(r.state),esc(r.name),esc(r.format),link(r.url,'Feed URL'),r.terms_url ? link(r.terms_url,'Terms') : '—',toggle(r,'url')]));
-    if (name === 'feedback') {
-      host.innerHTML = rows.length ? rows.map((r,i) => {
-        const d = r.diagnostics || {};
-        return `<article class="feedback-card"><h3>${esc(r.kind)} · ${esc(date(r.created_at))}</h3><p class="message">${esc(r.message)}</p><p class="muted">Contact: ${contact(r.contact)} · User: ${esc(r.user_id || 'Anonymous')}</p><p class="muted">App: ${esc(d.app_version ?? d.appVersion ?? '—')} · Device: ${esc(d.device_model ?? d.deviceModel ?? d.device ?? '—')} · OS: ${esc(d.os_version ?? d.osVersion ?? '—')}</p><div class="feedback-meta"><label>Status<select data-status="${i}">${['new','seen','done'].map(s => `<option ${s === r.status ? 'selected' : ''}>${s}</option>`).join('')}</select></label>${r.screenshot_path ? `<button data-shot="${i}">Open screenshot (5 min link)</button>` : ''}</div><label>Admin note (saves when you leave the field)<textarea data-note="${i}">${esc(r.admin_note || '')}</textarea></label><small data-saved="${i}" role="status"></small></article>`;
-      }).join('') : '<p class="empty">No feedback matches these filters.</p>';
-      host.querySelectorAll('[data-status]').forEach(el => el.onchange = () => saveFeedback(rows[+el.dataset.status],el,'status'));
-      host.querySelectorAll('[data-note]').forEach(el => el.onblur = () => { const r=rows[+el.dataset.note]; if (el.value !== (r.admin_note || '')) saveFeedback(r,el,'admin_note'); });
-      host.querySelectorAll('[data-shot]').forEach(el => el.onclick = async () => {
-        el.disabled = true; const token = epoch;
-        try {
-          const data = unwrap(await db.storage.from('feedback-screenshots').createSignedUrl(rows[+el.dataset.shot].screenshot_path,300));
-          if (!authorized || token !== epoch || !el.isConnected) return;
-          const a = document.createElement('a'); a.href = safeURL(data.signedUrl) || '#'; a.target='_blank'; a.rel='noopener noreferrer'; a.textContent='View screenshot · expires in 5 minutes'; el.replaceWith(a);
-        } catch(e) { fail(e); el.disabled=false; }
-      });
-    }
-    host.querySelectorAll('[data-toggle]').forEach(el => el.onchange = async () => {
-      const value = el.checked; el.disabled=true;
-      try { unwrap(await db.from(name === 'feeds' ? 'incident_feeds' : 'venues').update({enabled:value,updated_at:new Date().toISOString()}).eq(name === 'feeds' ? 'url' : 'short_name',el.dataset.toggle).select().single()); notice('Enabled setting saved.'); }
-      catch(e) { el.checked=!value; fail(e); } finally { el.disabled=false; }
-    });
-  }
-  let editingVenue = null;
-  function editVenue(row) {
-    const form = $('venue-form'); editingVenue = row.short_name;
-    form.short_name.value = row.short_name; form.short_name.readOnly = true;
-    form.name.value = row.name; form.latitude.value = row.latitude; form.longitude.value = row.longitude; form.radius_m.value = row.radius_m; form.kind.value = row.kind; form.sources.value = (row.sources || []).join(', ');
-    $('venue-summary').textContent = 'Edit venue · '+row.short_name; $('venue-submit').textContent = 'Save venue'; $('venue-cancel').hidden = false;
-    $('venue-details').open = true; $('venue-details').scrollIntoView({behavior:'smooth',block:'start'}); form.name.focus();
-  }
-  function resetVenueForm() {
-    const form = $('venue-form'); editingVenue = null; form.reset(); form.short_name.readOnly = false;
-    $('venue-summary').textContent = 'Add venue'; $('venue-submit').textContent = 'Add venue'; $('venue-cancel').hidden = true;
-  }
-  async function saveFeedback(row, el, field) {
-    const value=el.value, token=epoch;
-    el.disabled=true;
-    try {
-      unwrap(await db.from('feedback').update({[field]:value}).eq('id',row.id).select('id').single());
-      if (token !== epoch || !authorized) return;
-      row[field]=value; el.closest('article').querySelector('[data-saved]').textContent='Saved '+new Date().toLocaleTimeString();
-      if (field === 'status') { await stats(); if ($('feedback-status').value) await load('feedback'); }
-    } catch(e) { fail(e); if (field === 'status') el.value=row.status; }
-    finally { el.disabled=false; }
-  }
-  const sinceForRange = () => new Date(Date.now()-Number($('report-range').value)*86400000).toISOString();
-  async function refresh() {
-    $('banner').hidden=true; reportSince=sinceForRange();
-    await Promise.all([stats().catch(fail),...names.map(n => load(n))]);
-  }
-  async function acceptSession(session) {
-    if (!session) { clearPrivate(); return; }
-    if (authorized && currentUser === session.user.id) return;
-    clearPrivate(); const token=epoch;
-    try {
-      const admin = unwrap(await db.rpc('is_admin'));
-      if (token !== epoch) return;
-      if (!admin) { clearPrivate(); notice('Not an admin'); unwrap(await db.auth.signOut()); return; }
-      authorized=true; currentUser=session.user.id;
-      $('login').hidden=true; $('dashboard').hidden=false; $('session-controls').hidden=false;
-      notice('Signed in as '+(session.user.email || session.user.id));
-      await refresh();
-    } catch(e) { if (token === epoch) { clearPrivate(); fail(e); } }
-  }
-  $('google-signin').onclick = async () => {
-    $('banner').hidden=true;
-    try {
-      const redirect = new URL('./',location.href); redirect.hash=''; redirect.search='';
-      unwrap(await db.auth.signInWithOAuth({provider:'google',options:{redirectTo:redirect.href}}));
-    } catch(error) { fail(error); }
-  };
-  $('login-form').onsubmit = async e => {
-    e.preventDefault(); $('send-link').disabled=true; $('banner').hidden=true;
-    try {
-      const redirect = new URL('./',location.href); redirect.hash=''; redirect.search='';
-      unwrap(await db.auth.signInWithOtp({email:$('email').value.trim(),options:{emailRedirectTo:redirect.href}}));
-      notice('Check your email for the sign-in link.');
-    } catch(error) { fail(error); } finally { $('send-link').disabled=false; }
-  };
-  $('signout').onclick = async () => { clearPrivate(); try { unwrap(await db.auth.signOut()); notice('Signed out.'); } catch(e) { fail(e); } };
-  $('refresh').onclick = refresh;
-  $('user-filter').onsubmit = e => { e.preventDefault(); load('users'); };
-  $('user-sort').onchange = () => load('users');
-  ['feedback-kind','feedback-status'].forEach(id => $(id).onchange=() => load('feedback'));
-  document.querySelectorAll('[data-more]').forEach(el => el.onclick=() => load(el.dataset.more,pages[el.dataset.more].offset+200));
-  $('venue-form').onsubmit = async e => {
-    e.preventDefault(); const form=e.currentTarget, button=form.querySelector('button'); button.disabled=true;
-    try {
-      const v=Object.fromEntries(new FormData(form));
-      ['short_name','name'].forEach(k => { v[k]=v[k].trim(); if (!v[k]) throw new Error(k+' is required.'); });
-      ['latitude','longitude','radius_m'].forEach(k => v[k]=Number(v[k]));
-      v.sources=v.sources.split(',').map(s => s.trim()).filter(Boolean);
-      if (!v.sources.length) throw new Error('Enter at least one source.');
-      if (editingVenue) {
-        delete v.short_name; v.updated_at = new Date().toISOString();
-        unwrap(await db.from('venues').update(v).eq('short_name',editingVenue).select('short_name').single()); notice('Venue saved.');
-      } else { unwrap(await db.from('venues').insert(v)); notice('Venue added.'); }
-      resetVenueForm(); await Promise.all([load('venues'),stats()]);
-    } catch(e) { fail(e); } finally { button.disabled=false; }
-  };
-  $('venue-cancel').onclick = resetVenueForm;
-  $('feed-form').onsubmit = async e => {
-    e.preventDefault(); const form=e.currentTarget, button=form.querySelector('button'); button.disabled=true;
-    try {
-      const f=Object.fromEntries(new FormData(form));
-      f.state=f.state.trim().toUpperCase(); f.name=f.name.trim(); f.url=f.url.trim(); f.terms_url=f.terms_url.trim() || null;
-      if (!safeURL(f.url)) throw new Error('Feed URL must be http(s).');
-      if (f.terms_url && !safeURL(f.terms_url)) throw new Error('Terms URL must be http(s).');
-      unwrap(await db.from('incident_feeds').insert(f)); form.reset(); notice('Feed added.'); await Promise.all([load('feeds'),stats()]);
-    } catch(e) { fail(e); } finally { button.disabled=false; }
-  };
-  $('feedback-filter').onsubmit = e => { e.preventDefault(); load('feedback'); };
-  ['report-range','report-kind'].forEach(id => $(id).onchange=() => { reportSince=sinceForRange(); load('reports'); });
-  // Do not await Supabase calls inside onAuthStateChange: schedule them after its auth lock releases.
-  db.auth.onAuthStateChange((event,session) => {
-    if (event === 'SIGNED_OUT') { clearPrivate(); return; }
-    if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') setTimeout(() => acceptSession(session),0);
-  });
-  try { const {data,error}=await db.auth.getSession(); if (error) throw error; await acceptSession(data.session); } catch(e) { fail(e); }
-});
-</script>
 </body>
 </html>

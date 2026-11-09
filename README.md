@@ -1,65 +1,43 @@
 # Kova Tower
 
-Static internal console for Kova Maps: https://tower.kovamaps.com/ (GitHub Pages, also reachable at https://xdaniel1.github.io/kova-admin/)
+Internal console for Kova Maps: https://tower.kovamaps.com/ (GitHub Pages from this repository; also reachable at https://xdaniel1.github.io/kova-admin/).
+
+Tower is a static site with no build step. `index.html` is the shell, `styles.css` the theme, and `js/` the app: `app.js` (sign-in, sidebar, hash router), `api.js` (every Supabase call), `records.js` (the notes/tags/history panel shared by record pages) and one module per page under `js/pages/`. It loads Supabase JS pinned to **2.49.1** from jsDelivr and the public project config from `config.js`. The page is public source; database permissions are the security boundary.
+
+## What it does
+
+- **Home** — greeting, headline numbers (users, sign-ins, reports, new feedback, venues, feeds, synced users, admins), what needs attention, latest activity, 30-day charts for sign-ups, reports and feedback, breakdowns and recent notes.
+- **Activity** — one timeline of sign-ups, sign-ins, traffic reports, feedback and every admin action, filterable, newest first, with "load older".
+- **Users** — directory with search (email or name), filters (admins, disabled, with sync, has reported) and sort. Each user has a profile page: account details and sign-in providers, synced favorites and recent searches (private data, shown for support), their reports and feedback, notes and tags, and the admin history for that account. Actions: disable (for N days or indefinitely) / enable, make or revoke admin, delete. Tower refuses to disable, delete or de-admin the signed-in account.
+- **Feedback** — inbox with kind/status filters and message search; a record page per item with diagnostics, a 5-minute signed screenshot link, status, a short triage note, a link to the sender, plus notes, tags and history. The sidebar badge is the count still in `new`.
+- **Reports** — traffic reports for the last 24 hours to 90 days, by kind, with Apple Maps links and reporter links; a record page per report.
+- **Venues** and **Incident feeds** — lists with inline enable toggles, add forms, and record pages with editing (the short name / URL is the key and cannot change), notes, tags and history.
+- **Admins** — who can open Tower; grant by finding an existing account, revoke with one click.
+- **Search** — the box in the top bar searches users, feedback, venues, feeds, notes and tags at once. Clicking a tag anywhere searches for it.
+- Dark mode follows the system and can be toggled; the choice is remembered in this browser.
+
+Every record (user, feedback item, report, venue, feed) can carry **tags** (`lower-case-with-dashes`) and threaded **notes** visible only to admins. Notes, tags, triage changes, venue and feed edits and all account actions are written to an audit log by database triggers and functions, which is what the Activity page and each record's "Admin history" show.
 
 ## Setup
 
-1. Apply `waypoint-combined/supabase/schema.sql` if the base database has not been provisioned, then run `waypoint-combined/supabase/admin.sql` in the Supabase SQL Editor as the database owner. Do not rerun the base schema afterward: it revokes feedback read/update privileges that the admin migration grants. The admin migration is rerunnable.
-2. Replace `REPLACE_ME` in `config.js` with this project's **public anon key**. The URL is already configured. Never put a service-role key in this repository or page.
-3. In Supabase Authentication, enable email/magic-link sign-in and add the exact redirect URLs `https://tower.kovamaps.com/` and `https://xdaniel1.github.io/kova-admin/` to the allowed redirect URLs. Add the equivalent localhost `/admin/` URL only if testing locally. Keep the trailing slash.
-4. Ensure an Auth user exists with email `danielantigua06@gmail.com`. The SQL seed grants that account access; it emits a notice and does nothing if the account does not exist. In that case, use the page's magic-link flow to create/sign in to the account, then rerun `admin.sql` and sign in again. An unlisted account is shown “Not an admin” and signed out.
-5. Publish the files through the existing GitHub Pages deployment. There is no build step. For local use, serve the repository with a static HTTP server; do not open the page as a `file:` URL.
+1. Apply the app's `supabase/schema.sql` if the database has not been provisioned, then run `supabase/admin.sql` from the app repository (the waypoint-combined checkout) in the Supabase SQL Editor as the database owner. Do not rerun the base schema afterwards: it revokes feedback read/update privileges that the admin migration grants.
+2. Run **`supabase/admin-v3.sql` from this repository** the same way. It is rerunnable and adds the notes, tags and audit tables, the account-action functions (`admin_set_banned`, `admin_delete_user`, `admin_grant`, `admin_revoke`), `admin_search`, `admin_activity`, `admin_user_detail`, and the extended `admin_stats` / `admin_user_overview`. Until it is applied Tower still works for the original features and shows a "Database update needed" card where it needs the new pieces.
+3. `config.js` holds the project URL and the **public anon key**. Never put a service-role key in this repository or page.
+4. In Supabase Authentication, enable Google (the "Kova Admin" web client) and email magic links, and add the exact redirect URLs `https://tower.kovamaps.com/` and `https://xdaniel1.github.io/kova-admin/` (trailing slash) to the allowed list.
+5. The first admin is seeded by `admin.sql` (`danielantigua06@gmail.com`). After that, add admins from the Admins page. An unlisted account is told it is not an admin and signed out.
+6. Publish by pushing to `main`; GitHub Pages serves the repository root. For local use, serve the folder with any static HTTP server (the page uses ES modules, so a `file:` URL will not work).
 
-6. Optionally run `supabase/admin-v2.sql` (in this repository) after `admin.sql`. It adds 30-day sign-up and report series to `admin_stats()` and favorites/recents counts to `admin_user_overview()`. Without it the Overview shows no daily charts and the Users table shows no snapshot sizes; everything else works.
+## How access works
 
-## How it works
+Sign-in restores a Supabase session and calls `is_admin()`. Only rows in `public.admin_users` pass. Every `admin_*` function checks `is_admin()` again on the server, runs as the function owner with an empty search path, and the annotation tables are covered by RLS policies that only admins satisfy. `admin_users` and `admin_audit_log` cannot be written by browser roles; the audit log is written only by triggers and the functions. Deleting a user removes the auth row and cascades to their sync snapshot and traffic reports; their feedback stays with `user_id` cleared. Disabling sets `banned_until`, which Supabase Auth enforces at sign-in and token refresh.
 
-`index.html` contains the UI, CSS and vanilla JavaScript. It loads Supabase JS pinned to **2.49.1** from jsDelivr and the public project config from `config.js`. The page is public source code; database permissions are the security boundary.
+Existing iOS policies remain intact: signed-in users still read traffic reports, users manage their own snapshot, and venues/feeds remain public app data.
 
-Magic links redirect to this page, and the client restores the Supabase session. It checks `is_admin()` before showing the console, then calls the guarded `admin_stats()` and `admin_user_overview()` RPCs. Both RPCs independently reject non-admin callers. Security-definer functions have an empty search path and fully qualified database references. `admin_users` cannot be read or modified by browser roles. Signing out clears displayed private data; Supabase persists sessions in this browser, so sign out on shared devices.
+## Removing an admin by hand
 
-- Overview shows user counts, sign-in counts, feedback counts by kind/status, recent reports by kind, and venue/feed totals. These reflect retained database rows; purged traffic reports are not historical analytics. With `admin-v2.sql` applied it also draws sign-ups and reports per UTC day for the last 30 days (hover a bar for the value, or expand the table view). The Feedback link in the section nav shows the count of feedback still in `new`.
-- Users supports server-side email substring search and last-sign-in sorting (never signed in appears last). Sync status comes from `sync_snapshots.updated_at`, with favorites/recents counts when `admin-v2.sql` is applied; the schema stores `favorites` and `recents`, not a `payload` column. Admin SELECT permission includes those contents, though this console only displays sync status.
-- Feedback is newest first, with server-side kind/status filters and a message substring search. A contact that looks like an email address becomes a mailto link. App version, device and OS come from `diagnostics.app_version`, `diagnostics.device_model`, and `diagnostics.os_version`. Status saves on change; notes save on blur, with per-item confirmation. Failed saves show a banner; note text remains available for retry. Screenshot buttons create a private `feedback-screenshots` signed link valid for 300 seconds; click the resulting link to view. Anyone possessing a generated link can use it until expiry.
-- Reports covers the last 24 hours, 7 days or 30 days as of refresh (default 7 days), optionally filtered by kind, with Apple Maps coordinate links.
-- Venues supports insertion, editing (Edit fills the form; the short name is the key and cannot change) and enabled toggles. Sources is a comma-separated list stored as `text[]`. Feeds supports insertion (WZDx only for now) and enabled toggles. Writes also update `updated_at`.
-- Each list fetches and displays at most 200 rows. **Load more replaces the current page** with the next 200, keeping the UI bounded. Refresh returns all lists to page one; searching/filtering resets the relevant list. Ordering includes a unique tie-breaker. Concurrent inserts/deletes can shift offset pagination; refresh for a fresh view. A full final page may require one more click to discover the end.
-
-Feedback table grants allow updates only to `status` and `admin_note`, and insert grants exclude these admin fields. RLS restricts these updates and all private feedback/screenshot reads to admins. Existing iOS policies remain intact: signed-in users can still read traffic reports, users manage their own snapshots, and venues/feeds remain public app data. “Only admins” applies to the console's private user directory, cross-user sync access and feedback, not to removing the app's existing public data access. Admin INSERT/UPDATE policies also cover feeds for future tooling. No client can grant itself admin access.
-
-## Add or remove another admin
-
-Have the person create an Auth account first. In the **Supabase SQL Editor**, run (replace the email):
+If the console is ever locked out, in the SQL Editor:
 
 ```sql
-insert into public.admin_users (user_id)
-select id from auth.users where email = 'another-admin@example.com'
-on conflict (user_id) do nothing;
+delete from public.admin_users where user_id = (select id from auth.users where email = 'person@example.com');
+insert into public.admin_users (user_id) select id from auth.users where email = 'you@example.com' on conflict do nothing;
 ```
-
-Verify that the account existed and the grant was created:
-
-```sql
-select u.id, u.email, a.added_at
-from public.admin_users a join auth.users u on u.id = a.user_id;
-```
-
-To revoke access:
-
-```sql
-delete from public.admin_users
-where user_id in (select id from auth.users where email = 'another-admin@example.com');
-```
-
-RLS and RPC checks enforce revocation on subsequent requests; already displayed data and existing signed screenshot URLs cannot be recalled. Removing the seeded developer and rerunning `admin.sql` grants that developer access again.
-
-## Verification before use
-
-Implementation checks cover JavaScript syntax and HTML/schema references. SQL has not been executed, and live authentication, RLS, Storage links and browser rendering have not been verified. After configuring the project, test:
-
-1. Signed-out/non-admin RPCs reject access; feedback and screenshots cannot be read; non-admin venue/feed updates are rejected.
-2. The seeded developer can view all sections, page/search/filter, update triage fields, open a screenshot, add a venue and toggle a feed.
-3. Feedback insertion still works from the iOS app and cannot set `status` or `admin_note`; feedback content cannot be overwritten through the dashboard role.
-4. Sign out removes displayed data. Check mobile widths and both OS color schemes.
-
-If the live schema has extra policies or grants beyond `schema.sql`, review those too: permissive PostgreSQL RLS policies combine with OR.
