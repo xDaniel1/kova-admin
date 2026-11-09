@@ -51,7 +51,7 @@ export default async function controls(ctx) {
   const endpoint = `${api.client().supabaseUrl || window.KOVA_SUPABASE.url}/rest/v1/app_config?select=key,value`;
   ctx.el.innerHTML = html`
     <section class="card" style="margin-bottom:18px"><div class="card-head"><h2>How the apps read these</h2></div>
-      <p class="muted small" style="margin:0">Public, read-only JSON at <code>${endpoint}</code> with the anon key. The iOS and web apps fetch it at launch and after returning to the foreground. Changes are audited; see each control's history below.</p></section>
+      <p class="muted small" style="margin:0">Public, read-only JSON at <code>${endpoint}</code> with the anon key. The iOS, Android and web apps fetch it at launch and on returning to the foreground, and fall back to normal behaviour on any error. The full contract is <a href="https://github.com/xDaniel1/kova-admin/blob/main/docs/app-controls-contract.md" target="_blank" rel="noopener noreferrer">docs/app-controls-contract.md</a>. Changes are audited; see each control's history below.</p></section>
     <div class="grid two">${rows.slice().sort((a, b) => ORDER.indexOf(a.key) - ORDER.indexOf(b.key)).map(r => { const s = SECTIONS[r.key]; const v = r.value || {}; return html`
       <section class="card control" data-key="${r.key}">
         <div class="card-head"><div><h2>${s?.title || r.key}</h2><p class="muted small" style="margin:2px 0 0">${s?.blurb || r.description || ''}</p></div>${s ? s.status(v) : ''}</div>
