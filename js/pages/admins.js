@@ -1,6 +1,6 @@
 // Who can open Tower. Granting and revoking go through admin_grant / admin_revoke.
 'use strict';
-import { html, raw, qs, qsa, fmtDate, rel, href, table, badge, upgradeCard, debounce } from '../util.js';
+import { html, raw, qs, qsa, fmtDate, rel, href, table, badge, upgradeCard, debounce, empty } from '../util.js';
 import * as api from '../api.js';
 
 export default async function admins(ctx) {
@@ -21,7 +21,7 @@ export default async function admins(ctx) {
     try {
       const res = await api.search(q); if (!ctx.alive() || find.value.trim() !== q) return;
       const users = res.users || [];
-      matches.innerHTML = users.length ? table(['Account', 'Last sign-in', ''], users.map(u => [html`${u.display_name ? html`<strong>${u.display_name}</strong><br>` : ''}${u.email || u.user_id}`, u.last_sign_in_at ? rel(u.last_sign_in_at) : 'Never', html`<button type="button" class="sm primary" data-grant="${u.user_id}" data-email="${u.email || u.user_id}">Grant admin</button>`])).s : '<p class="empty">No accounts match.</p>';
+      matches.innerHTML = users.length ? table(['Account', 'Last sign-in', ''], users.map(u => [html`${u.display_name ? html`<strong>${u.display_name}</strong><br>` : ''}${u.email || u.user_id}`, u.last_sign_in_at ? rel(u.last_sign_in_at) : 'Never', html`<button type="button" class="sm primary" data-grant="${u.user_id}" data-email="${u.email || u.user_id}">Grant admin</button>`])).s : empty('No accounts match.').s;
       qsa('[data-grant]', matches).forEach(b => b.onclick = async () => { if (!confirm(`Give ${b.dataset.email} full admin access to Tower?`)) return; b.disabled = true; try { await api.grantAdmin(b.dataset.grant); ctx.notice('Admin access granted.'); find.value = ''; matches.innerHTML = ''; await ctx.refreshStats(); await load(); } catch (err) { ctx.fail(err); b.disabled = false; } });
     } catch (e) { if (ctx.alive()) matches.innerHTML = e.needsUpgrade ? upgradeCard() : html`<p class="muted">${e.message}</p>`.s; }
   }, 300);

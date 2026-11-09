@@ -2,6 +2,7 @@
 // a default async render(ctx). Nothing private renders until is_admin() says yes.
 'use strict';
 import { $, qsa, html, raw, upgradeCard } from './util.js';
+import { icon } from './icons.js';
 import * as api from './api.js';
 import home from './pages/home.js';
 import activity from './pages/activity.js';
@@ -31,12 +32,12 @@ const routes = [
 ];
 
 const NAV = [
-  ['/', 'Home', '⌂'], ['/activity', 'Activity', '◷'],
+  ['/', 'Home', 'home'], ['/activity', 'Activity', 'activity'],
   ['group', 'Records'],
-  ['/users', 'Users', '◉'], ['/feedback', 'Feedback', '✉', 'feedback_new'], ['/reports', 'Reports', '⚠'],
-  ['/venues', 'Venues', '▦'], ['/feeds', 'Incident feeds', '⇅'],
+  ['/users', 'Users', 'users'], ['/feedback', 'Feedback', 'feedback', 'feedback_new'], ['/reports', 'Reports', 'reports'],
+  ['/venues', 'Venues', 'venues'], ['/feeds', 'Incident feeds', 'feeds'],
   ['group', 'Console'],
-  ['/admins', 'Admins', '★'],
+  ['/admins', 'Admins', 'admins'],
 ];
 
 export const state = { session: null, authorized: false, epoch: 0, stats: null, user: null };
@@ -51,6 +52,7 @@ function applyTheme(next) {
   if (next) document.documentElement.dataset.theme = next; else delete document.documentElement.dataset.theme;
   try { next ? localStorage.setItem('tower-theme', next) : localStorage.removeItem('tower-theme'); } catch {}
 }
+$('theme').innerHTML = icon('theme'); $('menu').innerHTML = icon('menu'); $('search-form').insertAdjacentHTML('afterbegin', icon('search'));
 $('theme').onclick = () => {
   const dark = matchMedia('(prefers-color-scheme: dark)').matches;
   const current = document.documentElement.dataset.theme || (dark ? 'dark' : 'light');
@@ -67,9 +69,9 @@ export function renderNav() {
   const path = currentPath();
   const counts = { ...(state.stats || {}) };
   if (counts.feedback_new == null) counts.feedback_new = counts.feedback_by_status?.new;
-  $('nav').innerHTML = NAV.map(([p, label, icon, countKey]) => p === 'group'
+  $('nav').innerHTML = NAV.map(([p, label, iconName, countKey]) => p === 'group'
     ? html`<div class="group">${label}</div>`
-    : html`<a href="#${p}" ${raw(path === p || (p !== '/' && path.startsWith(p + '/')) ? 'aria-current="page"' : '')}><span class="ico" aria-hidden="true">${icon}</span>${label}${countKey && counts[countKey] ? html`<span class="badge accent count">${counts[countKey]}</span>` : ''}</a>`
+    : html`<a href="#${p}" ${raw(path === p || (p !== '/' && path.startsWith(p + '/')) ? 'aria-current="page"' : '')}><span class="ico">${raw(icon(iconName))}</span><span>${label}</span>${countKey && counts[countKey] ? html`<span class="badge accent count">${counts[countKey]}</span>` : ''}</a>`
   ).join('');
 }
 export async function refreshStats() {

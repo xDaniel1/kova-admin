@@ -1,6 +1,6 @@
 // Feedback inbox and the per-item record page.
 'use strict';
-import { html, raw, qs, qsa, fmtDate, rel, href, badge, isEmail, kindLabel, statusTone, upgradeCard } from '../util.js';
+import { html, raw, qs, qsa, fmtDate, rel, href, badge, isEmail, kindLabel, statusTone, upgradeCard, empty } from '../util.js';
 import * as api from '../api.js';
 import { annotations, auditList, tagChips } from '../records.js';
 
@@ -31,7 +31,7 @@ export default async function feedback(ctx) {
     if (!ctx.alive()) return;
     list.innerHTML = rows.length ? rows.map(r => { const d = r.diagnostics || {}; return html`<a class="feedback-item" href="${href('/feedback/' + r.id)}">
       <div class="top">${badge(kindLabel[r.kind] || r.kind)}${badge(r.status, statusTone[r.status])}<span title="${fmtDate(r.created_at)}">${rel(r.created_at)}</span>${r.contact ? html`<span>· ${r.contact}</span>` : ''}${d.app_version || d.appVersion ? html`<span>· v${d.app_version || d.appVersion}</span>` : ''}${r.screenshot_path ? html`<span>· 📎 screenshot</span>` : ''}${tagChips(tags[r.id])}</div>
-      <p class="text">${r.message}</p>${r.admin_note ? html`<p class="muted small" style="margin:4px 0 0">Triage: ${r.admin_note}</p>` : ''}</a>`; }).join('') : '<p class="empty">No feedback matches these filters.</p>';
+      <p class="text">${r.message}</p>${r.admin_note ? html`<p class="muted small" style="margin:4px 0 0">Triage: ${r.admin_note}</p>` : ''}</a>`; }).join('') : empty('No feedback matches these filters.').s;
     more.hidden = page.length < api.PAGE; more.disabled = false; status.textContent = `${rows.length} shown`;
   }
   more.onclick = () => load(rows.length).catch(ctx.fail);

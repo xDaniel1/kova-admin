@@ -7,6 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="color-scheme" content="light dark">
 <title>Kova Tower</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="./styles.css">
 <script>
 // Apply the saved theme before first paint so there is no flash.
@@ -30,15 +33,16 @@ try { const t = localStorage.getItem('tower-theme'); if (t) document.documentEle
   <button id="scrim" type="button" aria-label="Close menu" hidden></button>
   <div id="frame">
     <header id="topbar">
-      <button id="menu" type="button" class="icon" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false">☰</button>
+      <button id="menu" type="button" class="icon" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false"></button>
       <h1 id="page-title">Kova Tower</h1>
       <form id="search-form" role="search"><input id="search" type="search" placeholder="Search users, feedback, venues…" aria-label="Search everything" autocomplete="off"></form>
-      <button id="theme" type="button" class="icon" aria-label="Toggle dark mode">◐</button>
+      <button id="theme" type="button" class="icon" aria-label="Toggle dark mode"></button>
     </header>
     <div id="banner" role="alert" hidden></div>
     <p id="notice" role="status" aria-live="polite" hidden></p>
     <main id="main" tabindex="-1">
       <section id="login" class="card login" hidden>
+        <div class="login-brand"><span class="brand-mark" aria-hidden="true">K</span><span class="eyebrow">Kova Maps</span></div>
         <h2>Sign in to Tower</h2>
         <p class="muted">Internal console for Kova Maps. Access is checked on the server; only listed admins get past this screen.</p>
         <button type="button" id="google-signin" class="primary">Sign in with Google</button>

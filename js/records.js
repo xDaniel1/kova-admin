@@ -1,8 +1,9 @@
 // The annotation panel every record page shares: tags as chips, then threaded notes.
 // Both live in admin_notes / admin_tags, which exist only after admin-v3.sql.
 'use strict';
-import { html, raw, qsa, qs, fmtDate, rel, href, upgradeCard } from './util.js';
+import { html, raw, qsa, qs, fmtDate, rel, href, upgradeCard, empty } from './util.js';
 import * as api from './api.js';
+import { icon } from './icons.js';
 
 export const typeLabel = { user: 'User', feedback: 'Feedback', report: 'Report', venue: 'Venue', feed: 'Feed' };
 export const recordHref = (type, id) => href(`/${type === 'feedback' ? 'feedback' : type + 's'}/${encodeURIComponent(id)}`);
@@ -32,7 +33,7 @@ export async function annotations(el, type, id, ctx) {
         <div class="meta"><strong>${who(n.author)}</strong><span title="${fmtDate(n.created_at)}">${rel(n.created_at)}${n.updated_at !== n.created_at ? ' · edited' : ''}</span>
           <span class="actions"><button type="button" class="sm ghost" data-edit>Edit</button><button type="button" class="sm ghost" data-delete>Delete</button></span></div>
         <p class="body">${n.body}</p>
-      </article>`) : html`<p class="empty">No notes yet.</p>`}</div>`.s;
+      </article>`) : empty('No notes yet.')}</div>`.s;
 
   const rerender = () => annotations(el, type, id, ctx);
   qs('[data-tag-form]', el).onsubmit = async e => {
@@ -68,9 +69,10 @@ export async function auditList(el, type, id, ctx) {
   if (!ctx.alive()) return;
   const label = await api.labels(rows.map(r => r.actor));
   if (!ctx.alive()) return;
-  el.innerHTML = rows.length ? html`<ul class="timeline">${rows.map(r => html`<li class="ev"><span class="ico" aria-hidden="true">${actionIcon(r.action)}</span><span class="what"><strong>${actionText(r.action)}</strong> <span class="muted">by ${label(r.actor)?.email || 'an admin'}</span>${detailText(r.details)}</span><span class="when" title="${fmtDate(r.at)}">${rel(r.at)}</span></li>`)}</ul>`.s : '<p class="empty">No admin actions recorded for this record.</p>';
+  el.innerHTML = rows.length ? html`<ul class="timeline">${rows.map(r => html`<li class="ev">${actionIcon(r.action)}<span class="what"><strong>${actionText(r.action)}</strong> <span class="muted">by ${label(r.actor)?.email || 'an admin'}</span>${detailText(r.details)}</span><span class="when" title="${fmtDate(r.at)}">${rel(r.at)}</span></li>`)}</ul>`.s : empty('No admin actions recorded for this record.').s;
 }
-export const actionIcon = a => ({ signup: '✦', signin: '→', report: '⚠', feedback: '✉' }[a] || (a?.startsWith('note') ? '✎' : a?.startsWith('tag') ? '#' : a?.startsWith('user') ? '◉' : a?.startsWith('admin') ? '★' : a?.startsWith('venue') ? '▦' : a?.startsWith('feed') ? '⇅' : '•'));
+export const actionKind = a => ['signup', 'signin', 'report', 'feedback'].includes(a) ? a : a?.startsWith('note') ? 'note' : a?.startsWith('tag') ? 'tag' : a?.startsWith('user') ? 'user' : a?.startsWith('admin') ? 'admins' : a?.startsWith('venue') ? 'venues' : a?.startsWith('feed') ? 'feeds' : 'dot';
+export const actionIcon = a => { const k = actionKind(a); return html`<span class="ico tone-${k}">${raw(icon(k))}</span>`; };
 export const actionText = a => ({
   signup: 'Signed up', signin: 'Signed in', report: 'Reported', feedback: 'Sent feedback',
   note_added: 'Note added', note_edited: 'Note edited', note_deleted: 'Note deleted', tag_added: 'Tag added', tag_removed: 'Tag removed',

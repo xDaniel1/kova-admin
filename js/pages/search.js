@@ -1,6 +1,6 @@
 // One search across users, feedback, venues, feeds, notes and tags.
 'use strict';
-import { html, raw, qs, fmtDate, rel, href, badge, kindLabel, statusTone, upgradeCard } from '../util.js';
+import { html, raw, qs, fmtDate, rel, href, badge, kindLabel, statusTone, upgradeCard, empty } from '../util.js';
 import * as api from '../api.js';
 import { recordHref, typeLabel } from '../records.js';
 
@@ -20,6 +20,6 @@ export default async function search(ctx) {
     ${group('Incident feeds', r.feeds || [], f => html`<a class="feedback-item" href="${href('/feeds/' + encodeURIComponent(f.url))}"><strong>${f.state} · ${f.name}</strong> <span class="muted small">${f.url}</span></a>`)}
     ${group('Notes', r.notes || [], n => html`<a class="feedback-item" href="${recordHref(n.target_type, n.target_id)}"><div class="top">${badge(typeLabel[n.target_type])}<span>${rel(n.created_at)}</span></div><p class="text">${n.body}</p></a>`)}
     ${group('Tagged records', r.tags || [], t => html`<a class="feedback-item" href="${recordHref(t.target_type, t.target_id)}"><span class="chip">${t.tag}</span> ${typeLabel[t.target_type]} <span class="mono muted">${t.target_id}</span></a>`)}
-    ${total ? '' : html`<p class="empty">Try a different spelling, an email address, a tag name or a user ID.</p>`}
+    ${total ? '' : empty('Try a different spelling, an email address, a tag name or a user ID.')}
   </section>`.s;
 }

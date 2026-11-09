@@ -1,6 +1,6 @@
 // Everything that happened, newest first: sign-ups, sign-ins, reports, feedback and admin actions.
 'use strict';
-import { html, raw, qs, qsa, fmtDate, rel, dayKey, dayLabel, href, upgradeCard } from '../util.js';
+import { html, raw, qs, qsa, fmtDate, rel, dayKey, dayLabel, href, upgradeCard, empty } from '../util.js';
 import * as api from '../api.js';
 import { actionIcon, actionText, detailText, recordHref } from '../records.js';
 
@@ -18,11 +18,11 @@ export function eventItem(ev, label) {
     : ev.type === 'report' ? html`<a href="${target}"><strong>${ev.summary}</strong> reported</a> <span class="muted">by ${who}</span>`
     : ev.type === 'feedback' ? html`<a href="${target}">${ev.summary}</a> <span class="muted">from ${ev.actor ? who : 'anonymous'}</span>`
     : html`<a href="${target}"><strong>${who}</strong></a> ${ev.type === 'signup' ? 'signed up' : 'signed in'}${detailText(ev.details)}`;
-  return html`<li class="ev"><span class="ico" aria-hidden="true">${actionIcon(ev.type)}</span><span class="what">${what}</span><span class="when" title="${fmtDate(ev.at)}">${rel(ev.at)}</span></li>`;
+  return html`<li class="ev">${actionIcon(ev.type)}<span class="what">${what}</span><span class="when" title="${fmtDate(ev.at)}">${rel(ev.at)}</span></li>`;
 }
 
 export function eventList(rows, label, { grouped = true } = {}) {
-  if (!rows.length) return html`<p class="empty">No activity matches.</p>`;
+  if (!rows.length) return empty('No activity matches.');
   if (!grouped) return html`<ul class="timeline">${rows.map(r => eventItem(r, label))}</ul>`;
   const out = []; let day = null;
   for (const r of rows) { const k = dayKey(r.at); if (k !== day) { day = k; out.push(html`<li class="day">${dayLabel(r.at)}</li>`); } out.push(eventItem(r, label)); }

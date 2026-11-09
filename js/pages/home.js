@@ -1,6 +1,6 @@
 // The landing page: greeting, headline numbers, what needs attention, latest activity, trends.
 'use strict';
-import { html, raw, qs, fmtNum, rel, fmtDate, href, barChart, badge, kindLabel, statusTone, upgradeCard } from '../util.js';
+import { html, raw, qs, fmtNum, rel, fmtDate, href, barChart, badge, kindLabel, statusTone, upgradeCard, empty } from '../util.js';
 import * as api from '../api.js';
 import { eventList } from './activity.js';
 import { recordHref, typeLabel } from '../records.js';
@@ -21,7 +21,7 @@ export default async function home(ctx) {
 
   const tile = (to, value, label, delta) => html`<a class="tile" href="${to}"><strong>${value}</strong><span>${label}</span>${delta ? html`<em class="delta">${delta}</em>` : ''}</a>`;
   ctx.el.innerHTML = html`
-    <div class="hero"><h1>Hi ${name}.</h1><p class="muted">${lineBits.join(' · ')}</p></div>
+    <div class="hero"><p class="eyebrow">${today}</p><h1>Hi ${name}.</h1><p class="muted">${lineBits.slice(1).join(' · ')}</p></div>
     <div class="tiles">
       ${tile(href('/users'), fmtNum(s.total_users), 'Users', s.users_new_7d ? `+${fmtNum(s.users_new_7d)} in 7d` : '')}
       ${tile(href('/users'), fmtNum(s.users_signed_in_24h ?? s.users_signed_in_7d), s.users_signed_in_24h != null ? 'Signed in · 24h' : 'Signed in · 7d')}
@@ -52,7 +52,7 @@ export default async function home(ctx) {
     try {
       const rows = (await api.feedback({ status: 'new' })).slice(0, 6);
       if (!ctx.alive()) return;
-      host.innerHTML = rows.length ? rows.map(r => html`<a class="feedback-item" href="${href('/feedback/' + r.id)}"><div class="top">${badge(kindLabel[r.kind] || r.kind)}<span>${rel(r.created_at)}</span>${r.contact ? html`<span>· ${r.contact}</span>` : ''}</div><p class="text">${r.message}</p></a>`).join('') : '<p class="empty">Inbox zero. No new feedback.</p>';
+      host.innerHTML = rows.length ? rows.map(r => html`<a class="feedback-item" href="${href('/feedback/' + r.id)}"><div class="top">${badge(kindLabel[r.kind] || r.kind)}<span>${rel(r.created_at)}</span>${r.contact ? html`<span>· ${r.contact}</span>` : ''}</div><p class="text">${r.message}</p></a>`).join('') : empty('Inbox zero. No new feedback.').s;
     } catch (e) { if (ctx.alive()) host.innerHTML = html`<p class="muted">${e.message}</p>`.s; }
   })());
   tasks.push((async () => {
@@ -72,7 +72,7 @@ export default async function home(ctx) {
       if (!ctx.alive()) return;
       const label = await api.labels(rows.map(r => r.author));
       if (!ctx.alive()) return;
-      host.innerHTML = rows.length ? rows.map(n => html`<article class="note"><div class="meta"><a href="${recordHref(n.target_type, n.target_id)}">${typeLabel[n.target_type]} · ${n.target_type === 'user' || n.target_type === 'feedback' || n.target_type === 'report' ? n.target_id.slice(0, 8) : n.target_id}</a><span>${label(n.author)?.email || 'admin'} · ${rel(n.created_at)}</span></div><p class="body">${n.body.length > 220 ? n.body.slice(0, 220) + '…' : n.body}</p></article>`).join('') : '<p class="empty">No notes yet. Open any record to add one.</p>';
+      host.innerHTML = rows.length ? rows.map(n => html`<article class="note"><div class="meta"><a href="${recordHref(n.target_type, n.target_id)}">${typeLabel[n.target_type]} · ${n.target_type === 'user' || n.target_type === 'feedback' || n.target_type === 'report' ? n.target_id.slice(0, 8) : n.target_id}</a><span>${label(n.author)?.email || 'admin'} · ${rel(n.created_at)}</span></div><p class="body">${n.body.length > 220 ? n.body.slice(0, 220) + '…' : n.body}</p></article>`).join('') : empty('No notes yet. Open any record to add one.').s;
     } catch (e) { if (!ctx.alive()) return; host.innerHTML = e.needsUpgrade ? '<p class="muted">Notes need <code>supabase/admin-v3.sql</code>.</p>' : html`<p class="muted">${e.message}</p>`.s; }
   })());
   await Promise.all(tasks);

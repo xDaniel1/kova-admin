@@ -57,7 +57,7 @@ export const href = (path, query) => {
 export const go = (path, query) => { location.hash = href(path, query).slice(1); };
 
 export const badge = (text, tone = '') => html`<span class="badge ${tone}">${text}</span>`;
-export const empty = (text = 'Nothing here yet.') => html`<p class="empty">${text}</p>`;
+export const empty = (text = 'Nothing here yet.') => html`<div class="empty"><span class="empty-mark" aria-hidden="true"></span><p>${text}</p></div>`;
 export const table = (headers, rows, opts = {}) => rows.length
   ? html`<div class="scroll"><table class="${opts.clickable ? 'clickable' : ''}"><thead><tr>${headers.map(h => html`<th scope="col">${h}</th>`)}</tr></thead><tbody>${rows.map((cells, i) => html`<tr ${opts.rowAttr ? raw(opts.rowAttr(i)) : ''}>${cells.map(c => html`<td>${c}</td>`)}</tr>`)}</tbody></table></div>`
   : empty(opts.emptyText);
@@ -69,8 +69,8 @@ export function barChart(label, days) {
   const w = 600, h = 100, pad = 2, bw = w / days.length;
   const fmt = d => new Date(d + 'T00:00:00').toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
   const bars = days.map((d, i) => { const bh = Math.round(+d.n / max * (h - 14)); return html`<rect x="${(i * bw + pad).toFixed(1)}" y="${h - bh}" width="${(bw - pad * 2).toFixed(1)}" height="${bh}" rx="2"><title>${fmt(d.day)}: ${d.n}</title></rect>`; });
-  return html`<div class="chart"><h3>${label} <span class="muted">· ${fmtNum(total)} total · peak ${fmtNum(max)}/day</span></h3>
-    <svg viewBox="0 0 ${w} ${h + 14}" role="img" aria-label="${label}, ${total} total"><line x1="0" y1="${h}" x2="${w}" y2="${h}"/>${bars}<text class="axis" x="0" y="${h + 12}">${fmt(days[0].day)}</text><text class="axis" x="${w}" y="${h + 12}" text-anchor="end">${fmt(days[days.length - 1].day)}</text></svg>
+  return html`<div class="chart"><div class="chart-head"><h3>${label}</h3><span class="muted small">${fmtNum(total)} total · peak ${fmtNum(max)}/day</span></div>
+    <svg viewBox="0 0 ${w} ${h + 14}" role="img" aria-label="${label}, ${total} total"><defs><linearGradient id="towerBar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent-2)"/><stop offset="1" stop-color="var(--accent-deep)"/></linearGradient></defs><line x1="0" y1="${h}" x2="${w}" y2="${h}"/>${bars}<text class="axis" x="0" y="${h + 12}">${fmt(days[0].day)}</text><text class="axis" x="${w}" y="${h + 12}" text-anchor="end">${fmt(days[days.length - 1].day)}</text></svg>
     <details><summary>Show as table</summary>${table(['Day', 'Count'], days.filter(d => +d.n).map(d => [d.day, d.n]), {emptyText: 'No activity in this window.'})}</details></div>`;
 }
 

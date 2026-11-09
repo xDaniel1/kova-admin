@@ -1,7 +1,7 @@
 // The user directory and per-user profile pages. Account actions call the admin_* functions,
 // which refuse to act on the signed-in admin's own account.
 'use strict';
-import { html, raw, qs, qsa, fmtDate, fmtNum, rel, href, badge, table, initials, mapsLink, kindLabel, statusTone, copy, upgradeCard, debounce } from '../util.js';
+import { html, raw, qs, qsa, fmtDate, fmtNum, rel, href, badge, table, initials, mapsLink, kindLabel, statusTone, copy, upgradeCard, empty } from '../util.js';
 import * as api from '../api.js';
 import { annotations, auditList } from '../records.js';
 
@@ -103,7 +103,7 @@ export async function userProfile(ctx) {
         panel.innerHTML = table(['Kind', 'When', 'Location', ''], rows.map(r => [r.kind, fmtDate(r.created_at), mapsLink(r.latitude, r.longitude), html`<a href="${href('/reports/' + r.id)}">Open</a>`]), { emptyText: 'No traffic reports from this user.' }).s;
       } else if (which === 'feedback') {
         const rows = await api.userFeedback(id); if (!ctx.alive()) return;
-        panel.innerHTML = rows.length ? rows.map(r => html`<a class="feedback-item" href="${href('/feedback/' + r.id)}"><div class="top">${badge(kindLabel[r.kind] || r.kind)}${badge(r.status, statusTone[r.status])}<span>${fmtDate(r.created_at)}</span></div><p class="text">${r.message}</p></a>`).join('') : '<p class="empty">No feedback from this user.</p>';
+        panel.innerHTML = rows.length ? rows.map(r => html`<a class="feedback-item" href="${href('/feedback/' + r.id)}"><div class="top">${badge(kindLabel[r.kind] || r.kind)}${badge(r.status, statusTone[r.status])}<span>${fmtDate(r.created_at)}</span></div><p class="text">${r.message}</p></a>`).join('') : empty('No feedback from this user.').s;
       } else if (which === 'notes') {
         await annotations(panel, 'user', id, ctx);
       } else if (which === 'history') {
