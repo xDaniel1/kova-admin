@@ -80,8 +80,9 @@ export function renderNav() {
     : html`<a href="#${p}" ${raw(path === p || (p !== '/' && path.startsWith(p + '/')) ? 'aria-current="page"' : '')}><span class="ico">${raw(icon(iconName))}</span><span>${label}</span>${countKey && counts[countKey] ? html`<span class="badge accent count">${counts[countKey]}</span>` : ''}</a>`
   ).join('');
 }
+let statsAt = 0;
 export async function refreshStats() {
-  try { state.stats = await api.stats(); renderNav(); } catch (e) { if (!e.needsUpgrade) throw e; }
+  try { state.stats = await api.stats(); statsAt = Date.now(); renderNav(); } catch (e) { if (!e.needsUpgrade) throw e; }
   return state.stats;
 }
 
@@ -99,6 +100,8 @@ export async function route() {
   const query = Object.fromEntries(new URLSearchParams(qsPart || ''));
   const token = ++renderToken, epoch = state.epoch;
   openMenu(false); clearBanner();
+  // Keep sidebar counts (new feedback) fresh while moving around, without a call per click.
+  if (Date.now() - statsAt > 30000) refreshStats().catch(() => {});
   const outlet = $('outlet');
   for (const [re, page, title] of routes) {
     const m = path.match(re);
