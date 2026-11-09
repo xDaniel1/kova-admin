@@ -125,7 +125,7 @@ table.clickable tbody tr{cursor:pointer;transition:background .1s}table.clickabl
 a.chip:hover{text-decoration:none;background:var(--accent-soft-2)}
 .chip button{border:0;background:transparent;color:inherit;padding:0 2px;line-height:1;font-size:14px;cursor:pointer;opacity:.7}.chip button:hover{opacity:1;background:transparent}
 .chip-input{width:150px;padding:4px 10px;font-size:12.5px;border-radius:999px}
-.seg{display:inline-flex;gap:2px;padding:3px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px}
+.seg{display:inline-flex;gap:2px;padding:3px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;max-width:100%;overflow-x:auto;scrollbar-width:none}.seg::-webkit-scrollbar{display:none}.seg button{flex:none}
 .seg button{border:0;background:transparent;padding:5px 12px;border-radius:7px;color:var(--muted);font-size:13px}.seg button:hover{color:var(--text)}.seg button[aria-pressed=true]{background:var(--panel);color:var(--text);box-shadow:var(--shadow-1);font-weight:600}
 .tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:18px 0 16px;overflow:auto}
 .tabs button{border:0;background:transparent;padding:9px 13px;border-radius:8px 8px 0 0;border-bottom:2px solid transparent;color:var(--muted);margin-bottom:-1px;font-size:13.5px}
