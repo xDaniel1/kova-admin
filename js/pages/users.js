@@ -66,6 +66,7 @@ export async function userProfile(ctx) {
         <div class="actions row">
           ${banned ? html`<button type="button" data-act="enable" ${raw(self ? 'disabled' : '')}>Enable account</button>` : html`<button type="button" data-act="disable" ${raw(self ? 'disabled' : '')}>Disable account</button>`}
           ${u.is_admin ? html`<button type="button" data-act="revoke" ${raw(self ? 'disabled' : '')}>Revoke admin</button>` : html`<button type="button" data-act="grant">Make admin</button>`}
+          <a class="btn" href="${href('/messages', { to: u.user_id })}">Send message</a>
           <button type="button" data-act="signout" ${raw(self ? 'disabled' : '')} title="Revoke every session on every device">Sign out everywhere</button>
           <button type="button" class="danger" data-act="delete" ${raw(self ? 'disabled' : '')}>Delete account</button>
         </div>

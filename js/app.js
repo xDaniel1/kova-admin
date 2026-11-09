@@ -15,6 +15,7 @@ import admins from './pages/admins.js';
 import search from './pages/search.js';
 import controls from './pages/controls.js';
 import system from './pages/system.js';
+import messagesPage from './pages/messages.js';
 
 const routes = [
   [/^\/?$/, home, 'Home'],
@@ -33,6 +34,7 @@ const routes = [
   [/^\/search$/, search, 'Search'],
   [/^\/controls$/, controls, 'App controls'],
   [/^\/system$/, system, 'System'],
+  [/^\/messages$/, messagesPage, 'Messages'],
 ];
 
 const NAV = [
@@ -41,10 +43,10 @@ const NAV = [
   ['/users', 'Users', 'users'], ['/feedback', 'Feedback', 'feedback', 'feedback_new'], ['/reports', 'Reports', 'reports'],
   ['/venues', 'Venues', 'venues'], ['/feeds', 'Incident feeds', 'feeds'],
   ['group', 'Console'],
-  ['/controls', 'App controls', 'controls'], ['/system', 'System', 'system'], ['/admins', 'Admins', 'admins'],
+  ['/messages', 'Messages', 'message'], ['/controls', 'App controls', 'controls'], ['/system', 'System', 'system'], ['/admins', 'Admins', 'admins'],
 ];
 
-export const state = { session: null, authorized: false, epoch: 0, stats: null, user: null };
+export const state = { session: null, authorized: false, epoch: 0, stats: null, user: null, role: 'owner' };
 
 export const fail = error => { const b = $('banner'); b.textContent = error?.message || String(error); b.hidden = false; console.error(error); };
 export const clearBanner = () => { $('banner').hidden = true; };
@@ -129,7 +131,7 @@ function showLogin(show) {
   if (show) { $('nav').innerHTML = ''; setTitle('Kova Tower'); }
 }
 function clearPrivate() {
-  state.authorized = false; state.user = null; state.stats = null; state.epoch++;
+  state.authorized = false; state.user = null; state.stats = null; state.role = 'owner'; state.epoch++; document.body.classList.remove('role-viewer'); $('role-note').hidden = true;
   $('outlet').replaceChildren(); showLogin(true);
 }
 async function acceptSession(session) {
@@ -141,6 +143,9 @@ async function acceptSession(session) {
     if (epoch !== state.epoch) return;
     if (!admin) { clearPrivate(); notice('This account is not an admin.'); await api.client().auth.signOut(); return; }
     state.authorized = true; state.user = session.user;
+    try { state.role = (await api.whoami())?.role || 'owner'; } catch { state.role = 'owner'; }
+    document.body.classList.toggle('role-viewer', state.role === 'viewer');
+    $('role-note').hidden = state.role !== 'viewer';
     showLogin(false);
     $('signed-in').textContent = 'Signed in as ' + (session.user.email || session.user.id);
     await refreshStats().catch(fail);

@@ -15,6 +15,10 @@ Tower is a static site with no build step. `index.html` is the shell, `styles.cs
 - **Admins** — who can open Tower; grant by finding an existing account, revoke with one click.
 - **App controls** — remote switches the apps read at launch from the public `app_config` table: maintenance mode with a message, minimum supported iOS/web versions, feature switches (indoor maps, traffic reports, feedback, incident feeds, sync) and an announcement banner with level, link and time window. Every save is audited and each control carries its own notes and history.
 - **System** — database size, per-table rows and sizes, screenshot storage, active sessions, audit log size, and a retention tool that purges traffic reports older than 7 to 90 days (audited with the count).
+- **Messages** — send an in-app message to everyone or to one person (also from a user's profile), with level, link and an optional window. The apps show each unread message once; Tower shows read counts. Withdraw or delete any time.
+- **Roles** — owner (everything), editor (every edit except accounts and admin access), viewer (read-only). Enforced by RLS and the admin functions; viewers see a read-only banner and disabled controls.
+- **Bulk triage** — select feedback items to mark seen, done, or delete together.
+- **Daily digest** — opt in on the Admins page; an Edge Function emails sign-ups, feedback, reports and admin actions from the last 24 hours. Setup below.
 - **Moderation** — delete a report or a feedback item (with its screenshot) from its record page, and sign a user out on every device from their profile. Every list has an Export CSV button for the rows loaded so far. Press `/` anywhere to jump to search.
 - **Search** — the box in the top bar searches users, feedback, venues, feeds, notes and tags at once. Clicking a tag anywhere searches for it.
 - Dark mode follows the system and can be toggled; the choice is remembered in this browser.
@@ -24,7 +28,7 @@ Every record (user, feedback item, report, venue, feed) can carry **tags** (`low
 ## Setup
 
 1. Apply the app's `supabase/schema.sql` if the database has not been provisioned, then run `supabase/admin.sql` from the app repository (the waypoint-combined checkout) in the Supabase SQL Editor as the database owner. Do not rerun the base schema afterwards: it revokes feedback read/update privileges that the admin migration grants.
-2. Run **`supabase/admin-v3.sql` and then `supabase/admin-v4.sql` from this repository** the same way. v4 adds `app_config`, moderation policies, `admin_sign_out_user`, `admin_purge_reports` and `admin_system`. Both are rerunnable. v3 adds the notes, tags and audit tables, the account-action functions (`admin_set_banned`, `admin_delete_user`, `admin_grant`, `admin_revoke`), `admin_search`, `admin_activity`, `admin_user_detail`, and the extended `admin_stats` / `admin_user_overview`. Until it is applied Tower still works for the original features and shows a "Database update needed" card where it needs the new pieces.
+2. Run **`supabase/admin-v3.sql`, `admin-v4.sql` and `admin-v5.sql` from this repository**, in order, the same way. v4 adds `app_config`, moderation policies, `admin_sign_out_user`, `admin_purge_reports` and `admin_system`. Both are rerunnable. v3 adds the notes, tags and audit tables, the account-action functions (`admin_set_banned`, `admin_delete_user`, `admin_grant`, `admin_revoke`), `admin_search`, `admin_activity`, `admin_user_detail`, and the extended `admin_stats` / `admin_user_overview`. Until it is applied Tower still works for the original features and shows a "Database update needed" card where it needs the new pieces.
 3. `config.js` holds the project URL and the **public anon key**. Never put a service-role key in this repository or page.
 4. In Supabase Authentication, enable Google (the "Kova Admin" web client) and email magic links, and add the exact redirect URLs `https://tower.kovamaps.com/` and `https://xdaniel1.github.io/kova-admin/` (trailing slash) to the allowed list.
 5. The first admin is seeded by `admin.sql` (`danielantigua06@gmail.com`). After that, add admins from the Admins page. An unlisted account is told it is not an admin and signed out.
@@ -57,3 +61,11 @@ insert into public.admin_users (user_id) select id from auth.users where email =
 | `announcement` | `{ enabled, title, body, level: "info"\|"warning"\|"critical", url, starts_at, ends_at }` — show while enabled and `starts_at <= now <= ends_at` (null bounds are open). |
 
 Fetch at launch and on foreground; cache the last good copy; on any error keep the previous values and assume everything is enabled.
+
+`app_messages` (v5): the apps read `GET /rest/v1/app_messages?select=id,title,body,level,url,created_at` (RLS already limits it to live messages for everyone plus the signed-in user's own) and, when signed in, record a read with `POST /rest/v1/app_message_reads {message_id, user_id}`. Remember dismissed ids locally as well, so signed-out users see a message once.
+
+## Daily digest setup
+
+1. Create a Resend account and an API key (resend.com). Until kovamaps.com is verified in Resend, mail can only go to the Resend account's own address.
+2. Supabase → Edge Functions → deploy `supabase/functions/tower-digest/index.ts` as `tower-digest` with JWT verification off. Add secrets `RESEND_API_KEY` and `DIGEST_SECRET` (a long random string); optionally `DIGEST_FROM`.
+3. Enable `pg_cron` and `pg_net`, put the same secret into `supabase/digest-cron.sql`, and run it. It posts to the function at 13:00 UTC daily; days with no activity are skipped.

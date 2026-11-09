@@ -42,7 +42,7 @@ export async function userReports(id) { return unwrap(await db.from('traffic_rep
 export async function userFeedback(id) { return unwrap(await db.from('feedback').select('*').eq('user_id', id).order('created_at', { ascending: false }).limit(PAGE)); }
 export const setBanned = (id, until) => rpc('admin_set_banned', { target: id, until_at: until });
 export const deleteUser = id => rpc('admin_delete_user', { target: id });
-export const grantAdmin = id => rpc('admin_grant', { target: id });
+export const grantAdmin = (id, role) => rpc('admin_grant', role ? { target: id, new_role: role } : { target: id });
 export const revokeAdmin = id => rpc('admin_revoke', { target: id });
 export const admins = () => rpc('admin_list');
 
@@ -121,3 +121,19 @@ export async function deleteFeedback(row) {
 export const signOutUser = id => rpc('admin_sign_out_user', { target: id });
 export const purgeReports = days => rpc('admin_purge_reports', { older_than_days: days });
 export const system = () => rpc('admin_system');
+
+// ---- Roles, messages, digest (v5) ------------------------------------------------------------
+export const whoami = () => rpc('admin_whoami');
+export const setRole = (id, role) => rpc('admin_set_role', { target: id, new_role: role });
+export const setDigest = enabled => rpc('admin_set_digest', { enabled });
+export const digest = since => rpc('admin_digest', since ? { since } : {});
+export const messages = () => rpc('admin_messages');
+export async function sendMessage(m) { return unwrap(await db.from('app_messages').insert(m).select('id').single()); }
+export async function updateMessage(id, patch) { return unwrap(await db.from('app_messages').update(patch).eq('id', id).select('id').single()); }
+export async function deleteMessage(id) { return unwrap(await db.from('app_messages').delete().eq('id', id)); }
+export async function bulkFeedback(ids, patch) { return unwrap(await db.from('feedback').update(patch).in('id', ids).select('id')); }
+export async function bulkDeleteFeedback(rows) {
+  const shots = rows.map(r => r.screenshot_path).filter(Boolean);
+  if (shots.length) { const r = await db.storage.from('feedback-screenshots').remove(shots); if (r.error) throw r.error; }
+  return unwrap(await db.from('feedback').delete().in('id', rows.map(r => r.id)));
+}

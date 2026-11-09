@@ -15,6 +15,7 @@ export default async function feedback(ctx) {
       <label class="narrow">Status<select name="status"><option value="">All statuses</option>${STATUSES.map(s => html`<option value="${s}" ${raw(s === q.status ? 'selected' : '')}>${s}</option>`)}</select></label>
       <button type="submit">Apply</button><button type="button" class="ghost" data-export title="Download the loaded rows as CSV">Export CSV</button>
     </form>
+    <div class="bulkbar" data-bulk hidden><label class="inline" style="margin:0"><input type="checkbox" data-all> <span data-count>0 selected</span></label><span class="spacer"></span><button type="button" class="sm" data-mark="seen">Mark seen</button><button type="button" class="sm" data-mark="done">Mark done</button><button type="button" class="sm danger" data-bulkdel>Delete</button></div>
     <div data-list><p class="loading">Loading…</p></div>
     <div class="paging"><button data-more hidden>Load more</button><span class="muted small" data-status></span></div>
   </section>`.s;
@@ -30,11 +31,18 @@ export default async function feedback(ctx) {
     rows = offset ? rows.concat(page) : page;
     let tags = {}; try { tags = await api.tagsFor('feedback', rows.map(r => r.id)); } catch (e) { if (!e.needsUpgrade) throw e; }
     if (!ctx.alive()) return;
-    list.innerHTML = rows.length ? rows.map(r => { const d = r.diagnostics || {}; return html`<a class="feedback-item" href="${href('/feedback/' + r.id)}">
+    list.innerHTML = rows.length ? rows.map(r => { const d = r.diagnostics || {}; return html`<div class="selectable"><input type="checkbox" data-pick="${r.id}" aria-label="Select"><a class="feedback-item" href="${href('/feedback/' + r.id)}">
       <div class="top">${badge(kindLabel[r.kind] || r.kind)}${badge(r.status, statusTone[r.status])}<span title="${fmtDate(r.created_at)}">${rel(r.created_at)}</span>${r.contact ? html`<span>· ${r.contact}</span>` : ''}${d.app_version || d.appVersion ? html`<span>· v${d.app_version || d.appVersion}</span>` : ''}${r.screenshot_path ? html`<span>· 📎 screenshot</span>` : ''}${tagChips(tags[r.id])}</div>
-      <p class="text">${r.message}</p>${r.admin_note ? html`<p class="muted small" style="margin:4px 0 0">Triage: ${r.admin_note}</p>` : ''}</a>`; }).join('') : empty('No feedback matches these filters.').s;
+      <p class="text">${r.message}</p>${r.admin_note ? html`<p class="muted small" style="margin:4px 0 0">Triage: ${r.admin_note}</p>` : ''}</a></div>`; }).join('') : empty('No feedback matches these filters.').s;
     more.hidden = page.length < api.PAGE; more.disabled = false; status.textContent = `${rows.length} shown`;
+    bulk.hidden = !rows.length; selected.clear(); syncBulk();
+    qsa('[data-pick]', list).forEach(c => c.onchange = () => { c.checked ? selected.add(c.dataset.pick) : selected.delete(c.dataset.pick); syncBulk(); });
   }
+  const bulk = qs('[data-bulk]', ctx.el), selected = new Set();
+  const syncBulk = () => { qs('[data-count]', bulk).textContent = `${selected.size} selected`; qs('[data-all]', bulk).checked = selected.size > 0 && selected.size === rows.length; qsa('button', bulk).forEach(b => { b.disabled = !selected.size; }); };
+  qs('[data-all]', bulk).onchange = e => { qsa('[data-pick]', list).forEach(c => { c.checked = e.target.checked; c.checked ? selected.add(c.dataset.pick) : selected.delete(c.dataset.pick); }); syncBulk(); };
+  qsa('[data-mark]', bulk).forEach(b => b.onclick = async () => { const ids = [...selected]; try { await api.bulkFeedback(ids, { status: b.dataset.mark }); ctx.notice(`${ids.length} marked ${b.dataset.mark}.`); await ctx.refreshStats(); await load(); } catch (e) { ctx.fail(e); } });
+  qs('[data-bulkdel]', bulk).onclick = async () => { const picked = rows.filter(r => selected.has(r.id)); if (!confirm(`Delete ${picked.length} feedback item${picked.length === 1 ? '' : 's'} and their screenshots? This cannot be undone.`)) return; try { await api.bulkDeleteFeedback(picked); ctx.notice(`${picked.length} deleted.`); await ctx.refreshStats(); await load(); } catch (e) { ctx.fail(e); } };
   more.onclick = () => load(rows.length).catch(ctx.fail);
   await load();
 }

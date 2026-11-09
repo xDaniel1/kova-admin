@@ -6,7 +6,7 @@ import * as api from './api.js';
 import { icon } from './icons.js';
 
 export const typeLabel = { user: 'User', feedback: 'Feedback', report: 'Report', venue: 'Venue', feed: 'Feed', config: 'App control' };
-export const recordHref = (type, id) => type === 'config' ? href('/controls') : id === 'bulk' ? href('/' + type + 's') : href(`/${type === 'feedback' ? 'feedback' : type + 's'}/${encodeURIComponent(id)}`);
+export const recordHref = (type, id) => type === 'message' ? href('/messages') : type === 'config' ? href('/controls') : id === 'bulk' ? href('/' + type + 's') : href(`/${type === 'feedback' ? 'feedback' : type + 's'}/${encodeURIComponent(id)}`);
 
 export const tagChips = (tags, type) => (tags || []).map(t => html`<a class="chip" href="${href('/search', { q: t })}" title="Search for ${t}">${t}</a>`);
 
@@ -71,7 +71,7 @@ export async function auditList(el, type, id, ctx) {
   if (!ctx.alive()) return;
   el.innerHTML = rows.length ? html`<ul class="timeline">${rows.map(r => html`<li class="ev">${actionIcon(r.action)}<span class="what"><strong>${actionText(r.action)}</strong> <span class="muted">by ${label(r.actor)?.email || 'an admin'}</span>${detailText(r.details)}</span><span class="when" title="${fmtDate(r.at)}">${rel(r.at)}</span></li>`)}</ul>`.s : empty('No admin actions recorded for this record.').s;
 }
-export const actionKind = a => ['signup', 'signin', 'report', 'feedback'].includes(a) ? a : a?.startsWith('note') ? 'note' : a?.startsWith('tag') ? 'tag' : a?.startsWith('user') ? 'user' : a?.startsWith('admin') ? 'admins' : a?.startsWith('venue') ? 'venues' : a?.startsWith('feed') ? 'feeds' : a?.startsWith('config') ? 'controls' : a?.startsWith('report') ? 'report' : 'dot';
+export const actionKind = a => ['signup', 'signin', 'report', 'feedback'].includes(a) ? a : a?.startsWith('note') ? 'note' : a?.startsWith('tag') ? 'tag' : a?.startsWith('user') ? 'user' : a?.startsWith('admin') ? 'admins' : a?.startsWith('venue') ? 'venues' : a?.startsWith('feed') ? 'feeds' : a?.startsWith('message') ? 'message' : a?.startsWith('config') ? 'controls' : a?.startsWith('report') ? 'report' : 'dot';
 export const actionIcon = a => { const k = actionKind(a); return html`<span class="ico tone-${k}">${raw(icon(k))}</span>`; };
 export const actionText = a => ({
   signup: 'Signed up', signin: 'Signed in', report: 'Reported', feedback: 'Sent feedback',
@@ -79,12 +79,15 @@ export const actionText = a => ({
   feedback_updated: 'Feedback triaged', venue_added: 'Venue added', venue_updated: 'Venue updated', venue_deleted: 'Venue deleted',
   feed_added: 'Feed added', feed_updated: 'Feed updated', feed_deleted: 'Feed deleted',
   user_disabled: 'Account disabled', user_enabled: 'Account enabled', user_deleted: 'Account deleted', user_signed_out: 'Signed out everywhere', admin_granted: 'Admin access granted', admin_revoked: 'Admin access revoked',
+  message_sent: 'Message sent', message_updated: 'Message updated', message_withdrawn: 'Message withdrawn', message_deleted: 'Message deleted', admin_role_changed: 'Admin role changed',
   feedback_deleted: 'Feedback deleted', report_deleted: 'Report deleted', reports_purged: 'Old reports purged', config_changed: 'App control changed', config_added: 'App control added', config_removed: 'App control removed',
 }[a] || a || 'Event');
 export function detailText(d) {
   if (!d || typeof d !== 'object') return raw('');
   const bits = [];
   if (d.tag) bits.push('#' + d.tag);
+  if (d.title) bits.push('“' + d.title + '”' + (d.audience === 'all' ? ' to everyone' : ''));
+  if (d.role) bits.push('role ' + d.role);
   if (d.preview) bits.push('“' + d.preview + '”');
   if (d.status && typeof d.status === 'object') bits.push(`status ${d.status.from} → ${d.status.to}`);
   if (d.enabled != null) bits.push(d.enabled ? 'enabled' : 'disabled');

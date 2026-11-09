@@ -173,3 +173,10 @@ details.collapse summary{cursor:pointer;color:var(--accent);font-weight:600;list
 label.switch{flex-direction:row;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--panel-2);color:var(--text);font-weight:400;cursor:pointer}
 label.switch:hover{border-color:var(--line-strong)}label.switch input{margin-top:2px}
 .control .card-head h2{font-size:15.5px}
+
+/* v5 */
+a.btn{display:inline-flex;align-items:center;justify-content:center;padding:8px 14px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);color:var(--text);font-weight:500;background:var(--panel)}a.btn:hover{text-decoration:none;background:var(--panel-2);border-color:var(--muted)}
+#role-note{margin:16px 28px 0;padding:10px 14px;border-radius:var(--radius-sm);background:var(--warn-soft);color:var(--warn);font-weight:500}
+body.role-viewer main button.primary,body.role-viewer main button.danger,body.role-viewer main [data-act],body.role-viewer main [data-toggle],body.role-viewer main [data-enabled],body.role-viewer main details.collapse>summary,body.role-viewer main [data-tag-form],body.role-viewer main [data-note-form],body.role-viewer main .bulkbar,body.role-viewer main [data-pick],body.role-viewer main select[data-status]{pointer-events:none;opacity:.4}
+.bulkbar{position:sticky;top:64px;z-index:2;display:flex;align-items:center;gap:8px;padding:8px 12px;margin:0 0 8px;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius-sm)}.bulkbar .spacer{flex:1}
+.selectable{display:grid;grid-template-columns:22px 1fr;gap:8px;align-items:start}.selectable>input{margin-top:16px}.selectable .feedback-item{margin:0}
