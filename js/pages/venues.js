@@ -1,6 +1,6 @@
 // Indoor venues: list with inline enable toggles, an add form, and a record page with editing.
 'use strict';
-import { html, raw, qs, qsa, fmtDate, rel, href, table, mapsLink, badge, upgradeCard } from '../util.js';
+import { html, raw, qs, qsa, fmtDate, rel, href, table, mapsLink, badge, upgradeCard, downloadCSV } from '../util.js';
 import * as api from '../api.js';
 import { annotations, auditList, tagChips } from '../records.js';
 
@@ -25,7 +25,7 @@ function readForm(form) {
 
 export default async function venues(ctx) {
   ctx.el.innerHTML = html`<section class="card">
-    <div class="card-head"><h2>Venues</h2><details class="collapse"><summary>Add venue</summary><form data-add class="stack" style="margin-top:10px">${fields()}<div class="row"><button class="primary">Add venue</button></div></form></details></div>
+    <div class="card-head"><h2>Venues</h2><div class="row"><button type="button" class="ghost sm" data-export>Export CSV</button><details class="collapse"><summary>Add venue</summary><form data-add class="stack" style="margin-top:10px">${fields()}<div class="row"><button class="primary">Add venue</button></div></form></details></div></div>
     <p class="muted small">Venues with floor plans. The app refreshes this list, so a change here reaches users without an update.</p>
     <div data-list><p class="loading">Loading…</p></div></section>`.s;
   qs('[data-add]', ctx.el).onsubmit = async e => {
@@ -33,8 +33,10 @@ export default async function venues(ctx) {
     try { const v = readForm(form); await api.insertVenue(v); form.reset(); ctx.notice('Venue added.'); await ctx.refreshStats(); await load(); } catch (err) { ctx.fail(err); } finally { b.disabled = false; }
   };
   const list = qs('[data-list]', ctx.el);
+  let current = [];
+  qs('[data-export]', ctx.el).onclick = () => downloadCSV('venues', ['short_name', 'name', 'kind', 'latitude', 'longitude', 'radius_m', 'sources', 'enabled', 'updated_at'], current.map(r => [r.short_name, r.name, r.kind, r.latitude, r.longitude, r.radius_m, (r.sources || []).join(' '), r.enabled, r.updated_at]));
   async function load() {
-    const rows = await api.venues(); if (!ctx.alive()) return;
+    const rows = await api.venues(); if (!ctx.alive()) return; current = rows;
     let tags = {}; try { tags = await api.tagsFor('venue', rows.map(r => r.short_name)); } catch (e) { if (!e.needsUpgrade) throw e; }
     if (!ctx.alive()) return;
     list.innerHTML = table(['Short name', 'Name', 'Kind', 'Location', 'Radius', 'Sources', 'Updated', 'Enabled'], rows.map(r => [

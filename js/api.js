@@ -107,3 +107,17 @@ export async function auditFor(type, id) { return unwrap(await db.from('admin_au
 // ---- Search and activity ---------------------------------------------------------------------
 export const search = q => rpc('admin_search', { q });
 export const activity = ({ before = null, kinds = null, size = 50 } = {}) => rpc('admin_activity', { before_at: before, page_size: size, kinds });
+
+// ---- App controls (v4) ---------------------------------------------------------------------
+export async function config() { return unwrap(await db.from('app_config').select('*').order('key')); }
+export async function saveConfig(key, value) { return unwrap(await db.from('app_config').update({ value }).eq('key', key).select('*').single()); }
+
+// ---- Moderation (v4) -----------------------------------------------------------------------
+export async function deleteReport(id) { return unwrap(await db.from('traffic_reports').delete().eq('id', id)); }
+export async function deleteFeedback(row) {
+  if (row.screenshot_path) { const r = await db.storage.from('feedback-screenshots').remove([row.screenshot_path]); if (r.error) throw r.error; }
+  return unwrap(await db.from('feedback').delete().eq('id', row.id));
+}
+export const signOutUser = id => rpc('admin_sign_out_user', { target: id });
+export const purgeReports = days => rpc('admin_purge_reports', { older_than_days: days });
+export const system = () => rpc('admin_system');

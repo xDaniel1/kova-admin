@@ -1,6 +1,6 @@
 // Work-zone incident feeds (WZDx) the app pulls from, keyed by URL.
 'use strict';
-import { html, raw, qs, qsa, fmtDate, rel, href, table, extLink, safeURL, badge, upgradeCard } from '../util.js';
+import { html, raw, qs, qsa, fmtDate, rel, href, table, extLink, safeURL, badge, upgradeCard, downloadCSV } from '../util.js';
 import * as api from '../api.js';
 import { annotations, auditList, tagChips } from '../records.js';
 
@@ -21,7 +21,7 @@ function readForm(form) {
 
 export default async function feeds(ctx) {
   ctx.el.innerHTML = html`<section class="card">
-    <div class="card-head"><h2>Incident feeds</h2><details class="collapse"><summary>Add feed</summary><form data-add class="stack" style="margin-top:10px">${fields()}<div class="row"><button class="primary">Add feed</button></div></form></details></div>
+    <div class="card-head"><h2>Incident feeds</h2><div class="row"><button type="button" class="ghost sm" data-export>Export CSV</button><details class="collapse"><summary>Add feed</summary><form data-add class="stack" style="margin-top:10px">${fields()}<div class="row"><button class="primary">Add feed</button></div></form></details></div></div>
     <p class="muted small">State DOT work-zone feeds. Disabled feeds stay listed but are skipped by the app.</p>
     <div data-list><p class="loading">Loading…</p></div></section>`.s;
   qs('[data-add]', ctx.el).onsubmit = async e => {
@@ -29,8 +29,10 @@ export default async function feeds(ctx) {
     try { await api.insertFeed(readForm(form)); form.reset(); ctx.notice('Feed added.'); await ctx.refreshStats(); await load(); } catch (err) { ctx.fail(err); } finally { b.disabled = false; }
   };
   const list = qs('[data-list]', ctx.el);
+  let current = [];
+  qs('[data-export]', ctx.el).onclick = () => downloadCSV('incident-feeds', ['state', 'name', 'url', 'format', 'enabled', 'terms_url', 'updated_at'], current.map(r => [r.state, r.name, r.url, r.format, r.enabled, r.terms_url, r.updated_at]));
   async function load() {
-    const rows = await api.feeds(); if (!ctx.alive()) return;
+    const rows = await api.feeds(); if (!ctx.alive()) return; current = rows;
     let tags = {}; try { tags = await api.tagsFor('feed', rows.map(r => r.url)); } catch (e) { if (!e.needsUpgrade) throw e; }
     if (!ctx.alive()) return;
     list.innerHTML = table(['State', 'Name', 'Format', 'Feed', 'Terms', 'Updated', 'Enabled'], rows.map(r => [

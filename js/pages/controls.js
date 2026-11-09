@@ -1,0 +1,68 @@
+// App controls: the remote switches the apps read at launch. Every save is audited.
+'use strict';
+import { html, raw, qs, qsa, fmtDate, rel, badge, upgradeCard } from '../util.js';
+import * as api from '../api.js';
+import { annotations, auditList } from '../records.js';
+
+const field = (label, name, value, opts = {}) => html`<label>${label}<input name="${name}" type="${opts.type || 'text'}" value="${value ?? ''}" ${raw(opts.attrs || '')} placeholder="${opts.placeholder || ''}"></label>`;
+const toggle = (label, name, on, hint) => html`<label class="inline switch"><input type="checkbox" name="${name}" ${raw(on ? 'checked' : '')}><span><strong>${label}</strong>${hint ? html`<br><span class="muted small">${hint}</span>` : ''}</span></label>`;
+const local = iso => iso ? new Date(iso).toISOString().slice(0, 16) : '';
+
+const SECTIONS = {
+  maintenance: {
+    title: 'Maintenance mode', blurb: 'Stops network features in the apps and shows a message. Use it during a bad deploy or a Supabase incident.',
+    form: v => html`${toggle('Maintenance mode is on', 'enabled', v.enabled, 'Apps show the message and pause sync, reports and feedback.')}<label>Message<textarea name="message" maxlength="300">${v.message || ''}</textarea></label>`,
+    read: f => ({ enabled: f.get('enabled') === 'on', message: f.get('message').trim() }),
+    status: v => v.enabled ? badge('ON · apps paused', 'danger') : badge('Off', 'ok'),
+  },
+  min_version: {
+    title: 'Minimum supported version', blurb: 'Builds below these versions are asked to update before they continue.',
+    form: v => html`<div class="form-grid">${field('iOS', 'ios', v.ios, { placeholder: '1.0' })}${field('Web', 'web', v.web, { placeholder: '0.1' })}</div><label>Message<textarea name="message" maxlength="300">${v.message || ''}</textarea></label>`,
+    read: f => ({ ios: f.get('ios').trim(), web: f.get('web').trim(), message: f.get('message').trim() }),
+    status: v => badge(`iOS ≥ ${v.ios || '?'} · web ≥ ${v.web || '?'}`),
+  },
+  features: {
+    title: 'Feature switches', blurb: 'Turn parts of the product off without shipping a build.',
+    form: v => html`<div class="switches">${[['indoor_maps', 'Indoor maps', 'Floor plans inside venues'], ['traffic_reports', 'Traffic reports', 'Submitting and showing community reports'], ['feedback', 'Feedback form', 'Send feedback and shake-to-report'], ['incident_feeds', 'Incident feeds', 'State DOT work-zone data'], ['sync', 'Cloud sync', 'Favorites and recents across devices']].map(([k, l, h]) => toggle(l, k, v[k] !== false, h))}</div>`,
+    read: f => Object.fromEntries(['indoor_maps', 'traffic_reports', 'feedback', 'incident_feeds', 'sync'].map(k => [k, f.get(k) === 'on'])),
+    status: v => { const off = Object.entries(v).filter(([, on]) => on === false).map(([k]) => k.replace('_', ' ')); return off.length ? badge(off.length + ' off: ' + off.join(', '), 'tone-seen') : badge('All on', 'ok'); },
+  },
+  announcement: {
+    title: 'Announcement banner', blurb: 'A banner in the apps. Leave the window empty to show it whenever it is enabled.',
+    form: v => html`${toggle('Show the announcement', 'enabled', v.enabled)}<div class="form-grid">${field('Title', 'title', v.title, { attrs: 'maxlength="80"' })}<label>Level<select name="level">${['info', 'warning', 'critical'].map(l => html`<option ${raw(l === (v.level || 'info') ? 'selected' : '')}>${l}</option>`)}</select></label></div><label>Body<textarea name="body" maxlength="500">${v.body || ''}</textarea></label><div class="form-grid">${field('Link (optional)', 'url', v.url, { type: 'url', placeholder: 'https://' })}${field('Starts', 'starts_at', local(v.starts_at), { type: 'datetime-local' })}${field('Ends', 'ends_at', local(v.ends_at), { type: 'datetime-local' })}</div>`,
+    read: f => ({ enabled: f.get('enabled') === 'on', title: f.get('title').trim(), body: f.get('body').trim(), level: f.get('level'), url: f.get('url').trim() || null, starts_at: f.get('starts_at') ? new Date(f.get('starts_at')).toISOString() : null, ends_at: f.get('ends_at') ? new Date(f.get('ends_at')).toISOString() : null }),
+    status: v => v.enabled ? badge('Live', 'accent') : badge('Hidden'),
+  },
+};
+
+export default async function controls(ctx) {
+  let rows;
+  try { rows = await api.config(); } catch (e) { if (e.needsUpgrade) { ctx.el.innerHTML = upgradeCard(); return; } throw e; }
+  if (!ctx.alive()) return;
+  const label = await api.labels(rows.map(r => r.updated_by)); if (!ctx.alive()) return;
+  const endpoint = `${api.client().supabaseUrl || window.KOVA_SUPABASE.url}/rest/v1/app_config?select=key,value`;
+  ctx.el.innerHTML = html`
+    <section class="card" style="margin-bottom:18px"><div class="card-head"><h2>How the apps read these</h2></div>
+      <p class="muted small" style="margin:0">Public, read-only JSON at <code>${endpoint}</code> with the anon key. The iOS and web apps fetch it at launch and after returning to the foreground. Changes are audited; see each control's history below.</p></section>
+    <div class="grid two">${rows.map(r => { const s = SECTIONS[r.key]; const v = r.value || {}; return html`
+      <section class="card control" data-key="${r.key}">
+        <div class="card-head"><div><h2>${s?.title || r.key}</h2><p class="muted small" style="margin:2px 0 0">${s?.blurb || r.description || ''}</p></div>${s ? s.status(v) : ''}</div>
+        <form class="stack" data-form>${s ? s.form(v) : html`<label>JSON<textarea name="json" class="mono">${JSON.stringify(v, null, 2)}</textarea></label>`}
+          <div class="row"><button class="primary" type="submit">Save</button><span class="muted small">Updated ${rel(r.updated_at)}${r.updated_by ? ' by ' + (label(r.updated_by)?.email || 'an admin') : ''}</span></div></form>
+        <details class="collapse" style="margin-top:14px"><summary>Notes and history</summary><div class="stack" style="margin-top:12px"><div data-annotations></div><div><h3 class="eyebrow">History</h3><div data-audit></div></div></div></details>
+      </section>`; })}</div>`.s;
+  qsa('.control', ctx.el).forEach(card => {
+    const key = card.dataset.key, s = SECTIONS[key], form = qs('[data-form]', card);
+    form.onsubmit = async e => {
+      e.preventDefault(); const b = form.querySelector('button[type=submit]'); b.disabled = true;
+      try {
+        const f = new FormData(form);
+        const value = s ? s.read(f) : JSON.parse(f.get('json'));
+        if (key === 'maintenance' && value.enabled && !confirm('Turn on maintenance mode? Every app user will see the message and lose network features until you turn it off.')) return;
+        await api.saveConfig(key, value); ctx.notice(`${s?.title || key} saved.`); if (ctx.alive()) await controls(ctx);
+      } catch (err) { ctx.fail(err); } finally { b.disabled = false; }
+    };
+    const details = qs('details', card);
+    details.ontoggle = () => { if (details.open && !details.dataset.loaded) { details.dataset.loaded = '1'; annotations(qs('[data-annotations]', card), 'config', key, ctx); auditList(qs('[data-audit]', card), 'config', key, ctx); } };
+  });
+}

@@ -1,7 +1,7 @@
 // The user directory and per-user profile pages. Account actions call the admin_* functions,
 // which refuse to act on the signed-in admin's own account.
 'use strict';
-import { html, raw, qs, qsa, fmtDate, fmtNum, rel, href, badge, table, initials, mapsLink, kindLabel, statusTone, copy, upgradeCard, empty } from '../util.js';
+import { html, raw, qs, qsa, fmtDate, fmtNum, rel, href, badge, table, initials, mapsLink, kindLabel, statusTone, copy, upgradeCard, empty, downloadCSV } from '../util.js';
 import * as api from '../api.js';
 import { annotations, auditList } from '../records.js';
 
@@ -17,12 +17,13 @@ export default async function users(ctx) {
       <label>Search<input name="q" type="search" value="${q.search}" placeholder="Email or name contains…"></label>
       <label class="narrow">Show<select name="filter">${FILTERS.map(([v, l]) => html`<option value="${v}" ${raw(v === q.filter ? 'selected' : '')}>${l}</option>`)}</select></label>
       <label class="narrow">Last sign-in<select name="sort"><option value="desc" ${raw(q.sort === 'desc' ? 'selected' : '')}>Newest first</option><option value="asc" ${raw(q.sort === 'asc' ? 'selected' : '')}>Oldest first</option></select></label>
-      <button type="submit">Apply</button>
+      <button type="submit">Apply</button><button type="button" class="ghost" data-export title="Download the loaded rows as CSV">Export CSV</button>
     </form>
     <div data-list><p class="loading">Loading…</p></div>
     <div class="paging"><button data-more hidden>Load more</button><span class="muted small" data-status></span></div>
   </section>`.s;
   const form = qs('[data-filter]', ctx.el);
+  qs('[data-export]', ctx.el).onclick = () => downloadCSV('users', ['user_id', 'email', 'display_name', 'provider', 'created_at', 'last_sign_in_at', 'reports_count', 'feedback_count', 'has_sync', 'favorites_count', 'recents_count', 'is_admin', 'banned_until'], rows.map(u => [u.user_id, u.email, u.display_name, u.provider, u.created_at, u.last_sign_in_at, u.reports_count, u.feedback_count, u.has_sync, u.favorites_count, u.recents_count, u.is_admin, u.banned_until]));
   form.onsubmit = e => { e.preventDefault(); const f = new FormData(form); location.hash = href('/users', { q: f.get('q').trim(), filter: f.get('filter'), sort: f.get('sort') }).slice(1); };
   qsa('select', form).forEach(s => s.onchange = () => form.requestSubmit());
   const list = qs('[data-list]', ctx.el), more = qs('[data-more]', ctx.el), status = qs('[data-status]', ctx.el);
@@ -65,6 +66,7 @@ export async function userProfile(ctx) {
         <div class="actions row">
           ${banned ? html`<button type="button" data-act="enable" ${raw(self ? 'disabled' : '')}>Enable account</button>` : html`<button type="button" data-act="disable" ${raw(self ? 'disabled' : '')}>Disable account</button>`}
           ${u.is_admin ? html`<button type="button" data-act="revoke" ${raw(self ? 'disabled' : '')}>Revoke admin</button>` : html`<button type="button" data-act="grant">Make admin</button>`}
+          <button type="button" data-act="signout" ${raw(self ? 'disabled' : '')} title="Revoke every session on every device">Sign out everywhere</button>
           <button type="button" class="danger" data-act="delete" ${raw(self ? 'disabled' : '')}>Delete account</button>
         </div>
       </div>
@@ -122,6 +124,7 @@ export async function userProfile(ctx) {
         const until = days === null ? '2999-01-01T00:00:00Z' : new Date(Date.now() + days * 86400000).toISOString();
         await api.setBanned(id, until); ctx.notice('Account disabled.');
       } else if (kind === 'enable') { await api.setBanned(id, null); ctx.notice('Account enabled.'); }
+      else if (kind === 'signout') { if (!confirm(`Sign ${who} out on every device? They will need to sign in again.`)) return; const n = await api.signOutUser(id); ctx.notice(`${n} session${n === 1 ? '' : 's'} revoked.`); }
       else if (kind === 'grant') { if (!confirm(`Give ${who} full admin access to Tower?`)) return; await api.grantAdmin(id); ctx.notice('Admin access granted.'); }
       else if (kind === 'revoke') { if (!confirm(`Remove admin access from ${who}?`)) return; await api.revokeAdmin(id); ctx.notice('Admin access revoked.'); }
       else if (kind === 'delete') {

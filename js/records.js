@@ -5,8 +5,8 @@ import { html, raw, qsa, qs, fmtDate, rel, href, upgradeCard, empty } from './ut
 import * as api from './api.js';
 import { icon } from './icons.js';
 
-export const typeLabel = { user: 'User', feedback: 'Feedback', report: 'Report', venue: 'Venue', feed: 'Feed' };
-export const recordHref = (type, id) => href(`/${type === 'feedback' ? 'feedback' : type + 's'}/${encodeURIComponent(id)}`);
+export const typeLabel = { user: 'User', feedback: 'Feedback', report: 'Report', venue: 'Venue', feed: 'Feed', config: 'App control' };
+export const recordHref = (type, id) => type === 'config' ? href('/controls') : id === 'bulk' ? href('/' + type + 's') : href(`/${type === 'feedback' ? 'feedback' : type + 's'}/${encodeURIComponent(id)}`);
 
 export const tagChips = (tags, type) => (tags || []).map(t => html`<a class="chip" href="${href('/search', { q: t })}" title="Search for ${t}">${t}</a>`);
 
@@ -71,14 +71,15 @@ export async function auditList(el, type, id, ctx) {
   if (!ctx.alive()) return;
   el.innerHTML = rows.length ? html`<ul class="timeline">${rows.map(r => html`<li class="ev">${actionIcon(r.action)}<span class="what"><strong>${actionText(r.action)}</strong> <span class="muted">by ${label(r.actor)?.email || 'an admin'}</span>${detailText(r.details)}</span><span class="when" title="${fmtDate(r.at)}">${rel(r.at)}</span></li>`)}</ul>`.s : empty('No admin actions recorded for this record.').s;
 }
-export const actionKind = a => ['signup', 'signin', 'report', 'feedback'].includes(a) ? a : a?.startsWith('note') ? 'note' : a?.startsWith('tag') ? 'tag' : a?.startsWith('user') ? 'user' : a?.startsWith('admin') ? 'admins' : a?.startsWith('venue') ? 'venues' : a?.startsWith('feed') ? 'feeds' : 'dot';
+export const actionKind = a => ['signup', 'signin', 'report', 'feedback'].includes(a) ? a : a?.startsWith('note') ? 'note' : a?.startsWith('tag') ? 'tag' : a?.startsWith('user') ? 'user' : a?.startsWith('admin') ? 'admins' : a?.startsWith('venue') ? 'venues' : a?.startsWith('feed') ? 'feeds' : a?.startsWith('config') ? 'controls' : a?.startsWith('report') ? 'report' : 'dot';
 export const actionIcon = a => { const k = actionKind(a); return html`<span class="ico tone-${k}">${raw(icon(k))}</span>`; };
 export const actionText = a => ({
   signup: 'Signed up', signin: 'Signed in', report: 'Reported', feedback: 'Sent feedback',
   note_added: 'Note added', note_edited: 'Note edited', note_deleted: 'Note deleted', tag_added: 'Tag added', tag_removed: 'Tag removed',
   feedback_updated: 'Feedback triaged', venue_added: 'Venue added', venue_updated: 'Venue updated', venue_deleted: 'Venue deleted',
   feed_added: 'Feed added', feed_updated: 'Feed updated', feed_deleted: 'Feed deleted',
-  user_disabled: 'Account disabled', user_enabled: 'Account enabled', user_deleted: 'Account deleted', admin_granted: 'Admin access granted', admin_revoked: 'Admin access revoked',
+  user_disabled: 'Account disabled', user_enabled: 'Account enabled', user_deleted: 'Account deleted', user_signed_out: 'Signed out everywhere', admin_granted: 'Admin access granted', admin_revoked: 'Admin access revoked',
+  feedback_deleted: 'Feedback deleted', report_deleted: 'Report deleted', reports_purged: 'Old reports purged', config_changed: 'App control changed', config_added: 'App control added', config_removed: 'App control removed',
 }[a] || a || 'Event');
 export function detailText(d) {
   if (!d || typeof d !== 'object') return raw('');
@@ -90,5 +91,10 @@ export function detailText(d) {
   if (d.until) bits.push('until ' + fmtDate(d.until));
   if (d.email) bits.push(d.email);
   if (d.provider) bits.push('via ' + d.provider);
+  if (d.sessions != null) bits.push(d.sessions + ' session' + (d.sessions === 1 ? '' : 's'));
+  if (d.deleted != null) bits.push(d.deleted + ' removed, older than ' + d.older_than_days + ' days');
+  if (d.kind && d.preview == null && d.latitude == null) bits.push(d.kind);
+  if (d.kind && d.latitude != null) bits.push(d.kind + ' at ' + (+d.latitude).toFixed(3) + ', ' + (+d.longitude).toFixed(3));
+  if (d.value && typeof d.value === 'object') { if ('enabled' in d.value) bits.push(d.value.enabled ? 'enabled' : 'disabled'); else bits.push(Object.entries(d.value).map(([k, v]) => k + '=' + (typeof v === 'object' ? JSON.stringify(v) : v)).join(', ').slice(0, 120)); }
   return bits.length ? html` <span class="muted">· ${bits.join(' · ')}</span>` : raw('');
 }

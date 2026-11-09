@@ -13,6 +13,8 @@ import venues, { venueDetail } from './pages/venues.js';
 import feeds, { feedDetail } from './pages/feeds.js';
 import admins from './pages/admins.js';
 import search from './pages/search.js';
+import controls from './pages/controls.js';
+import system from './pages/system.js';
 
 const routes = [
   [/^\/?$/, home, 'Home'],
@@ -29,6 +31,8 @@ const routes = [
   [/^\/feeds\/([^/]+)$/, feedDetail, 'Incident feed'],
   [/^\/admins$/, admins, 'Admins'],
   [/^\/search$/, search, 'Search'],
+  [/^\/controls$/, controls, 'App controls'],
+  [/^\/system$/, system, 'System'],
 ];
 
 const NAV = [
@@ -37,7 +41,7 @@ const NAV = [
   ['/users', 'Users', 'users'], ['/feedback', 'Feedback', 'feedback', 'feedback_new'], ['/reports', 'Reports', 'reports'],
   ['/venues', 'Venues', 'venues'], ['/feeds', 'Incident feeds', 'feeds'],
   ['group', 'Console'],
-  ['/admins', 'Admins', 'admins'],
+  ['/controls', 'App controls', 'controls'], ['/system', 'System', 'system'], ['/admins', 'Admins', 'admins'],
 ];
 
 export const state = { session: null, authorized: false, epoch: 0, stats: null, user: null };
@@ -80,6 +84,7 @@ export async function refreshStats() {
 }
 
 // ---- Search box --------------------------------------------------------------------------------
+document.addEventListener('keydown', e => { if (e.key === '/' && !e.metaKey && !e.ctrlKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName) && state.authorized) { e.preventDefault(); $('search').focus(); $('search').select(); } });
 $('search-form').onsubmit = e => { e.preventDefault(); const q = $('search').value.trim(); if (q) location.hash = '/search?q=' + encodeURIComponent(q); };
 
 // ---- Router -----------------------------------------------------------------------------------

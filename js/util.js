@@ -78,3 +78,13 @@ export const kindLabel = { bug: 'Bug', idea: 'Idea', map_data: 'Map data', other
 export const statusTone = { new: 'tone-new', seen: 'tone-seen', done: 'tone-done' };
 
 export const upgradeCard = () => html`<section class="card setup"><h2>Database update needed</h2><p>This part of Tower reads tables and functions added by <code>supabase/admin-v3.sql</code> in the kova-admin repository. Run that file in the Supabase SQL Editor as the database owner (it is safe to rerun), then refresh this page.</p></section>`.s;
+
+/** Download rows as a CSV file. Cells are quoted; formulas are neutralised so spreadsheets stay safe. */
+export function downloadCSV(name, headers, rows) {
+  const cell = v => { let s = v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
+  const body = [headers, ...rows].map(r => r.map(cell).join(',')).join('\r\n');
+  const blob = new Blob(['﻿' + body], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${name}-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+export const fmtBytes = n => { n = Number(n) || 0; const u = ['B', 'KB', 'MB', 'GB']; let i = 0; while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; } return (i ? n.toFixed(1) : n) + ' ' + u[i]; };

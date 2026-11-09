@@ -1,6 +1,6 @@
 // Feedback inbox and the per-item record page.
 'use strict';
-import { html, raw, qs, qsa, fmtDate, rel, href, badge, isEmail, kindLabel, statusTone, upgradeCard, empty } from '../util.js';
+import { html, raw, qs, qsa, fmtDate, rel, href, badge, isEmail, kindLabel, statusTone, upgradeCard, empty, downloadCSV } from '../util.js';
 import * as api from '../api.js';
 import { annotations, auditList, tagChips } from '../records.js';
 
@@ -13,12 +13,13 @@ export default async function feedback(ctx) {
       <label>Search<input name="q" type="search" value="${q.search}" placeholder="Message contains…"></label>
       <label class="narrow">Kind<select name="kind"><option value="">All kinds</option>${KINDS.map(k => html`<option value="${k}" ${raw(k === q.kind ? 'selected' : '')}>${kindLabel[k]}</option>`)}</select></label>
       <label class="narrow">Status<select name="status"><option value="">All statuses</option>${STATUSES.map(s => html`<option value="${s}" ${raw(s === q.status ? 'selected' : '')}>${s}</option>`)}</select></label>
-      <button type="submit">Apply</button>
+      <button type="submit">Apply</button><button type="button" class="ghost" data-export title="Download the loaded rows as CSV">Export CSV</button>
     </form>
     <div data-list><p class="loading">Loading…</p></div>
     <div class="paging"><button data-more hidden>Load more</button><span class="muted small" data-status></span></div>
   </section>`.s;
   const form = qs('[data-filter]', ctx.el);
+  qs('[data-export]', ctx.el).onclick = () => downloadCSV('feedback', ['id', 'created_at', 'kind', 'status', 'message', 'contact', 'user_id', 'app_version', 'device', 'os', 'screenshot', 'triage_note'], rows.map(r => { const d = r.diagnostics || {}; return [r.id, r.created_at, r.kind, r.status, r.message, r.contact, r.user_id, d.app_version ?? d.appVersion, d.device_model ?? d.deviceModel, d.os_version ?? d.osVersion, r.screenshot_path ? 'yes' : '', r.admin_note]; }));
   form.onsubmit = e => { e.preventDefault(); const f = new FormData(form); location.hash = href('/feedback', { q: f.get('q').trim(), kind: f.get('kind'), status: f.get('status') }).slice(1); };
   qsa('select', form).forEach(s => s.onchange = () => form.requestSubmit());
   const list = qs('[data-list]', ctx.el), more = qs('[data-more]', ctx.el), status = qs('[data-status]', ctx.el);
@@ -64,6 +65,7 @@ export async function feedbackDetail(ctx) {
         <p class="muted small" style="margin-top:0">A short working note on the item itself. Longer discussion belongs in Notes.</p>
         <textarea data-triage maxlength="4000" placeholder="e.g. Reproduced on iOS 27.1, fix in 1.1">${r.admin_note || ''}</textarea>
         <div class="row" style="margin-top:8px"><button type="button" data-save-triage>Save triage note</button><span class="muted small" data-saved></span></div>
+        <div class="row" style="margin-top:22px;padding-top:14px;border-top:1px solid var(--line)"><button type="button" class="danger sm" data-delete>Delete this feedback</button><span class="muted small">Removes the item and its screenshot. Audited.</span></div>
       </section>
       <div class="stack">
         <section class="card" data-annotations></section>
@@ -72,6 +74,7 @@ export async function feedbackDetail(ctx) {
     </div>`.s;
   qs('[data-status]', ctx.el).onchange = async e => { const el = e.currentTarget; el.disabled = true; try { await api.updateFeedback(id, { status: el.value }); ctx.notice('Status saved.'); await ctx.refreshStats(); } catch (err) { ctx.fail(err); el.value = r.status; } finally { el.disabled = false; } };
   qs('[data-save-triage]', ctx.el).onclick = async e => { const b = e.currentTarget; b.disabled = true; try { await api.updateFeedback(id, { admin_note: qs('[data-triage]', ctx.el).value.trim() || null }); qs('[data-saved]', ctx.el).textContent = 'Saved ' + new Date().toLocaleTimeString(); } catch (err) { ctx.fail(err); } finally { b.disabled = false; } };
+  qs('[data-delete]', ctx.el).onclick = async e => { if (!confirm('Delete this feedback item' + (r.screenshot_path ? ' and its screenshot' : '') + '? This cannot be undone.')) return; e.currentTarget.disabled = true; try { await api.deleteFeedback(r); ctx.notice('Feedback deleted.'); await ctx.refreshStats(); location.hash = '/feedback'; } catch (err) { ctx.fail(err); e.currentTarget.disabled = false; } };
   const shot = qs('[data-shot]', ctx.el);
   if (shot) shot.onclick = async () => { shot.disabled = true; try { const url = await api.screenshotURL(r.screenshot_path); if (!ctx.alive()) return; const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = 'View screenshot · expires in 5 minutes'; shot.replaceWith(a); } catch (err) { ctx.fail(err); shot.disabled = false; } };
   await Promise.all([annotations(qs('[data-annotations]', ctx.el), 'feedback', id, ctx), auditList(qs('[data-audit]', ctx.el), 'feedback', id, ctx)]);
