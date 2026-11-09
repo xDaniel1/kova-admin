@@ -2,7 +2,7 @@
 'use strict';
 import { html, raw, qs, fmtDate, fmtNum, fmtBytes, rel, table, upgradeCard } from '../util.js';
 import * as api from '../api.js';
-import { versionsCard } from '../versions.js';
+import { versionsCard, loadSiteLive } from '../versions.js';
 
 export default async function system(ctx) {
   let s;
@@ -28,7 +28,7 @@ export default async function system(ctx) {
         <p class="muted small" style="margin-top:12px">Every purge is written to the audit log with the count removed.</p>
         <p class="muted small" style="margin-top:14px">Generated ${fmtDate(s.generated_at)}. <a href="#/system">Refresh</a></p></section>
     </div>`.s;
-  api.versions().then(v => { if (ctx.alive()) qs('[data-versions]', ctx.el).innerHTML = versionsCard(v, { detailed: true }).s; }).catch(e => { if (!e.needsUpgrade) ctx.fail(e); });
+  api.versions().then(v => { if (ctx.alive()) { const host = qs('[data-versions]', ctx.el); host.innerHTML = versionsCard(v, { detailed: true }).s; loadSiteLive(host, v.released); } }).catch(e => { if (!e.needsUpgrade) ctx.fail(e); });
   qs('[data-purge]', ctx.el).onsubmit = async e => {
     e.preventDefault(); const days = Number(new FormData(e.currentTarget).get('days'));
     if (!confirm(`Permanently delete every traffic report older than ${days} days? This cannot be undone.`)) return;

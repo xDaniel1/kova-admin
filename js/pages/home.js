@@ -4,7 +4,7 @@ import { html, raw, qs, fmtNum, rel, fmtDate, href, barChart, badge, kindLabel, 
 import * as api from '../api.js';
 import { eventList } from './activity.js';
 import { recordHref, typeLabel } from '../records.js';
-import { versionsCard } from '../versions.js';
+import { versionsCard, loadSiteLive } from '../versions.js';
 
 export default async function home(ctx) {
   const s = await ctx.refreshStats({ maxAge: 5000 });
@@ -49,7 +49,7 @@ export default async function home(ctx) {
     </div>`.s;
 
   const tasks = [];
-  tasks.push((async () => { const host = qs('[data-versions]', ctx.el); try { const v = await api.versions(); if (ctx.alive()) host.innerHTML = versionsCard(v).s + '<div style="height:18px"></div>'; } catch (e) { if (!e.needsUpgrade) console.warn(e); } })());
+  tasks.push((async () => { const host = qs('[data-versions]', ctx.el); try { const v = await api.versions(); if (ctx.alive()) host.innerHTML = versionsCard(v).s + '<div style="height:18px"></div>'; loadSiteLive(host, v.released); } catch (e) { if (!e.needsUpgrade) console.warn(e); } })());
   tasks.push((async () => {
     const host = qs('[data-attention]', ctx.el);
     try {

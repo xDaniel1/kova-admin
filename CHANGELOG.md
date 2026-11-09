@@ -2,6 +2,13 @@
 
 Tower uses the shared Kova version (semantic version plus a build number that only goes up). Releases are tagged `tower-v<version>`. Database migrations in `supabase/migrations/` are numbered separately.
 
+## 1.0.0 (build 2) · 2026-11-09
+
+- Version registry reads the marketing site's live version from kovamaps.com/version.json.
+- Local and test builds (build `dev`) no longer count as installs or as the last reported version; they are listed separately.
+- "Ahead of registry" flag when a client reports a newer version or build than the one recorded as released.
+- Build numbers can only go up, now enforced in the database (migration 0010); web app build is editable.
+
 ## 1.0.0 (build 1) · 2026-11-09
 
 First versioned release of the internal console at tower.kovamaps.com.

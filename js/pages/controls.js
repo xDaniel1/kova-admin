@@ -9,7 +9,7 @@ const toggle = (label, name, on, hint) => html`<label class="inline switch"><inp
 const VER = 'pattern="[0-9]+(\\.[0-9]+)*" title="Numbers separated by dots, e.g. 1.2.0"';
 const local = iso => iso ? new Date(iso).toISOString().slice(0, 16) : '';
 
-const REL = [['ios', 'iOS', 'build'], ['android', 'Android', 'versionCode'], ['web', 'Web app'], ['site', 'Site']];
+const REL = [['ios', 'iOS', 'build'], ['android', 'Android', 'versionCode'], ['web', 'Web app', 'build'], ['site', 'Site']];
 const ORDER = ['maintenance', 'released_versions', 'min_version', 'latest_version', 'features', 'announcement'];
 const SECTIONS = {
   maintenance: {
@@ -74,7 +74,7 @@ export default async function controls(ctx) {
         const f = new FormData(form);
         const value = s ? s.read(f) : JSON.parse(f.get('json'));
         if (key === 'min_version') { const cur = rows.find(r => r.key === 'latest_version')?.value || {}; const bad = ['ios', 'android', 'web'].filter(p => value[p] && cur[p] && versionLess(cur[p], value[p])); if (bad.length && !confirm(`The minimum for ${bad.join(', ')} is above the latest released version. Every user on that platform would be blocked. Save anyway?`)) return; }
-        if (key === 'released_versions') { const cur = rows.find(r => r.key === key)?.value || {}; const down = ['ios', 'android'].filter(p => cur[p]?.build && value[p].build && Number(value[p].build) < Number(cur[p].build)); if (down.length) throw new Error(`Build numbers only go up: ${down.map(p => `${p} is ${cur[p].build}`).join(', ')}.`); }
+        if (key === 'released_versions') { const cur = rows.find(r => r.key === key)?.value || {}; const down = ['ios', 'android', 'web'].filter(p => cur[p]?.build && value[p].build && Number(value[p].build) < Number(cur[p].build)); if (down.length) throw new Error(`Build numbers only go up: ${down.map(p => `${p} is ${cur[p].build}`).join(', ')}.`); }
         if (key === 'maintenance' && value.enabled && !confirm('Turn on maintenance mode? Every app user will see the message and lose network features until you turn it off.')) return;
         await api.saveConfig(key, value); ctx.notice(`${s?.title || key} saved.`); if (ctx.alive()) await controls(ctx);
       } catch (err) { ctx.fail(err); } finally { b.disabled = false; }
