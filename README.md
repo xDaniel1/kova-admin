@@ -13,6 +13,7 @@ Tower is a static site with no build step. `index.html` is the shell, `styles.cs
 - **Reports** — traffic reports for the last 24 hours to 90 days, by kind, with Apple Maps links and reporter links; a record page per report.
 - **Venues** and **Incident feeds** — lists with inline enable toggles, add forms, and record pages with editing (the short name / URL is the key and cannot change), notes, tags and history.
 - **Admins** — who can open Tower; grant by finding an existing account, revoke with one click.
+- **App versions** — per platform (iOS, Android, web): newest version in use as reported by the apps, latest released, minimum supported, installs in the last 30 days, and the version mix on System.
 - **App controls** — remote switches the apps read at launch from the public `app_config` table: maintenance mode with a message, minimum supported iOS/web versions, feature switches (indoor maps, traffic reports, feedback, incident feeds, sync) and an announcement banner with level, link and time window. Every save is audited and each control carries its own notes and history.
 - **System** — database size, per-table rows and sizes, screenshot storage, active sessions, audit log size, and a retention tool that purges traffic reports older than 7 to 90 days (audited with the count).
 - **Messages** — send an in-app message to everyone or to one person (also from a user's profile), with level, link and an optional window. The apps show each unread message once; Tower shows read counts. Withdraw or delete any time.
@@ -28,7 +29,7 @@ Every record (user, feedback item, report, venue, feed) can carry **tags** (`low
 ## Setup
 
 1. Apply the app's `supabase/schema.sql` if the database has not been provisioned, then run `supabase/admin.sql` from the app repository (the waypoint-combined checkout) in the Supabase SQL Editor as the database owner. Do not rerun the base schema afterwards: it revokes feedback read/update privileges that the admin migration grants.
-2. Run **`supabase/admin-v3.sql`, `admin-v4.sql` and `admin-v5.sql` from this repository**, in order, the same way. v4 adds `app_config`, moderation policies, `admin_sign_out_user`, `admin_purge_reports` and `admin_system`. Both are rerunnable. v3 adds the notes, tags and audit tables, the account-action functions (`admin_set_banned`, `admin_delete_user`, `admin_grant`, `admin_revoke`), `admin_search`, `admin_activity`, `admin_user_detail`, and the extended `admin_stats` / `admin_user_overview`. Until it is applied Tower still works for the original features and shows a "Database update needed" card where it needs the new pieces.
+2. Run **`supabase/admin-v3.sql` through `admin-v6.sql` from this repository**, in order, the same way. v6 adds per-platform version rules (`min_version` gains Android, new `latest_version`) and the `app_clients` table that apps report their version to. v4 adds `app_config`, moderation policies, `admin_sign_out_user`, `admin_purge_reports` and `admin_system`. Both are rerunnable. v3 adds the notes, tags and audit tables, the account-action functions (`admin_set_banned`, `admin_delete_user`, `admin_grant`, `admin_revoke`), `admin_search`, `admin_activity`, `admin_user_detail`, and the extended `admin_stats` / `admin_user_overview`. Until it is applied Tower still works for the original features and shows a "Database update needed" card where it needs the new pieces.
 3. `config.js` holds the project URL and the **public anon key**. Never put a service-role key in this repository or page.
 4. In Supabase Authentication, enable Google (the "Kova Admin" web client) and email magic links, and add the exact redirect URLs `https://tower.kovamaps.com/` and `https://xdaniel1.github.io/kova-admin/` (trailing slash) to the allowed list.
 5. The first admin is seeded by `admin.sql` (`danielantigua06@gmail.com`). After that, add admins from the Admins page. An unlisted account is told it is not an admin and signed out.
@@ -49,20 +50,9 @@ delete from public.admin_users where user_id = (select id from auth.users where 
 insert into public.admin_users (user_id) select id from auth.users where email = 'you@example.com' on conflict do nothing;
 ```
 
-## App controls contract (for the iOS and web apps)
+## App controls contract
 
-`GET {SUPABASE_URL}/rest/v1/app_config?select=key,value` with the anon key (`apikey` and `Authorization: Bearer` headers) returns an array of `{key, value}`:
-
-| key | value |
-|---|---|
-| `maintenance` | `{ enabled: bool, message: string }` — when enabled, show `message` and pause sync, reports and feedback. |
-| `min_version` | `{ ios: "1.0", web: "0.1", message }` — compare the running build's marketing version; below the minimum, show `message` with an update link and block further use. |
-| `features` | `{ indoor_maps, traffic_reports, feedback, incident_feeds, sync }` — booleans; a missing key means enabled. |
-| `announcement` | `{ enabled, title, body, level: "info"\|"warning"\|"critical", url, starts_at, ends_at }` — show while enabled and `starts_at <= now <= ends_at` (null bounds are open). |
-
-Fetch at launch and on foreground; cache the last good copy; on any error keep the previous values and assume everything is enabled.
-
-`app_messages` (v5): the apps read `GET /rest/v1/app_messages?select=id,title,body,level,url,created_at` (RLS already limits it to live messages for everyone plus the signed-in user's own) and, when signed in, record a read with `POST /rest/v1/app_message_reads {message_id, user_id}`. Remember dismissed ids locally as well, so signed-out users see a message once.
+The full contract the iOS, Android and web apps implement lives in [docs/app-controls-contract.md](docs/app-controls-contract.md).
 
 ## Daily digest setup
 

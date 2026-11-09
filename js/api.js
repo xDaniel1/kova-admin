@@ -137,3 +137,6 @@ export async function bulkDeleteFeedback(rows) {
   if (shots.length) { const r = await db.storage.from('feedback-screenshots').remove(shots); if (r.error) throw r.error; }
   return unwrap(await db.from('feedback').delete().in('id', rows.map(r => r.id)));
 }
+
+// ---- Platform versions (v6) -----------------------------------------------------------------
+export const versions = () => rpc('admin_versions');

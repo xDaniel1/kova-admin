@@ -1,13 +1,15 @@
 // App controls: the remote switches the apps read at launch. Every save is audited.
 'use strict';
-import { html, raw, qs, qsa, fmtDate, rel, badge, upgradeCard } from '../util.js';
+import { html, raw, qs, qsa, fmtDate, rel, badge, upgradeCard, versionLess } from '../util.js';
 import * as api from '../api.js';
 import { annotations, auditList } from '../records.js';
 
 const field = (label, name, value, opts = {}) => html`<label>${label}<input name="${name}" type="${opts.type || 'text'}" value="${value ?? ''}" ${raw(opts.attrs || '')} placeholder="${opts.placeholder || ''}"></label>`;
 const toggle = (label, name, on, hint) => html`<label class="inline switch"><input type="checkbox" name="${name}" ${raw(on ? 'checked' : '')}><span><strong>${label}</strong>${hint ? html`<br><span class="muted small">${hint}</span>` : ''}</span></label>`;
+const VER = 'pattern="[0-9]+(\\.[0-9]+)*" title="Numbers separated by dots, e.g. 1.2.0"';
 const local = iso => iso ? new Date(iso).toISOString().slice(0, 16) : '';
 
+const ORDER = ['maintenance', 'min_version', 'latest_version', 'features', 'announcement'];
 const SECTIONS = {
   maintenance: {
     title: 'Maintenance mode', blurb: 'Stops network features in the apps and shows a message. Use it during a bad deploy or a Supabase incident.',
@@ -16,10 +18,16 @@ const SECTIONS = {
     status: v => v.enabled ? badge('ON · apps paused', 'danger') : badge('Off', 'ok'),
   },
   min_version: {
-    title: 'Minimum supported version', blurb: 'Builds below these versions are asked to update before they continue.',
-    form: v => html`<div class="form-grid">${field('iOS', 'ios', v.ios, { placeholder: '1.0' })}${field('Web', 'web', v.web, { placeholder: '0.1' })}</div><label>Message<textarea name="message" maxlength="300">${v.message || ''}</textarea></label>`,
-    read: f => ({ ios: f.get('ios').trim(), web: f.get('web').trim(), message: f.get('message').trim() }),
-    status: v => badge(`iOS ≥ ${v.ios || '?'} · web ≥ ${v.web || '?'}`),
+    title: 'Minimum supported version', blurb: 'Builds below these must update before they continue. Leave a platform empty to never block it.',
+    form: v => html`<div class="form-grid">${field('iOS', 'ios', v.ios, { placeholder: '1.0', attrs: VER })}${field('Android', 'android', v.android, { placeholder: '1.0', attrs: VER })}${field('Web', 'web', v.web, { placeholder: '0.1', attrs: VER })}</div><label>Message<textarea name="message" maxlength="300">${v.message || ''}</textarea></label>`,
+    read: f => ({ ios: f.get('ios').trim(), android: f.get('android').trim(), web: f.get('web').trim(), message: f.get('message').trim() }),
+    status: v => badge(`iOS ≥ ${v.ios || '–'} · Android ≥ ${v.android || '–'} · web ≥ ${v.web || '–'}`),
+  },
+  latest_version: {
+    title: 'Latest released version', blurb: 'Apps older than this show a dismissible "update available" nudge. It never blocks.',
+    form: v => { const u = v.store_urls || {}; return html`<div class="form-grid">${field('iOS', 'ios', v.ios, { placeholder: '1.0.0', attrs: VER })}${field('Android', 'android', v.android, { placeholder: '1.0.0', attrs: VER })}${field('Web', 'web', v.web, { placeholder: '0.1.0', attrs: VER })}</div><label>Message<textarea name="message" maxlength="300">${v.message || ''}</textarea></label><div class="form-grid">${field('App Store link', 'url_ios', u.ios, { type: 'url' })}${field('Play Store link', 'url_android', u.android, { type: 'url' })}${field('Web app link', 'url_web', u.web, { type: 'url' })}</div>`; },
+    read: f => ({ ios: f.get('ios').trim(), android: f.get('android').trim(), web: f.get('web').trim(), message: f.get('message').trim(), store_urls: { ios: f.get('url_ios').trim() || null, android: f.get('url_android').trim() || null, web: f.get('url_web').trim() || null } }),
+    status: v => badge(`iOS ${v.ios || '–'} · Android ${v.android || '–'} · web ${v.web || '–'}`),
   },
   features: {
     title: 'Feature switches', blurb: 'Turn parts of the product off without shipping a build.',
@@ -44,7 +52,7 @@ export default async function controls(ctx) {
   ctx.el.innerHTML = html`
     <section class="card" style="margin-bottom:18px"><div class="card-head"><h2>How the apps read these</h2></div>
       <p class="muted small" style="margin:0">Public, read-only JSON at <code>${endpoint}</code> with the anon key. The iOS and web apps fetch it at launch and after returning to the foreground. Changes are audited; see each control's history below.</p></section>
-    <div class="grid two">${rows.map(r => { const s = SECTIONS[r.key]; const v = r.value || {}; return html`
+    <div class="grid two">${rows.slice().sort((a, b) => ORDER.indexOf(a.key) - ORDER.indexOf(b.key)).map(r => { const s = SECTIONS[r.key]; const v = r.value || {}; return html`
       <section class="card control" data-key="${r.key}">
         <div class="card-head"><div><h2>${s?.title || r.key}</h2><p class="muted small" style="margin:2px 0 0">${s?.blurb || r.description || ''}</p></div>${s ? s.status(v) : ''}</div>
         <form class="stack" data-form>${s ? s.form(v) : html`<label>JSON<textarea name="json" class="mono">${JSON.stringify(v, null, 2)}</textarea></label>`}
@@ -58,6 +66,7 @@ export default async function controls(ctx) {
       try {
         const f = new FormData(form);
         const value = s ? s.read(f) : JSON.parse(f.get('json'));
+        if (key === 'min_version') { const cur = rows.find(r => r.key === 'latest_version')?.value || {}; const bad = ['ios', 'android', 'web'].filter(p => value[p] && cur[p] && versionLess(cur[p], value[p])); if (bad.length && !confirm(`The minimum for ${bad.join(', ')} is above the latest released version. Every user on that platform would be blocked. Save anyway?`)) return; }
         if (key === 'maintenance' && value.enabled && !confirm('Turn on maintenance mode? Every app user will see the message and lose network features until you turn it off.')) return;
         await api.saveConfig(key, value); ctx.notice(`${s?.title || key} saved.`); if (ctx.alive()) await controls(ctx);
       } catch (err) { ctx.fail(err); } finally { b.disabled = false; }

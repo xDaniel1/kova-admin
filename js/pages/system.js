@@ -2,6 +2,7 @@
 'use strict';
 import { html, raw, qs, fmtDate, fmtNum, fmtBytes, rel, table, upgradeCard } from '../util.js';
 import * as api from '../api.js';
+import { versionsCard } from '../versions.js';
 
 export default async function system(ctx) {
   let s;
@@ -17,6 +18,7 @@ export default async function system(ctx) {
       ${tile(fmtNum(s.sessions?.count), 'Active sessions', fmtNum(s.sessions?.users) + ' users signed in')}
       ${tile(fmtNum(s.audit_rows), 'Audit entries', 'since Tower v3')}
     </div>
+    <div data-versions style="margin-top:18px"></div>
     <div class="grid two" style="margin-top:18px">
       <section class="card"><div class="card-head"><h2>Tables</h2><span class="muted small">Live row estimates</span></div>
         ${table(['Table', 'Rows', 'Size'], (s.tables || []).map(t => [html`<span class="mono">${t.name}</span>`, fmtNum(t.rows), fmtBytes(t.bytes)]))}</section>
@@ -26,6 +28,7 @@ export default async function system(ctx) {
         <p class="muted small" style="margin-top:12px">Every purge is written to the audit log with the count removed.</p>
         <p class="muted small" style="margin-top:14px">Generated ${fmtDate(s.generated_at)}. <a href="#/system">Refresh</a></p></section>
     </div>`.s;
+  api.versions().then(v => { if (ctx.alive()) qs('[data-versions]', ctx.el).innerHTML = versionsCard(v, { detailed: true }).s; }).catch(e => { if (!e.needsUpgrade) ctx.fail(e); });
   qs('[data-purge]', ctx.el).onsubmit = async e => {
     e.preventDefault(); const days = Number(new FormData(e.currentTarget).get('days'));
     if (!confirm(`Permanently delete every traffic report older than ${days} days? This cannot be undone.`)) return;
