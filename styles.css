@@ -90,7 +90,7 @@ a.tile{color:inherit}a.tile:hover{text-decoration:none;border-color:var(--accent
 .scroll{overflow:auto}
 table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 th{font-size:12.5px;color:var(--muted);font-weight:600;white-space:nowrap;position:sticky;top:0;background:var(--panel)}
-td{overflow-wrap:anywhere}tbody tr:last-child td{border-bottom:0}
+td{overflow-wrap:break-word}tbody tr:last-child td{border-bottom:0}
 table.clickable tbody tr{cursor:pointer}table.clickable tbody tr:hover td{background:var(--panel-2)}
 .empty{padding:22px 10px;color:var(--muted);text-align:center}
 .badge{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;line-height:18px;background:var(--panel-2);border:1px solid var(--line);color:var(--muted);white-space:nowrap;vertical-align:middle}
