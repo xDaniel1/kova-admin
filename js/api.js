@@ -15,7 +15,7 @@ const missingFunction = e => e && (e.code === 'PGRST202' || e.code === '42883' |
 export const unwrap = result => { if (result.error) { if (missingFunction(result.error)) throw new NeedsUpgrade(); throw result.error; } return result.data; };
 export const rpc = async (name, args) => unwrap(await db.rpc(name, args));
 
-export const capabilities = { v3: false };
+export const capabilities = { v3: false, usersPage: null };
 export async function isAdmin() { return rpc('is_admin'); }
 
 // ---- Overview --------------------------------------------------------------------------------
@@ -26,7 +26,16 @@ export async function stats() {
 }
 
 // ---- Users -----------------------------------------------------------------------------------
-export async function users({ search = '', sort = 'desc', filter = '', offset = 0 } = {}) {
+export async function users(opts = {}) {
+  if (capabilities.usersPage !== false) {
+    try {
+      const rows = await rpc('admin_users_page', { search: opts.search || null, filter: opts.filter || null, ascending: opts.sort === 'asc', page_size: PAGE, page_offset: opts.offset || 0 });
+      capabilities.usersPage = true; return rows;
+    } catch (e) { if (!e.needsUpgrade) throw e; capabilities.usersPage = false; }
+  }
+  return usersLegacy(opts);
+}
+async function usersLegacy({ search = '', sort = 'desc', filter = '', offset = 0 } = {}) {
   let q = db.rpc('admin_user_overview').order('last_sign_in_at', { ascending: sort === 'asc', nullsFirst: false }).order('user_id');
   if (search) q = capabilities.v3 ? q.or(`email.ilike.%${escapeLike(search)}%,display_name.ilike.%${escapeLike(search)}%`) : q.ilike('email', '%' + escapeLike(search) + '%');
   // is_admin and banned_until only exist in the v3 overview function.
@@ -38,7 +47,11 @@ export async function users({ search = '', sort = 'desc', filter = '', offset = 
 }
 export const userDetail = id => rpc('admin_user_detail', { target: id });
 export async function userSync(id) { return unwrap(await db.from('sync_snapshots').select('favorites,recents,updated_at').eq('user_id', id).maybeSingle()); }
-export async function userReports(id) { return unwrap(await db.from('traffic_reports').select('*').eq('user_id', id).order('created_at', { ascending: false }).limit(PAGE)); }
+export async function userReports(id) {
+  try { return await rpc('admin_user_reports', { target: id, page_size: PAGE }); }
+  catch (e) { if (!e.needsUpgrade) throw e; }
+  return unwrap(await db.from('traffic_reports').select('*').eq('user_id', id).order('created_at', { ascending: false }).limit(PAGE));
+}
 export async function userFeedback(id) { return unwrap(await db.from('feedback').select('*').eq('user_id', id).order('created_at', { ascending: false }).limit(PAGE)); }
 export const setBanned = (id, until) => rpc('admin_set_banned', { target: id, until_at: until });
 export const deleteUser = id => rpc('admin_delete_user', { target: id });

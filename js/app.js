@@ -4,18 +4,12 @@
 import { $, qsa, html, raw, upgradeCard } from './util.js';
 import { icon } from './icons.js';
 import * as api from './api.js';
-import home from './pages/home.js';
-import activity from './pages/activity.js';
-import users, { userProfile } from './pages/users.js';
-import feedback, { feedbackDetail } from './pages/feedback.js';
-import reports, { reportDetail } from './pages/reports.js';
-import venues, { venueDetail } from './pages/venues.js';
-import feeds, { feedDetail } from './pages/feeds.js';
-import admins from './pages/admins.js';
-import search from './pages/search.js';
-import controls from './pages/controls.js';
-import system from './pages/system.js';
-import messagesPage from './pages/messages.js';
+// Pages load on first visit, so the first paint only waits for the shell and one page.
+const lazy = (file, name = 'default') => async ctx => (await import(`./pages/${file}.js`))[name](ctx);
+const home = lazy('home'), activity = lazy('activity'), users = lazy('users'), userProfile = lazy('users', 'userProfile');
+const feedback = lazy('feedback'), feedbackDetail = lazy('feedback', 'feedbackDetail'), reports = lazy('reports'), reportDetail = lazy('reports', 'reportDetail');
+const venues = lazy('venues'), venueDetail = lazy('venues', 'venueDetail'), feeds = lazy('feeds'), feedDetail = lazy('feeds', 'feedDetail');
+const admins = lazy('admins'), search = lazy('search'), controls = lazy('controls'), system = lazy('system'), messagesPage = lazy('messages');
 
 const routes = [
   [/^\/?$/, home, 'Home'],
@@ -80,9 +74,12 @@ export function renderNav() {
     : html`<a href="#${p}" ${raw(path === p || (p !== '/' && path.startsWith(p + '/')) ? 'aria-current="page"' : '')}><span class="ico">${raw(icon(iconName))}</span><span>${label}</span>${countKey && counts[countKey] ? html`<span class="badge accent count">${counts[countKey]}</span>` : ''}</a>`
   ).join('');
 }
-let statsAt = 0;
-export async function refreshStats() {
-  try { state.stats = await api.stats(); statsAt = Date.now(); renderNav(); } catch (e) { if (!e.needsUpgrade) throw e; }
+let statsAt = 0, statsInFlight = null;
+export async function refreshStats({ maxAge = 0 } = {}) {
+  if (state.stats && Date.now() - statsAt < maxAge) return state.stats;
+  // Callers arriving while a fetch is running share it instead of starting another.
+  statsInFlight ||= api.stats().then(s => { state.stats = s; statsAt = Date.now(); renderNav(); return s; }).finally(() => { statsInFlight = null; });
+  try { await statsInFlight; } catch (e) { if (!e.needsUpgrade) throw e; }
   return state.stats;
 }
 
@@ -137,22 +134,28 @@ function clearPrivate() {
   state.authorized = false; state.user = null; state.stats = null; state.role = 'owner'; state.epoch++; document.body.classList.remove('role-viewer'); $('role-note').hidden = true;
   $('outlet').replaceChildren(); showLogin(true);
 }
-async function acceptSession(session) {
-  if (!session) { clearPrivate(); return; }
-  if (state.authorized && state.user?.id === session.user.id) return;
+let accepting = null;
+function acceptSession(session) {
+  if (!session) { clearPrivate(); return Promise.resolve(); }
+  if (state.authorized && state.user?.id === session.user.id) return Promise.resolve();
+  if (accepting?.id === session.user.id) return accepting.promise;
+  const promise = doAccept(session).finally(() => { if (accepting?.promise === promise) accepting = null; });
+  accepting = { id: session.user.id, promise };
+  return promise;
+}
+async function doAccept(session) {
   clearPrivate(); const epoch = state.epoch;
   try {
-    const admin = await api.isAdmin();
+    const [admin, who] = await Promise.all([api.isAdmin(), api.whoami().catch(() => null)]);
     if (epoch !== state.epoch) return;
     if (!admin) { clearPrivate(); notice('This account is not an admin.'); await api.client().auth.signOut(); return; }
     state.authorized = true; state.user = session.user;
-    try { state.role = (await api.whoami())?.role || 'owner'; } catch { state.role = 'owner'; }
+    state.role = who?.role || 'owner';
     document.body.classList.toggle('role-viewer', state.role === 'viewer');
     $('role-note').hidden = state.role !== 'viewer';
     showLogin(false);
     $('signed-in').textContent = 'Signed in as ' + (session.user.email || session.user.id);
-    await refreshStats().catch(fail);
-    if (epoch !== state.epoch) return;
+    refreshStats().catch(fail);
     await route();
   } catch (e) { if (epoch === state.epoch) { clearPrivate(); fail(e); } }
 }

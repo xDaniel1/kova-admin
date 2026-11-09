@@ -7,7 +7,7 @@ import { recordHref, typeLabel } from '../records.js';
 import { versionsCard } from '../versions.js';
 
 export default async function home(ctx) {
-  const s = await ctx.refreshStats();
+  const s = await ctx.refreshStats({ maxAge: 5000 });
   if (!ctx.alive()) return;
   if (!s) { ctx.el.innerHTML = upgradeCard(); return; }
   const meta = ctx.user.user_metadata || {};

@@ -54,7 +54,7 @@ input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent);cursor:po
 #app{display:grid;grid-template-columns:var(--sidebar) 1fr;min-height:100%}
 #sidebar{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;background:var(--panel);border-right:1px solid var(--line);padding:16px 14px;gap:8px}
 .brand{display:flex;align-items:center;gap:11px;padding:4px 8px 14px;color:var(--text);font-weight:700;font-size:16px;letter-spacing:-.01em}.brand:hover{text-decoration:none}
-.brand-mark{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,var(--accent-2),var(--accent-deep));color:#fff;display:grid;place-items:center;font-weight:800;font-size:15px;box-shadow:0 4px 12px -4px rgba(47,111,228,.6)}
+.brand-mark{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,var(--accent-2),var(--accent-deep));color:#fff;display:grid;place-items:center;font-weight:700;font-size:15px;box-shadow:0 4px 12px -4px rgba(47,111,228,.6)}
 #nav{display:flex;flex-direction:column;gap:2px;overflow:auto}
 #nav a{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:10px;color:var(--text-2);font-weight:500;transition:background .12s,color .12s}
 #nav a:hover{background:var(--panel-2);color:var(--text);text-decoration:none}
@@ -180,3 +180,8 @@ a.btn{display:inline-flex;align-items:center;justify-content:center;padding:8px 
 body.role-viewer main button.primary,body.role-viewer main button.danger,body.role-viewer main [data-act],body.role-viewer main [data-toggle],body.role-viewer main [data-enabled],body.role-viewer main details.collapse>summary,body.role-viewer main [data-tag-form],body.role-viewer main [data-note-form],body.role-viewer main .bulkbar,body.role-viewer main [data-pick],body.role-viewer main select[data-status]{pointer-events:none;opacity:.4}
 .bulkbar{position:sticky;top:64px;z-index:2;display:flex;align-items:center;gap:8px;padding:8px 12px;margin:0 0 8px;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius-sm)}.bulkbar .spacer{flex:1}
 .selectable{display:grid;grid-template-columns:22px 1fr;gap:8px;align-items:start}.selectable>input{margin-top:16px}.selectable .feedback-item{margin:0}
+
+/* Links inside running text are underlined, not only colored (WCAG 1.4.1). */
+p a,.small a,dd a,.kv a,.message a{text-decoration:underline;text-underline-offset:2px}
+.feedback-item,.feedback-item:hover,a.tile,a.btn,a.chip,.breadcrumb a{text-decoration:none}
+.timeline .what a,.note .meta a{text-decoration:underline;text-underline-offset:2px}
