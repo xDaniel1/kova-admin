@@ -57,6 +57,7 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent)}
 #menu{display:none}
 #scrim{position:fixed;inset:0;background:rgba(0,0,0,.4);border:0;z-index:9}
 main{padding:22px 24px 48px;max-width:1280px;width:100%;margin:0 auto}
+main:focus,main:focus-visible{outline:none}
 #banner{margin:16px 24px 0;border:1px solid var(--danger);background:var(--danger-soft);color:var(--danger);padding:10px 14px;border-radius:10px;white-space:pre-wrap}
 #notice{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:9px 16px;border-radius:999px;box-shadow:var(--shadow);z-index:20;margin:0}
 @media (max-width:900px){
