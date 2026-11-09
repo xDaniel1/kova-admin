@@ -48,8 +48,11 @@ create trigger traffic_reports_insert instead of insert on public.traffic_report
 -- Clients use only the view. Deletes on it are passed straight to the table (auto-updatable view).
 revoke all on public.traffic_reports from public, anon, authenticated;
 grant select, insert, delete on public.traffic_reports to authenticated;
+-- Signed-out reads keep returning an empty list (no anon policy), exactly as before.
+grant select on public.traffic_reports to anon;
 revoke all on kova_private.traffic_reports from public, anon;
 grant select, insert, delete on kova_private.traffic_reports to authenticated;
+grant select on kova_private.traffic_reports to anon;
 grant all on kova_private.traffic_reports to service_role;
 
 -- Admin and trigger functions read the table directly, keeping their indexes and real user ids.
