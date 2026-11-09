@@ -1,12 +1,12 @@
 # Kova Maps admin
 
-Static developer console: https://xdaniel1.github.io/waypoint-site/admin/
+Static developer console: https://xdaniel1.github.io/kova-admin/
 
 ## Setup
 
 1. Apply `waypoint-combined/supabase/schema.sql` if the base database has not been provisioned, then run `waypoint-combined/supabase/admin.sql` in the Supabase SQL Editor as the database owner. Do not rerun the base schema afterward: it revokes feedback read/update privileges that the admin migration grants. The admin migration is rerunnable.
 2. Replace `REPLACE_ME` in `config.js` with this project's **public anon key**. The URL is already configured. Never put a service-role key in this repository or page.
-3. In Supabase Authentication, enable email/magic-link sign-in and add the exact redirect URL `https://xdaniel1.github.io/waypoint-site/admin/` to the allowed redirect URLs. Add the equivalent localhost `/admin/` URL only if testing locally. Keep the trailing slash.
+3. In Supabase Authentication, enable email/magic-link sign-in and add the exact redirect URL `https://xdaniel1.github.io/kova-admin/` to the allowed redirect URLs. Add the equivalent localhost `/admin/` URL only if testing locally. Keep the trailing slash.
 4. Ensure an Auth user exists with email `danielantigua06@gmail.com`. The SQL seed grants that account access; it emits a notice and does nothing if the account does not exist. In that case, use the page's magic-link flow to create/sign in to the account, then rerun `admin.sql` and sign in again. An unlisted account is shown “Not an admin” and signed out.
 5. Publish the files through the existing GitHub Pages deployment. There is no build step. For local use, serve the repository with a static HTTP server; do not open the page as a `file:` URL.
 

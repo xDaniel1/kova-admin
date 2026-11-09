@@ -19,7 +19,10 @@
 <header><div><h1>Kova Maps</h1><span class="muted">Developer console</span></div><div id="session-controls" hidden><button id="refresh">Refresh</button> <button id="signout">Sign out</button></div></header>
 <div id="banner" role="alert" hidden></div>
 <p id="notice" role="status" aria-live="polite"></p>
-<section id="login"><h2>Admin sign-in</h2><p class="muted">Sign in with your developer email. Access is checked on the server.</p><form id="login-form"><label>Email<input id="email" type="email" autocomplete="email" required></label><p><button id="send-link">Send magic link</button></p></form></section>
+<section id="login"><h2>Admin sign-in</h2><p class="muted">Sign in with your developer email. Access is checked on the server.</p><form id="login-form"><label>Email<input id="email" type="email" autocomplete="email" required></label><p>
+      <button type="button" id="google-signin">Sign in with Google</button>
+      <p class="hint" style="opacity:.7;font-size:.9em">Or get a one-time link by email:</p>
+      <button id="send-link">Send magic link</button></p></form></section>
 <div id="dashboard" hidden>
 <nav aria-label="Sections"><a href="#overview">Overview</a><a href="#users">Users</a><a href="#feedback">Feedback</a><a href="#reports">Reports</a><a href="#venues">Venues</a><a href="#feeds">Feeds</a></nav>
 <section id="overview"><h2>Overview</h2><div id="stats" class="tiles"></div><div id="breakdowns" class="breakdowns"></div></section>
@@ -156,6 +159,13 @@ window.addEventListener('DOMContentLoaded', async () => {
       await refresh();
     } catch(e) { if (token === epoch) { clearPrivate(); fail(e); } }
   }
+  $('google-signin').onclick = async () => {
+    $('banner').hidden=true;
+    try {
+      const redirect = new URL('./',location.href); redirect.hash=''; redirect.search='';
+      unwrap(await db.auth.signInWithOAuth({provider:'google',options:{redirectTo:redirect.href}}));
+    } catch(error) { fail(error); }
+  };
   $('login-form').onsubmit = async e => {
     e.preventDefault(); $('send-link').disabled=true; $('banner').hidden=true;
     try {
