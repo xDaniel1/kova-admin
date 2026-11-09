@@ -1,14 +1,16 @@
-# Kova Maps admin
+# Kova Tower
 
-Static developer console: https://xdaniel1.github.io/kova-admin/
+Static internal console for Kova Maps: https://tower.kovamaps.com/ (GitHub Pages, also reachable at https://xdaniel1.github.io/kova-admin/)
 
 ## Setup
 
 1. Apply `waypoint-combined/supabase/schema.sql` if the base database has not been provisioned, then run `waypoint-combined/supabase/admin.sql` in the Supabase SQL Editor as the database owner. Do not rerun the base schema afterward: it revokes feedback read/update privileges that the admin migration grants. The admin migration is rerunnable.
 2. Replace `REPLACE_ME` in `config.js` with this project's **public anon key**. The URL is already configured. Never put a service-role key in this repository or page.
-3. In Supabase Authentication, enable email/magic-link sign-in and add the exact redirect URL `https://xdaniel1.github.io/kova-admin/` to the allowed redirect URLs. Add the equivalent localhost `/admin/` URL only if testing locally. Keep the trailing slash.
+3. In Supabase Authentication, enable email/magic-link sign-in and add the exact redirect URLs `https://tower.kovamaps.com/` and `https://xdaniel1.github.io/kova-admin/` to the allowed redirect URLs. Add the equivalent localhost `/admin/` URL only if testing locally. Keep the trailing slash.
 4. Ensure an Auth user exists with email `danielantigua06@gmail.com`. The SQL seed grants that account access; it emits a notice and does nothing if the account does not exist. In that case, use the page's magic-link flow to create/sign in to the account, then rerun `admin.sql` and sign in again. An unlisted account is shown “Not an admin” and signed out.
 5. Publish the files through the existing GitHub Pages deployment. There is no build step. For local use, serve the repository with a static HTTP server; do not open the page as a `file:` URL.
+
+6. Optionally run `supabase/admin-v2.sql` (in this repository) after `admin.sql`. It adds 30-day sign-up and report series to `admin_stats()` and favorites/recents counts to `admin_user_overview()`. Without it the Overview shows no daily charts and the Users table shows no snapshot sizes; everything else works.
 
 ## How it works
 
@@ -16,11 +18,11 @@ Static developer console: https://xdaniel1.github.io/kova-admin/
 
 Magic links redirect to this page, and the client restores the Supabase session. It checks `is_admin()` before showing the console, then calls the guarded `admin_stats()` and `admin_user_overview()` RPCs. Both RPCs independently reject non-admin callers. Security-definer functions have an empty search path and fully qualified database references. `admin_users` cannot be read or modified by browser roles. Signing out clears displayed private data; Supabase persists sessions in this browser, so sign out on shared devices.
 
-- Overview shows user counts, sign-in counts, feedback counts by kind/status, recent reports by kind, and venue/feed totals. These reflect retained database rows; purged traffic reports are not historical analytics.
-- Users supports server-side email substring search and last-sign-in sorting (never signed in appears last). Sync status comes from `sync_snapshots.updated_at`; the schema stores `favorites` and `recents`, not a `payload` column. Admin SELECT permission includes those contents, though this console only displays sync status.
-- Feedback is newest first, with server-side kind/status filters. App version, device and OS come from `diagnostics.app_version`, `diagnostics.device_model`, and `diagnostics.os_version`. Status saves on change; notes save on blur, with per-item confirmation. Failed saves show a banner; note text remains available for retry. Screenshot buttons create a private `feedback-screenshots` signed link valid for 300 seconds; click the resulting link to view. Anyone possessing a generated link can use it until expiry.
-- Reports covers the last seven days as of refresh, with Apple Maps coordinate links.
-- Venues supports insertion and enabled toggles. Sources is a comma-separated list stored as `text[]`. Feeds supports enabled toggles. Toggle writes also update `updated_at`.
+- Overview shows user counts, sign-in counts, feedback counts by kind/status, recent reports by kind, and venue/feed totals. These reflect retained database rows; purged traffic reports are not historical analytics. With `admin-v2.sql` applied it also draws sign-ups and reports per UTC day for the last 30 days (hover a bar for the value, or expand the table view). The Feedback link in the section nav shows the count of feedback still in `new`.
+- Users supports server-side email substring search and last-sign-in sorting (never signed in appears last). Sync status comes from `sync_snapshots.updated_at`, with favorites/recents counts when `admin-v2.sql` is applied; the schema stores `favorites` and `recents`, not a `payload` column. Admin SELECT permission includes those contents, though this console only displays sync status.
+- Feedback is newest first, with server-side kind/status filters and a message substring search. A contact that looks like an email address becomes a mailto link. App version, device and OS come from `diagnostics.app_version`, `diagnostics.device_model`, and `diagnostics.os_version`. Status saves on change; notes save on blur, with per-item confirmation. Failed saves show a banner; note text remains available for retry. Screenshot buttons create a private `feedback-screenshots` signed link valid for 300 seconds; click the resulting link to view. Anyone possessing a generated link can use it until expiry.
+- Reports covers the last 24 hours, 7 days or 30 days as of refresh (default 7 days), optionally filtered by kind, with Apple Maps coordinate links.
+- Venues supports insertion, editing (Edit fills the form; the short name is the key and cannot change) and enabled toggles. Sources is a comma-separated list stored as `text[]`. Feeds supports insertion (WZDx only for now) and enabled toggles. Writes also update `updated_at`.
 - Each list fetches and displays at most 200 rows. **Load more replaces the current page** with the next 200, keeping the UI bounded. Refresh returns all lists to page one; searching/filtering resets the relevant list. Ordering includes a unique tie-breaker. Concurrent inserts/deletes can shift offset pagination; refresh for a fresh view. A full final page may require one more click to discover the end.
 
 Feedback table grants allow updates only to `status` and `admin_note`, and insert grants exclude these admin fields. RLS restricts these updates and all private feedback/screenshot reads to admins. Existing iOS policies remain intact: signed-in users can still read traffic reports, users manage their own snapshots, and venues/feeds remain public app data. “Only admins” applies to the console's private user directory, cross-user sync access and feedback, not to removing the app's existing public data access. Admin INSERT/UPDATE policies also cover feeds for future tooling. No client can grant itself admin access.
