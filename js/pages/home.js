@@ -39,7 +39,7 @@ export default async function home(ctx) {
     </div>
     <div data-versions></div>
     <section class="card"><div class="card-head"><h2>Last 30 days</h2><span class="muted small">Per UTC day</span></div>
-      ${Array.isArray(s.signups_by_day) ? html`${barChart('Sign-ups', s.signups_by_day)}${barChart('Reports', s.reports_by_day)}${barChart('Feedback', s.feedback_by_day)}` : html`<p class="muted">Daily charts appear after <code>supabase/admin-v3.sql</code> is applied.</p>`}
+      ${Array.isArray(s.signups_by_day) ? html`${barChart('Sign-ups', s.signups_by_day)}${barChart('Reports', s.reports_by_day)}${barChart('Feedback', s.feedback_by_day)}` : html`<p class="muted">Daily charts appear after <code>supabase/migrations/0003_notes_tags_audit.sql</code> is applied.</p>`}
     </section>
     <div class="grid two">
       <section class="card"><h2>Breakdowns</h2><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
@@ -66,7 +66,7 @@ export default async function home(ctx) {
       const label = await api.labels(rows.map(r => r.actor));
       if (!ctx.alive()) return;
       host.innerHTML = eventList(rows, label, { grouped: false }).s;
-    } catch (e) { if (!ctx.alive()) return; host.innerHTML = e.needsUpgrade ? '<p class="muted">The activity log needs <code>supabase/admin-v3.sql</code>.</p>' : html`<p class="muted">${e.message}</p>`.s; }
+    } catch (e) { if (!ctx.alive()) return; host.innerHTML = e.needsUpgrade ? '<p class="muted">The activity log needs <code>supabase/migrations/0003_notes_tags_audit.sql</code>.</p>' : html`<p class="muted">${e.message}</p>`.s; }
   })());
   tasks.push((async () => {
     const host = qs('[data-notes]', ctx.el);
@@ -76,7 +76,7 @@ export default async function home(ctx) {
       const label = await api.labels(rows.map(r => r.author));
       if (!ctx.alive()) return;
       host.innerHTML = rows.length ? rows.map(n => html`<article class="note"><div class="meta"><a href="${recordHref(n.target_type, n.target_id)}">${typeLabel[n.target_type]} · ${n.target_type === 'user' || n.target_type === 'feedback' || n.target_type === 'report' ? n.target_id.slice(0, 8) : n.target_id}</a><span>${label(n.author)?.email || 'admin'} · ${rel(n.created_at)}</span></div><p class="body">${n.body.length > 220 ? n.body.slice(0, 220) + '…' : n.body}</p></article>`).join('') : empty('No notes yet. Open any record to add one.').s;
-    } catch (e) { if (!ctx.alive()) return; host.innerHTML = e.needsUpgrade ? '<p class="muted">Notes need <code>supabase/admin-v3.sql</code>.</p>' : html`<p class="muted">${e.message}</p>`.s; }
+    } catch (e) { if (!ctx.alive()) return; host.innerHTML = e.needsUpgrade ? '<p class="muted">Notes need <code>supabase/migrations/0003_notes_tags_audit.sql</code>.</p>' : html`<p class="muted">${e.message}</p>`.s; }
   })());
   await Promise.all(tasks);
 }

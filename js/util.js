@@ -77,7 +77,7 @@ export function barChart(label, days) {
 export const kindLabel = { bug: 'Bug', idea: 'Idea', map_data: 'Map data', other: 'Other' };
 export const statusTone = { new: 'tone-new', seen: 'tone-seen', done: 'tone-done' };
 
-export const upgradeCard = () => html`<section class="card setup"><h2>Database update needed</h2><p>This part of Tower reads tables and functions added by <code>supabase/admin-v3.sql</code> in the kova-admin repository. Run that file in the Supabase SQL Editor as the database owner (it is safe to rerun), then refresh this page.</p></section>`.s;
+export const upgradeCard = () => html`<section class="card setup"><h2>Database update needed</h2><p>This part of Tower reads tables and functions added by <code>supabase/migrations/0003_notes_tags_audit.sql</code> in the kova-admin repository. Run that file in the Supabase SQL Editor as the database owner (it is safe to rerun), then refresh this page.</p></section>`.s;
 
 /** Download rows as a CSV file. Cells are quoted; formulas are neutralised so spreadsheets stay safe. */
 export function downloadCSV(name, headers, rows) {

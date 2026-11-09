@@ -1,5 +1,5 @@
--- Tower v7: quality pass. Indexes, faster dashboard functions, server-side user paging,
--- restored sync policy, and least-privilege table grants. Apply after admin-v6.sql. Rerunnable.
+-- Migration 0007: quality pass. Indexes, faster dashboard functions, server-side user paging,
+-- restored sync policy, and least-privilege table grants. Apply after 0006_platform_versions.sql. Rerunnable.
 begin;
 
 -- ---------------------------------------------------------------------------

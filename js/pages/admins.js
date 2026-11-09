@@ -49,7 +49,7 @@ export default async function admins(ctx) {
   (async () => {
     try { const d = await api.digest(); if (!ctx.alive()) return;
       preview.innerHTML = html`<dl class="kv"><dt>New sign-ups</dt><dd>${fmtNum(d.signups)}</dd><dt>Active users</dt><dd>${fmtNum(d.active_users)} of ${fmtNum(d.total_users)}</dd><dt>Traffic reports</dt><dd>${fmtNum(d.reports)}</dd><dt>New feedback</dt><dd>${fmtNum(d.feedback)} <span class="muted small">(${fmtNum(d.feedback_new_total)} untriaged in total)</span></dd><dt>Admin actions</dt><dd>${fmtNum(d.admin_actions)}</dd><dt>Recipients</dt><dd class="small">${(d.recipients || []).join(', ') || 'nobody opted in'}</dd></dl>`.s;
-    } catch (e) { if (ctx.alive()) preview.innerHTML = e.needsUpgrade ? '<p class="muted small">Needs <code>supabase/admin-v5.sql</code>.</p>' : html`<p class="muted small">${e.message}</p>`.s; }
+    } catch (e) { if (ctx.alive()) preview.innerHTML = e.needsUpgrade ? '<p class="muted small">Needs <code>supabase/migrations/0005_messages_roles.sql</code>.</p>' : html`<p class="muted small">${e.message}</p>`.s; }
   })();
   await load();
 }

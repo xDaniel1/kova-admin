@@ -141,7 +141,7 @@ export async function userProfile(ctx) {
   await showTab(tab);
 }
 
-// Before admin-v3.sql there is no detail function, so show what the overview RPC knows.
+// Before migration 0003 there is no detail function, so show what the overview RPC knows.
 async function legacyProfile(ctx, id) {
   const rows = await api.users({ offset: 0 }); const u = rows.find(r => r.user_id === id);
   if (!ctx.alive()) return;

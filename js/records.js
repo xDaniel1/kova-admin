@@ -1,5 +1,5 @@
 // The annotation panel every record page shares: tags as chips, then threaded notes.
-// Both live in admin_notes / admin_tags, which exist only after admin-v3.sql.
+// Both live in admin_notes / admin_tags, which exist only after migration 0003.
 'use strict';
 import { html, raw, qsa, qs, fmtDate, rel, href, upgradeCard, empty } from './util.js';
 import * as api from './api.js';

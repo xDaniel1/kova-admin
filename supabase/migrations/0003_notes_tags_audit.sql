@@ -1,6 +1,6 @@
--- Tower v3: notes, tags, audit log, user actions, search and activity for the console.
+-- Migration 0003: notes, tags, audit log, user actions, search and activity for the console.
 -- Apply after admin.sql, as the database owner, in the Supabase SQL Editor. Rerunnable.
--- Supersedes admin-v2.sql (its changes are included here).
+-- Supersedes the old admin-v2.sql (its changes are included here).
 begin;
 
 -- ---------------------------------------------------------------------------

@@ -1,5 +1,5 @@
--- Tower v6: per-platform version rules and client version reports.
--- Apply after admin-v5.sql, as the database owner, in the Supabase SQL Editor. Rerunnable.
+-- Migration 0006: per-platform version rules and client version reports.
+-- Apply after 0005_messages_roles.sql, as the database owner, in the Supabase SQL Editor. Rerunnable.
 begin;
 
 -- min_version gains android; latest_version is new (optional "update available" nudge).

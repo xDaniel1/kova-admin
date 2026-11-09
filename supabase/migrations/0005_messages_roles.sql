@@ -1,5 +1,5 @@
--- Tower v5: in-app messages, admin roles (owner / editor / viewer), digest data.
--- Apply after admin-v4.sql, as the database owner, in the Supabase SQL Editor. Rerunnable.
+-- Migration 0005: in-app messages, admin roles (owner / editor / viewer), digest data.
+-- Apply after 0004_app_controls.sql, as the database owner, in the Supabase SQL Editor. Rerunnable.
 begin;
 
 -- ---------------------------------------------------------------------------

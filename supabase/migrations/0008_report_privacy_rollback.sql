@@ -1,4 +1,4 @@
--- Undo admin-v8-report-privacy.sql: put traffic_reports back in public as a plain table.
+-- Undo 0008_report_privacy.sql: put traffic_reports back in public as a plain table.
 begin;
 drop function if exists public.admin_user_reports(uuid, integer);
 drop view if exists public.traffic_reports;

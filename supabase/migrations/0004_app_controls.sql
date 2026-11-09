@@ -1,5 +1,5 @@
--- Tower v4: app controls (remote config), moderation actions, system health.
--- Apply after admin-v3.sql, as the database owner, in the Supabase SQL Editor. Rerunnable.
+-- Migration 0004: app controls (remote config), moderation actions, system health.
+-- Apply after 0003_notes_tags_audit.sql, as the database owner, in the Supabase SQL Editor. Rerunnable.
 begin;
 
 -- ---------------------------------------------------------------------------

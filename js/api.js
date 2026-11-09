@@ -10,7 +10,7 @@ let db = null;
 export const client = () => db;
 export function init(supabaseClient) { db = supabaseClient; }
 
-export class NeedsUpgrade extends Error { constructor() { super('This page needs supabase/admin-v3.sql applied to the database.'); this.needsUpgrade = true; } }
+export class NeedsUpgrade extends Error { constructor() { super('This page needs supabase/migrations/0003_notes_tags_audit.sql applied to the database.'); this.needsUpgrade = true; } }
 const missingFunction = e => e && (e.code === 'PGRST202' || e.code === '42883' || e.code === '42P01' || /could not find the function|does not exist|schema cache/i.test(e.message || ''));
 export const unwrap = result => { if (result.error) { if (missingFunction(result.error)) throw new NeedsUpgrade(); throw result.error; } return result.data; };
 export const rpc = async (name, args) => unwrap(await db.rpc(name, args));

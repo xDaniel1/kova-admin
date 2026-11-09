@@ -23,6 +23,7 @@ Returns an array of `{ "key": string, "value": object }`. Decode each key on its
 | `maintenance` | `{ "enabled": bool, "message": string }` |
 | `min_version` | `{ "ios": "1.0", "android": "1.0", "web": "0.1", "message": string }` |
 | `latest_version` | `{ "ios": "1.0.0", "android": "1.0.0", "web": "0.1.0", "message": string, "store_urls": { "ios": url, "android": url, "web": url } }` |
+| `released_versions` | `{ "ios": { "version": "1.0.0", "build": "4" }, "android": { "version": "1.0.0", "build": "1" }, "web": { "version": "1.0.0", "build": null }, "site": {…} }`. Informational record of what shipped; apps may ignore it. |
 | `features` | `{ "indoor_maps": bool, "traffic_reports": bool, "feedback": bool, "incident_feeds": bool, "sync": bool }` |
 | `announcement` | `{ "enabled": bool, "title": string, "body": string, "level": "info" \| "warning" \| "critical", "url": url \| null, "starts_at": ISO-8601 \| null, "ends_at": ISO-8601 \| null }` |
 

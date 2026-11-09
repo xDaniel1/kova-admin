@@ -29,11 +29,15 @@ Every record (user, feedback item, report, venue, feed) can carry **tags** (`low
 ## Setup
 
 1. Apply the app's `supabase/schema.sql` if the database has not been provisioned, then run `supabase/admin.sql` from the app repository (the waypoint-combined checkout) in the Supabase SQL Editor as the database owner. Do not rerun the base schema afterwards: it revokes feedback read/update privileges that the admin migration grants.
-2. Run **`supabase/admin-v3.sql` through `admin-v6.sql` from this repository**, in order, the same way. v6 adds per-platform version rules (`min_version` gains Android, new `latest_version`) and the `app_clients` table that apps report their version to. v4 adds `app_config`, moderation policies, `admin_sign_out_user`, `admin_purge_reports` and `admin_system`. Both are rerunnable. v3 adds the notes, tags and audit tables, the account-action functions (`admin_set_banned`, `admin_delete_user`, `admin_grant`, `admin_revoke`), `admin_search`, `admin_activity`, `admin_user_detail`, and the extended `admin_stats` / `admin_user_overview`. Until it is applied Tower still works for the original features and shows a "Database update needed" card where it needs the new pieces.
+2. Run every file in **`supabase/migrations/`** from this repository, in number order, the same way (`0003_…` through the newest). Each is rerunnable. Highlights: 0003 notes, tags, audit log and account actions; 0004 `app_config` remote controls; 0005 messages and roles; 0006 per-platform version rules and `app_clients`; 0007 indexes and paging; 0008 moves traffic reports behind a privacy view (undo with `0008_report_privacy_rollback.sql`); 0009 the version registry (`released_versions`). Migration numbers are database changes only and are separate from Tower's product version. Until 0003 is applied Tower still works for the original features and shows a "Database update needed" card where it needs the new pieces.
 3. `config.js` holds the project URL and the **public anon key**. Never put a service-role key in this repository or page.
-4. In Supabase Authentication, enable Google (the "Kova Admin" web client) and email magic links, and add the exact redirect URLs `https://tower.kovamaps.com/` and `https://xdaniel1.github.io/kova-admin/` (trailing slash) to the allowed list.
+4. In Supabase Authentication, enable Google (the "Kova Admin" web client) and email magic links, and add `https://tower.kovamaps.com/**` to the allowed redirect URLs.
 5. The first admin is seeded by `admin.sql` (`danielantigua06@gmail.com`). After that, add admins from the Admins page. An unlisted account is told it is not an admin and signed out.
 6. Publish by pushing to `main`; GitHub Pages serves the repository root. For local use, serve the folder with any static HTTP server (the page uses ES modules, so a `file:` URL will not work).
+
+## Versions
+
+Tower follows the shared product scheme: one semantic version (currently 1.0.0) plus a build number that only goes up. Both live in `js/version.js` and show in the sidebar footer. On every deploy, bump `BUILD`; on a release, bump `VERSION`, add a `CHANGELOG.md` entry and tag `tower-v<version>`. The released version and build of the iOS app, Android app, web app and marketing site are recorded on App controls (Released versions) and shown in the Version registry card on Home and System.
 
 ## How access works
 

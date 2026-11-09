@@ -4,6 +4,7 @@
 import { $, qsa, html, raw, upgradeCard } from './util.js';
 import { icon } from './icons.js';
 import * as api from './api.js';
+import { VERSION, BUILD } from './version.js';
 // Pages load on first visit, so the first paint only waits for the shell and one page.
 const lazy = (file, name = 'default') => async ctx => (await import(`./pages/${file}.js`))[name](ctx);
 const home = lazy('home'), activity = lazy('activity'), users = lazy('users'), userProfile = lazy('users', 'userProfile');
@@ -161,6 +162,7 @@ async function doAccept(session) {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
+  $('tower-version').textContent = `Tower ${VERSION} (build ${BUILD})`;
   const config = window.KOVA_SUPABASE;
   if (!window.supabase || !config?.url || !config?.anonKey || config.anonKey === 'REPLACE_ME') {
     fail(new Error('Setup required: set the public anon key in config.js and make sure the Supabase client loaded.'));

@@ -1,4 +1,4 @@
--- Tower v8: stop exposing who filed each traffic report.
+-- Migration 0008: stop exposing who filed each traffic report.
 --
 -- Before: every signed-in user could read traffic_reports.user_id for every report, linking each
 -- account to the places and times it reported. The iOS, Android and web apps only use user_id to
@@ -10,7 +10,7 @@
 -- builds keep working unchanged. The view runs with the caller's rights (security_invoker), so the
 -- table's row-level security policies still apply to every read, insert and delete.
 --
--- Apply after admin-v7.sql. Rerunnable. Undo with admin-v8-report-privacy-rollback.sql.
+-- Apply after 0007_indexes_paging.sql. Rerunnable. Undo with 0008_report_privacy_rollback.sql.
 begin;
 
 create schema if not exists kova_private;

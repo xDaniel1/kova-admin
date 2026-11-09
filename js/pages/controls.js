@@ -9,13 +9,20 @@ const toggle = (label, name, on, hint) => html`<label class="inline switch"><inp
 const VER = 'pattern="[0-9]+(\\.[0-9]+)*" title="Numbers separated by dots, e.g. 1.2.0"';
 const local = iso => iso ? new Date(iso).toISOString().slice(0, 16) : '';
 
-const ORDER = ['maintenance', 'min_version', 'latest_version', 'features', 'announcement'];
+const REL = [['ios', 'iOS', 'build'], ['android', 'Android', 'versionCode'], ['web', 'Web app'], ['site', 'Site']];
+const ORDER = ['maintenance', 'released_versions', 'min_version', 'latest_version', 'features', 'announcement'];
 const SECTIONS = {
   maintenance: {
     title: 'Maintenance mode', blurb: 'Stops network features in the apps and shows a message. Use it during a bad deploy or a Supabase incident.',
     form: v => html`${toggle('Maintenance mode is on', 'enabled', v.enabled, 'Apps show the message and pause sync, reports and feedback.')}<label>Message<textarea name="message" maxlength="300">${v.message || ''}</textarea></label>`,
     read: f => ({ enabled: f.get('enabled') === 'on', message: f.get('message').trim() }),
     status: v => v.enabled ? badge('ON · apps paused', 'danger') : badge('Off', 'ok'),
+  },
+  released_versions: {
+    title: 'Released versions', blurb: 'What has shipped. One shared version across products, plus a build number per platform that only goes up. Informational: the apps do not act on it.',
+    form: v => html`<div class="form-grid">${REL.map(([k, l, b]) => html`${field(l + ' version', k, (v[k] || {}).version, { placeholder: '1.0.0', attrs: VER })}${b ? field(l + ' ' + b, k + '_build', (v[k] || {}).build, { placeholder: '1', attrs: 'pattern="[0-9]+" title="A whole number"' }) : ''}`)}</div>`,
+    read: f => Object.fromEntries(REL.map(([k, , b]) => [k, { version: f.get(k).trim(), build: b ? f.get(k + '_build').trim() || null : null }])),
+    status: v => badge(REL.map(([k, l]) => `${l} ${(v[k] || {}).version || '–'}${(v[k] || {}).build ? ' (' + v[k].build + ')' : ''}`).join(' · ')),
   },
   min_version: {
     title: 'Minimum supported version', blurb: 'Builds below these must update before they continue. Leave a platform empty to never block it.',
@@ -67,6 +74,7 @@ export default async function controls(ctx) {
         const f = new FormData(form);
         const value = s ? s.read(f) : JSON.parse(f.get('json'));
         if (key === 'min_version') { const cur = rows.find(r => r.key === 'latest_version')?.value || {}; const bad = ['ios', 'android', 'web'].filter(p => value[p] && cur[p] && versionLess(cur[p], value[p])); if (bad.length && !confirm(`The minimum for ${bad.join(', ')} is above the latest released version. Every user on that platform would be blocked. Save anyway?`)) return; }
+        if (key === 'released_versions') { const cur = rows.find(r => r.key === key)?.value || {}; const down = ['ios', 'android'].filter(p => cur[p]?.build && value[p].build && Number(value[p].build) < Number(cur[p].build)); if (down.length) throw new Error(`Build numbers only go up: ${down.map(p => `${p} is ${cur[p].build}`).join(', ')}.`); }
         if (key === 'maintenance' && value.enabled && !confirm('Turn on maintenance mode? Every app user will see the message and lose network features until you turn it off.')) return;
         await api.saveConfig(key, value); ctx.notice(`${s?.title || key} saved.`); if (ctx.alive()) await controls(ctx);
       } catch (err) { ctx.fail(err); } finally { b.disabled = false; }
