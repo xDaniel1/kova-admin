@@ -64,10 +64,10 @@ begin
             'signed_in_30d', (select count(distinct d.user_id) from public.app_client_days d where d.platform = p.platform and d.day > today - 30),
             'installs_total', (select count(*) from public.app_clients c where c.platform = p.platform and coalesce(c.build, '') not in ('', 'dev')),
             'new_7d', (select count(*) from public.app_clients c where c.platform = p.platform and coalesce(c.build, '') not in ('', 'dev') and c.first_seen > now() - interval '7 days'),
-            'daily', (select json_agg(json_build_object('day', g.day, 'n', coalesce(x.n, 0)) order by g.day)
-                        from generate_series(today - 29, today, interval '1 day') g(day)
+            'daily', (select json_agg(json_build_object('day', to_char(g.day, 'YYYY-MM-DD'), 'n', coalesce(x.n, 0)) order by g.day)
+                        from (select gs::date as day from generate_series(today - 29, today, interval '1 day') gs) g
                         left join (select d.day, count(*) as n from public.app_client_days d
-                                   where d.platform = p.platform and d.day > today - 30 group by d.day) x on x.day = g.day::date)))
+                                   where d.platform = p.platform and d.day > today - 30 group by d.day) x on x.day = g.day)))
             from (values ('ios'), ('android'), ('web')) p(platform)),
         'accounts_30d', (select count(distinct d.user_id) from public.app_client_days d where d.day > today - 30),
         'accounts_multi_platform_30d', (select count(*) from (select d.user_id from public.app_client_days d
