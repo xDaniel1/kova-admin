@@ -5,6 +5,7 @@ import * as api from '../api.js';
 import { eventList } from './activity.js';
 import { recordHref, typeLabel } from '../records.js';
 import { versionsCard, loadSiteLive } from '../versions.js';
+import { platformUsersCard } from '../platform-users.js';
 
 export default async function home(ctx) {
   const s = await ctx.refreshStats({ maxAge: 5000 });
@@ -37,6 +38,7 @@ export default async function home(ctx) {
       <section class="card"><div class="card-head"><h2>Needs attention</h2><a class="small" href="${href('/feedback', { status: 'new' })}">All new feedback</a></div><div data-attention><p class="loading">Loading…</p></div></section>
       <section class="card"><div class="card-head"><h2>Latest activity</h2><a class="small" href="#/activity">Full log</a></div><div data-activity><p class="loading">Loading…</p></div></section>
     </div>
+    <div data-platform-users></div>
     <div data-versions></div>
     <section class="card"><div class="card-head"><h2>Last 30 days</h2><span class="muted small">Per UTC day</span></div>
       ${Array.isArray(s.signups_by_day) ? html`${barChart('Sign-ups', s.signups_by_day)}${barChart('Reports', s.reports_by_day)}${barChart('Feedback', s.feedback_by_day)}` : html`<p class="muted">Daily charts appear after <code>supabase/migrations/0003_notes_tags_audit.sql</code> is applied.</p>`}
@@ -49,6 +51,7 @@ export default async function home(ctx) {
     </div>`.s;
 
   const tasks = [];
+  tasks.push((async () => { const host = qs('[data-platform-users]', ctx.el); try { const d = await api.platformUsers(); if (ctx.alive()) host.innerHTML = platformUsersCard(d, { charts: false }).s + '<div style="height:18px"></div>'; } catch (e) { if (!e.needsUpgrade) console.warn(e); } })());
   tasks.push((async () => { const host = qs('[data-versions]', ctx.el); try { const v = await api.versions(); if (ctx.alive()) host.innerHTML = versionsCard(v).s + '<div style="height:18px"></div>'; loadSiteLive(host, v.released); } catch (e) { if (!e.needsUpgrade) console.warn(e); } })());
   tasks.push((async () => {
     const host = qs('[data-attention]', ctx.el);

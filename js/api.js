@@ -153,3 +153,5 @@ export async function bulkDeleteFeedback(rows) {
 
 // ---- Platform versions (v6) -----------------------------------------------------------------
 export const versions = () => rpc('admin_versions');
+export const platformUsers = () => rpc('admin_platform_users');
+export async function userDevices(userId) { return unwrap(await db.from('app_clients').select('platform,app_version,build,os_version,first_seen,last_seen').eq('user_id', userId).order('last_seen', { ascending: false }).limit(20)); }

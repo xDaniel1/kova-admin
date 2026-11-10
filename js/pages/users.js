@@ -2,6 +2,7 @@
 // which refuse to act on the signed-in admin's own account.
 'use strict';
 import { html, raw, qs, qsa, fmtDate, fmtNum, rel, href, badge, table, initials, mapsLink, kindLabel, statusTone, copy, upgradeCard, empty, downloadCSV } from '../util.js';
+import { platformUsersCard } from '../platform-users.js';
 import * as api from '../api.js';
 import { annotations, auditList } from '../records.js';
 
@@ -11,8 +12,9 @@ const flags = u => html`${u.is_admin ? badge('Admin', 'accent') : ''} ${isBanned
 const userLabel = u => u.display_name ? html`<strong>${u.display_name}</strong><br><span class="muted small">${u.email || 'No email'}</span>` : html`<strong>${u.email || 'No email'}</strong>`;
 
 export default async function users(ctx) {
+  api.platformUsers().then(d => { const host = ctx.alive() && qs('[data-platform-users]', ctx.el); if (host) host.innerHTML = platformUsersCard(d).s + '<div style="height:18px"></div>'; }).catch(e => { if (!e.needsUpgrade) console.warn(e); });
   const q = { search: ctx.query.q || '', sort: ctx.query.sort || 'desc', filter: ctx.query.filter || '' };
-  ctx.el.innerHTML = html`<section class="card">
+  ctx.el.innerHTML = html`<div data-platform-users></div><section class="card">
     <form class="toolbar" data-filter>
       <label>Search<input name="q" type="search" value="${q.search}" placeholder="Email or name contains…"></label>
       <label class="narrow">Show<select name="filter">${FILTERS.map(([v, l]) => html`<option value="${v}" ${raw(v === q.filter ? 'selected' : '')}>${l}</option>`)}</select></label>
@@ -94,7 +96,10 @@ export async function userProfile(ctx) {
             <dt>Sign-in providers</dt><dd>${(u.identities || []).length ? u.identities.map(i => html`${i.provider} <span class="muted small">(linked ${rel(i.created_at)})</span>`).reduce((a, b) => html`${a}<br>${b}`) : (u.provider || '—')}</dd>
             <dt>Joined</dt><dd>${fmtDate(u.created_at)}</dd><dt>Last sign-in</dt><dd>${fmtDate(u.last_sign_in_at)}</dd><dt>Email confirmed</dt><dd>${u.email_confirmed_at ? fmtDate(u.email_confirmed_at) : 'No'}</dd>
             <dt>Status</dt><dd>${banned ? 'Disabled until ' + fmtDate(u.banned_until) : 'Active'}</dd></dl></div>
-          <div><h3 class="muted small" style="margin-bottom:8px">Sync</h3>${u.sync ? html`<dl class="kv"><dt>Last synced</dt><dd>${fmtDate(u.sync.updated_at)}</dd><dt>Favorites</dt><dd>${fmtNum(u.sync.favorites_count)}</dd><dt>Recent searches</dt><dd>${fmtNum(u.sync.recents_count)}</dd></dl>` : html`<p class="muted">This user has never synced from the app.</p>`}</div></div>`.s;
+          <div><h3 class="muted small" style="margin-bottom:8px">Sync</h3>${u.sync ? html`<dl class="kv"><dt>Last synced</dt><dd>${fmtDate(u.sync.updated_at)}</dd><dt>Favorites</dt><dd>${fmtNum(u.sync.favorites_count)}</dd><dt>Recent searches</dt><dd>${fmtNum(u.sync.recents_count)}</dd></dl>` : html`<p class="muted">This user has never synced from the app.</p>`}</div></div><div style="margin-top:16px"><h3 class="muted small" style="margin-bottom:8px">Apps and devices</h3><div data-devices><p class="loading">Loading…</p></div></div>`.s;
+        api.userDevices(u.user_id).then(rows => { const host = panel.querySelector('[data-devices]'); if (!host) return; const P = { ios: 'iOS', android: 'Android', web: 'Web' };
+          host.innerHTML = table(['App', 'Version', 'Device', 'First seen', 'Last seen'], rows.map(r => [P[r.platform] || r.platform, html`${r.app_version}${r.build ? html` <span class="muted small">(${r.build})</span>` : ''}`, r.os_version || '—', fmtDate(r.first_seen), rel(r.last_seen)]), { emptyText: 'No app has checked in while signed in to this account yet.' }).s; })
+          .catch(e => { const host = panel.querySelector('[data-devices]'); if (host) host.innerHTML = html`<p class="muted small">${e.message}</p>`.s; });
       } else if (which === 'places') {
         const s = await api.userSync(id); if (!ctx.alive()) return;
         const favs = Array.isArray(s?.favorites) ? s.favorites : [], recents = Array.isArray(s?.recents) ? s.recents : [];
