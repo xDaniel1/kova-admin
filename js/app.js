@@ -10,7 +10,7 @@ const lazy = (file, name = 'default') => async ctx => (await import(`./pages/${f
 const home = lazy('home'), activity = lazy('activity'), users = lazy('users'), userProfile = lazy('users', 'userProfile');
 const feedback = lazy('feedback'), feedbackDetail = lazy('feedback', 'feedbackDetail'), reports = lazy('reports'), reportDetail = lazy('reports', 'reportDetail');
 const venues = lazy('venues'), venueDetail = lazy('venues', 'venueDetail'), feeds = lazy('feeds'), feedDetail = lazy('feeds', 'feedDetail');
-const mapDataPage = lazy('mapdata');
+const mapDataPage = lazy('mapdata'), errorsPage = lazy('errors'), moderationPage = lazy('moderation');
 const admins = lazy('admins'), search = lazy('search'), controls = lazy('controls'), system = lazy('system'), messagesPage = lazy('messages');
 
 const routes = [
@@ -23,6 +23,8 @@ const routes = [
   [/^\/reports$/, reports, 'Reports'],
   [/^\/reports\/([^/]+)$/, reportDetail, 'Report'],
   [/^\/map-data$/, mapDataPage, 'Map data'],
+  [/^\/errors$/, errorsPage, 'Errors'],
+  [/^\/moderation$/, moderationPage, 'Moderation'],
   [/^\/venues$/, venues, 'Venues'],
   [/^\/venues\/([^/]+)$/, venueDetail, 'Venue'],
   [/^\/feeds$/, feeds, 'Incident feeds'],
@@ -37,10 +39,10 @@ const routes = [
 const NAV = [
   ['/', 'Home', 'home'], ['/activity', 'Activity', 'activity'],
   ['group', 'Records'],
-  ['/users', 'Users', 'users'], ['/feedback', 'Feedback', 'feedback', 'feedback_new'], ['/reports', 'Reports', 'reports'],
+  ['/users', 'Users', 'users'], ['/feedback', 'Feedback', 'feedback', 'feedback_new'], ['/reports', 'Reports', 'reports'], ['/moderation', 'Moderation', 'flag'],
   ['/map-data', 'Map data', 'map'], ['/venues', 'Venues', 'venues'], ['/feeds', 'Incident feeds', 'feeds'],
   ['group', 'Console'],
-  ['/messages', 'Messages', 'message'], ['/controls', 'App controls', 'controls'], ['/system', 'System', 'system'], ['/admins', 'Admins', 'admins'],
+  ['/messages', 'Messages', 'message'], ['/controls', 'App controls', 'controls'], ['/system', 'System', 'system'], ['/errors', 'Errors', 'bug'], ['/admins', 'Admins', 'admins'],
 ];
 
 export const state = { session: null, authorized: false, epoch: 0, stats: null, user: null, role: 'owner' };

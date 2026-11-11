@@ -97,6 +97,18 @@ Tells Tower which version is installed. Call once per launch, after the first co
 - `build` and `os_version` are optional. Strings are cut to 32, 32 and 64 characters.
 - The server attaches the signed-in user if there is one. Any other `platform` value is rejected.
 
+Two optional fields (migration 0016; omitting them keeps the old behaviour, so builds that send five fields are unchanged):
+
+```json
+{ …, "channel": "production" | "beta" | "test" | "dev",
+     "config_keys": ["maintenance", "min_version", "latest_version", "announcement", "platform_overrides",
+                     "features.indoor_maps", "features.speed_limits", "features.traffic_coloring", "…"] }
+```
+
+- `channel`: what kind of build this is. **Only `production` and `beta` count** as installs in Tower. Send `test` from every CI, end-to-end or cross-browser run, and `dev` from local builds. Missing means `production`. Web: set it at build time (e.g. `VITE_CHANNEL=test` for pull-request and cross-browser workflows, `production` only for the deploy-on-main build).
+- `config_keys`: the keys and feature switches **this build honours** (lowercase, `features.<key>` for switches, at most 64). Tower shows "last seen reading this" on each control from it, so an admin knows a switch actually reaches users before flipping it. Send the same list every launch.
+- Build numbers must be unique per platform. On web, take `build` from the deploy workflow's run number only; other workflows must send `channel: "test"`. Tower also lets an editor mark a specific platform/version/build as a test build (System → Install sources).
+
 ## Fail-safe behaviour (required)
 
 - Any failure means **the app works normally**: no network, an HTTP error, a timeout, invalid JSON, a missing key, a wrongly typed value or an unknown enum.
@@ -131,11 +143,15 @@ Tells Tower how well our map data covers real drives. Send once at the end of a 
 
 ## Adoption status (Nov 11 2026)
 
-| | Config keys | `platform_overrides` | New feature keys | `report_client` | `report_coverage` |
-|---|---|---|---|---|---|
-| iOS | build 5+ (PR #33). Builds 3 and 4 read nothing | not yet | not yet | build 5+ | not yet |
-| Web | 1.0.x | not yet | not yet | yes (skips automated browsers) | not yet |
-| Android | **not yet** | not yet | not yet | **not yet** | not yet |
+| | Global keys | 6 new feature keys | `platform_overrides` | `report_client` | `channel` / `config_keys` | `report_coverage` |
+|---|---|---|---|---|---|---|
+| iOS 1.0.0 b5 (released, `ios-v1.0.0-b5`) | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| iOS 1.0.0 b6 (pending) | ✅ | ✅ speed_limits, traffic_coloring, transit, voice_guidance, carplay | ✅ | ✅ | should send both | not yet |
+| iOS builds 3, 4 | read nothing | | | | | |
+| Web 1.0.1 (deploy build 32+) | ✅ | ❌ | ❌ | ✅ (skips automated browsers) | ❌: CI runs still counted unless marked in Tower | ❌ |
+| Android 1.0.0 (1) | ❌ | ❌ (`android_auto` is its key) | ❌ | ❌ | ❌ | ❌ |
+
+Tower controls every key above, including those no app reads yet; each control shows which builds were last seen reading it once apps send `config_keys`.
 
 ## Reference implementation
 

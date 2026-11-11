@@ -1,6 +1,6 @@
 // System: database and storage health, retention tools.
 'use strict';
-import { html, raw, qs, fmtDate, fmtNum, fmtBytes, rel, table, badge, upgradeCard } from '../util.js';
+import { html, raw, qs, qsa, fmtDate, fmtNum, fmtBytes, rel, table, badge, upgradeCard } from '../util.js';
 import * as api from '../api.js';
 import { versionsCard, loadSiteLive } from '../versions.js';
 import * as push from '../push.js';
@@ -20,6 +20,7 @@ export default async function system(ctx) {
       ${tile(fmtNum(s.audit_rows), 'Audit entries', 'since migration 0003')}
     </div>
     <div data-versions style="margin-top:18px"></div>
+    <section class="card" style="margin-top:18px" data-sources><div class="card-head"><h2>Install sources · 30 days</h2><span class="muted small">Every build that checked in, and whether it counts</span></div><div data-sources-body><p class="loading">Loading…</p></div></section>
     <section class="card" style="margin-top:18px" data-push><div class="card-head"><h2>Notifications on this device</h2><span data-push-badge></span></div><div data-push-body><p class="loading">Checking…</p></div></section>
     <section class="card" style="margin-top:18px"><div class="card-head"><h2>Tower on your iPhone</h2>${matchMedia('(display-mode: standalone)').matches || navigator.standalone ? badge('Installed here', 'ok') : ''}</div>
       <ol class="steps"><li>Open <strong>tower.kovamaps.com</strong> in Safari on the iPhone.</li><li>Tap Share, then <strong>Add to Home Screen</strong>, then Add.</li><li>Open Tower from the new icon and sign in with Google, or request an email link and paste it in (press and hold <em>Sign in</em> in the email, Copy Link).</li></ol>
@@ -34,6 +35,7 @@ export default async function system(ctx) {
         <p class="muted small" style="margin-top:14px">Generated ${fmtDate(s.generated_at)}. <a href="#/system">Refresh</a></p></section>
     </div>`.s;
   renderPush(ctx);
+  renderSources(ctx);
   api.versions().then(v => { if (ctx.alive()) { const host = qs('[data-versions]', ctx.el); host.innerHTML = versionsCard(v, { detailed: true }).s; loadSiteLive(host, v.released); } }).catch(e => { if (!e.needsUpgrade) ctx.fail(e); });
   qs('[data-purge]', ctx.el).onsubmit = async e => {
     e.preventDefault(); const days = Number(new FormData(e.currentTarget).get('days'));
@@ -62,4 +64,27 @@ async function renderPush(ctx) {
   body.querySelector('[data-push-off]')?.addEventListener('click', e => run(e.currentTarget, () => push.disable(), 'Notifications are off for this device.'));
   body.querySelector('[data-push-test]')?.addEventListener('click', e => run(e.currentTarget, async () => { const r = await push.test(); if (!r?.sent) throw new Error('No notification was delivered (' + (r?.devices ?? 0) + ' devices). Turn notifications off and on again.'); }, 'Test sent.'));
   if (on) body.querySelectorAll('[data-topic]').forEach(i => i.onchange = () => push.setTopics(chosen()).then(() => ctx.notice('Saved.')).catch(ctx.fail));
+}
+
+// Builds seen in the last 30 days with their channel; editors can mark a CI or test build so it never counts.
+async function renderSources(ctx) {
+  const host = ctx.el.querySelector('[data-sources-body]'); if (!host) return;
+  let rows, tests;
+  try { [rows, tests] = await Promise.all([api.recentClients(), api.testBuilds()]); } catch (e) { host.innerHTML = e.needsUpgrade ? '<p class="muted small">Needs migration 0016.</p>' : html`<p class="muted small">${e.message}</p>`.s; return; }
+  if (!ctx.alive()) return;
+  const marked = new Map(tests.map(t => [`${t.platform}|${t.app_version}|${t.build}`, t]));
+  const groups = new Map();
+  for (const r of rows) { const k = `${r.platform}|${r.app_version}|${r.build ?? ''}|${r.channel}`; const g = groups.get(k) || { ...r, n: 0 }; g.n++; if (r.last_seen > g.last_seen) g.last_seen = r.last_seen; groups.set(k, g); }
+  const list = [...groups.values()].sort((a, b) => b.last_seen.localeCompare(a.last_seen));
+  const P = { ios: 'iOS', android: 'Android', web: 'Web' };
+  const status = g => { const t = marked.get(`${g.platform}|${g.app_version}|${g.build}`);
+    if (!g.build || g.build === 'dev') return [badge('Dev build'), ''];
+    if (t) return [badge('Test build', 'tone-seen'), html`<button type="button" class="sm ghost" data-unmark="${g.platform}|${g.app_version}|${g.build}" title="${t.note || ''}">Count it</button>`];
+    if (!['production', 'beta'].includes(g.channel)) return [badge(g.channel + ' channel'), ''];
+    return [badge('Counted', 'ok'), html`<button type="button" class="sm ghost" data-mark="${g.platform}|${g.app_version}|${g.build}">Mark as test</button>`]; };
+  host.innerHTML = html`${table(['App', 'Version', 'Build', 'Channel', 'Installs', 'Last seen', 'Status', ''], list.map(g => { const [st, btn] = status(g); return [P[g.platform] || g.platform, g.app_version, g.build || '—', g.channel, fmtNum(g.n), rel(g.last_seen), st, btn]; }), { emptyText: 'No check-ins in 30 days.' })}
+    <p class="muted small" style="margin:10px 0 0">Only counted builds appear in Users by platform and the version registry. Apps can also send <code>channel: "test"</code> from CI (see the contract), which is excluded automatically. ${fmtNum(tests.length)} builds are marked as test.</p>`.s;
+  const act = async (b, fn, msg) => { b.disabled = true; try { await fn(); ctx.notice(msg); await renderSources(ctx); } catch (e) { ctx.fail(e); b.disabled = false; } };
+  qsa('[data-mark]', host).forEach(b => b.onclick = () => { const [p, v, bu] = b.dataset.mark.split('|'); if (confirm(`Stop counting ${P[p]} ${v} build ${bu}? Its installs leave every count.`)) act(b, () => api.markTestBuild(p, v, bu, 'Marked in Tower'), 'Marked as a test build.'); });
+  qsa('[data-unmark]', host).forEach(b => b.onclick = () => { const [p, v, bu] = b.dataset.unmark.split('|'); act(b, () => api.unmarkTestBuild(p, v, bu), 'This build counts again.'); });
 }

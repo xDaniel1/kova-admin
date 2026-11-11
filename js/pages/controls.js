@@ -16,12 +16,12 @@ export const FEATURES = [
   ['feedback', 'Feedback form', 'Send feedback and shake-to-report · iOS, web'],
   ['incident_feeds', 'Incident feeds', 'State DOT work zones (FDOT and others) · iOS, web'],
   ['sync', 'Cloud sync', 'Favorites and recents across devices · iOS, web'],
-  ['speed_limits', 'Speed limits', 'Posted limits from our database (Florida) and OpenStreetMap · new, apps adopting'],
-  ['traffic_coloring', 'Traffic colouring', 'Live traffic colours on routes and the map · new, apps adopting'],
-  ['transit', 'Transit', 'Transit stops and rail lines outside New York · new, apps adopting'],
-  ['voice_guidance', 'Voice guidance', 'Spoken turn-by-turn directions · new, apps adopting'],
-  ['carplay', 'CarPlay', 'Kova on the car screen · iOS'],
-  ['android_auto', 'Android Auto', 'Kova on the car screen · Android'],
+  ['speed_limits', 'Speed limits', 'Posted limits from our database (Florida) and OpenStreetMap · iOS build 6+'],
+  ['traffic_coloring', 'Traffic colouring', 'Live traffic colours on routes and the map · iOS build 6+'],
+  ['transit', 'Transit', 'Transit stops and rail lines outside New York · iOS build 6+'],
+  ['voice_guidance', 'Voice guidance', 'Spoken turn-by-turn directions · iOS build 6+'],
+  ['carplay', 'CarPlay', 'Kova on the car screen · iOS build 6+'],
+  ['android_auto', 'Android Auto', 'Kova on the car screen · Android (not yet reading)'],
 ];
 const PLATFORMS = [['ios', 'iOS'], ['android', 'Android'], ['web', 'Web']];
 const REL = [['ios', 'iOS', 'build'], ['android', 'Android', 'versionCode'], ['web', 'Web app', 'build'], ['site', 'Site']];
@@ -35,8 +35,9 @@ const SECTIONS = {
   },
   released_versions: {
     title: 'Released versions', blurb: 'What has shipped. One shared version across products, plus a build number per platform that only goes up. Informational: the apps do not act on it.',
-    form: v => html`<div class="form-grid">${REL.map(([k, l, b]) => html`${field(l + ' version', k, (v[k] || {}).version, { placeholder: '1.0.0', attrs: VER })}${b ? field(l + ' ' + b, k + '_build', (v[k] || {}).build, { placeholder: '1', attrs: 'pattern="[0-9]+" title="A whole number"' }) : ''}`)}</div>`,
-    read: f => Object.fromEntries(REL.map(([k, , b]) => [k, { version: f.get(k).trim(), build: b ? f.get(k + '_build').trim() || null : null }])),
+    form: v => html`<div class="form-grid">${REL.map(([k, l, b]) => html`${field(l + ' version', k, (v[k] || {}).version, { placeholder: '1.0.0', attrs: VER })}${b ? field(l + ' ' + b, k + '_build', (v[k] || {}).build, { placeholder: '1', attrs: 'pattern="[0-9]+" title="A whole number"' }) : ''}${b ? field(l + ' pending ' + b, k + '_pending', (v[k] || {}).pending_build, { placeholder: 'in review', attrs: 'pattern="[0-9]*" title="A whole number, or empty"' }) : ''}${b ? field(l + ' release tag', k + '_tag', (v[k] || {}).tag, { placeholder: k + '-v1.0.0-b5' }) : ''}`)}</div>`,
+    read: (f, cur = {}) => Object.fromEntries(REL.map(([k, , b]) => [k, { ...(cur[k] || {}), version: f.get(k).trim(), build: b ? f.get(k + '_build').trim() || null : null,
+      ...(b ? { pending_build: f.get(k + '_pending').trim() || null, tag: f.get(k + '_tag').trim() || null } : {}) }])),
     status: v => badge(REL.map(([k, l]) => `${l} ${(v[k] || {}).version || '–'}${(v[k] || {}).build ? ' (' + v[k].build + ')' : ''}`).join(' · ')),
   },
   min_version: {
@@ -53,13 +54,13 @@ const SECTIONS = {
   },
   features: {
     title: 'Feature switches', blurb: 'Turn parts of the product off everywhere without shipping a build. Per-platform switches are in Platform overrides.',
-    form: v => html`<div class="switches">${FEATURES.map(([k, l, h]) => toggle(l, k, v[k] !== false, h))}</div>`,
+    form: v => html`<div class="switches">${FEATURES.map(([k, l, h]) => html`<div>${toggle(l, k, v[k] !== false, h)}<span class="reader small muted" data-reader="features.${k}"></span></div>`)}</div>`,
     // Keeps keys this page does not know, so a newer app's switch is never wiped by saving here.
     read: (f, cur = {}) => ({ ...cur, ...Object.fromEntries(FEATURES.map(([k]) => [k, f.get(k) === 'on'])) }),
     status: v => { const off = FEATURES.filter(([k]) => v[k] === false).map(([, l]) => l); return off.length ? badge(off.length + ' off: ' + off.join(', '), 'tone-seen') : badge('All on', 'ok'); },
   },
   platform_overrides: {
-    title: 'Platform overrides', blurb: 'Switch a feature off, pause, or announce on one platform only. A feature runs only if it is on in Feature switches and not off here. Read by apps that have adopted overrides (see the contract).',
+    title: 'Platform overrides', blurb: 'Switch a feature off, pause, or announce on one platform only. A feature runs only if it is on in Feature switches and not off here. Read by iOS build 6+; web and Android not yet.',
     form: v => html`${PLATFORMS.map(([p, label]) => { const o = v[p] || {}, f = o.features || {}, m = o.maintenance || {}, a = o.announcement || {}; return html`
       <fieldset class="stack platform-override"><legend>${label}</legend>
         ${toggle(label + ' maintenance mode', p + '_maint', m.enabled, 'Pauses network features on ' + label + ' only.')}
@@ -99,11 +100,15 @@ export default async function controls(ctx) {
       <p class="muted small" style="margin:0">Public, read-only JSON at <code>${endpoint}</code> with the anon key. The iOS, Android and web apps fetch it at launch and on returning to the foreground, and fall back to normal behaviour on any error. The full contract is <a href="https://github.com/xDaniel1/kova-admin/blob/main/docs/app-controls-contract.md" target="_blank" rel="noopener noreferrer">docs/app-controls-contract.md</a>. Changes are audited; see each control's history below.</p></section>
     <div class="grid two">${rows.slice().sort((a, b) => ORDER.indexOf(a.key) - ORDER.indexOf(b.key)).map(r => { const s = SECTIONS[r.key]; const v = r.value || {}; return html`
       <section class="card control" data-key="${r.key}">
-        <div class="card-head"><div><h2>${s?.title || r.key}</h2><p class="muted small" style="margin:2px 0 0">${s?.blurb || r.description || ''}</p></div>${s ? s.status(v) : ''}</div>
+        <div class="card-head"><div><h2>${s?.title || r.key}</h2><p class="muted small" style="margin:2px 0 0">${s?.blurb || r.description || ''}</p><p class="reader small muted" data-reader="${r.key}" style="margin:4px 0 0"></p></div>${s ? s.status(v) : ''}</div>
         <form class="stack" data-form>${s ? s.form(v) : html`<label>JSON<textarea name="json" class="mono">${JSON.stringify(v, null, 2)}</textarea></label>`}
           <div class="row"><button class="primary" type="submit">Save</button><span class="muted small">Updated ${rel(r.updated_at)}${r.updated_by ? ' by ' + (label(r.updated_by)?.email || 'an admin') : ''}</span></div></form>
         <details class="collapse" style="margin-top:14px"><summary>Notes and history</summary><div class="stack" style="margin-top:12px"><div data-annotations></div><div><h3 class="eyebrow">History</h3><div data-audit></div></div></div></details>
       </section>`; })}</div>`.s;
+  api.configReaders().then(readers => { if (!ctx.alive()) return;
+    const P = { ios: 'iOS', android: 'Android', web: 'Web' };
+    qsa('[data-reader]', ctx.el).forEach(el => { const r = readers[el.dataset.reader];
+      el.textContent = r ? 'Last seen reading this: ' + Object.entries(r).map(([p, x]) => `${P[p] || p} ${x.version}${x.build ? ' (' + x.build + ')' : ''} ${rel(x.last_seen)}, ${x.installs_30d} installs`).join(' · ') : (el.dataset.reader === 'released_versions' ? '' : 'No build has reported reading this yet.'); }); }).catch(() => {});
   qsa('.control', ctx.el).forEach(card => {
     const key = card.dataset.key, s = SECTIONS[key], form = qs('[data-form]', card);
     form.onsubmit = async e => {

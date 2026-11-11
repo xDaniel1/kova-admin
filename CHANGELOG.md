@@ -2,6 +2,16 @@
 
 Tower uses the shared Kova version (semantic version plus a build number that only goes up). Releases are tagged `tower-v<version>`. Database migrations in `supabase/migrations/` are numbered separately.
 
+## 1.0.0 (build 7) · 2026-11-11
+
+- Errors page: client error reports grouped by message, with page, browser, stack, a 30-day chart and clearing.
+- Moderation page: flagged traffic reports (two flags remove one), top flaggers, blocked reporters with block and unblock.
+- Map data: which speed-limit sources are authoritative (win over OpenStreetMap) and which are advisory.
+- Trustworthy install counts: CI and test builds no longer count. Apps can send `channel`; known web CI builds are marked; System → Install sources lists every build seen with Mark as test / Count it.
+- App controls show "last seen reading this" per control and per feature switch, from the `config_keys` apps send.
+- Registry: iOS 1.0.0 build 5 released (`ios-v1.0.0-b5`), build 6 pending; pending build and release tag fields.
+- Migration 0016.
+
 ## 1.0.0 (build 6) · 2026-11-11
 
 - Push notifications for the installed app (iPhone 16.4+ from the Home Screen, Android, desktop): new feedback and new accounts, chosen per device on System → Notifications, with a test button. Migration 0014 and the `tower-push` Edge Function.

@@ -5,7 +5,7 @@ import { html, fmtNum, rel, badge, table, href, versionLess } from './util.js';
 
 const PLATFORMS = [['ios', 'iOS'], ['android', 'Android'], ['web', 'Web app'], ['site', 'Marketing site']];
 const REPORTING = new Set(['ios', 'android', 'web']);
-const rel_ = r => r?.version ? html`${r.version}${r.build ? html` <span class="muted small">build ${r.build}</span>` : ''}` : html`<span class="muted">—</span>`;
+const rel_ = r => r?.version ? html`${r.version}${r.build ? html` <span class="muted small">build ${r.build}</span>` : ''}${r.tag ? html`<br><span class="mono small muted">${r.tag}</span>` : ''}${r.pending_build ? html`<br>${badge('build ' + r.pending_build + ' pending', 'tone-seen')}` : ''}` : html`<span class="muted">—</span>`;
 
 export function versionsCard(v, { detailed = false } = {}) {
   const min = v.min || {}, latest = v.latest || {}, p = v.platforms || {}, released = v.released || {};
@@ -20,7 +20,7 @@ export function versionsCard(v, { detailed = false } = {}) {
       rel_(released[k]),
       latest[k] ? html`${latest[k]} ${behind ? badge('newer than in use', 'tone-seen') : ''}` : '—',
       min[k] ? html`${min[k]} ${blocked ? badge('newest client blocked', 'danger') : ''}` : '—',
-      k === 'site' ? html`<span data-site-live class="muted small">Checking kovamaps.com…</span>` : html`${newest ? html`${newest.version}${newest.build ? html` <span class="muted small">(${newest.build})</span>` : ''} ${ahead ? badge('ahead of registry', 'tone-seen') : ''}<br><span class="muted small">seen ${rel(newest.last_seen)}</span>` : html`<span class="muted">No reports yet</span>`}${s.dev_30d ? html`<br><span class="muted small">+ ${fmtNum(s.dev_30d)} dev/test installs, not counted</span>` : ''}`,
+      k === 'site' ? html`<span data-site-live class="muted small">Checking kovamaps.com…</span>` : html`${newest ? html`${newest.version}${newest.build ? html` <span class="muted small">(${newest.build})</span>` : ''} ${ahead ? badge('ahead of registry', 'tone-seen') : ''}<br><span class="muted small">seen ${rel(newest.last_seen)}</span>` : html`<span class="muted">No reports yet</span>`}${s.dev_30d ? html`<br><span class="muted small">+ ${fmtNum(s.dev_30d)} dev, test and CI installs, not counted</span>` : ''}`,
       REPORTING.has(k) ? fmtNum(s.installs_30d ?? 0) : '—',
     ];
   });
