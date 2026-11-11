@@ -6,6 +6,7 @@ Tower uses the shared Kova version (semantic version plus a build number that on
 
 - Push notifications for the installed app (iPhone 16.4+ from the Home Screen, Android, desktop): new feedback and new accounts, chosen per device on System → Notifications, with a test button. Migration 0014 and the `tower-push` Edge Function.
 - iPhone launch screens (light and dark) for current iPhone sizes; Android home-screen shortcuts (Feedback, Controls, Users, Map data); no tap flashes or rubber-banding in the installed app.
+- Speed-limit sources: each import (FDOT state roads, Miami-Dade, Orlando, Seminole and Tampa streets) has its own switch; new regions and sources register themselves on import (migration 0015).
 - Coverage: speed limits by county in road miles, and a "Coverage from drives" view (miles by speed-limit source, rural miles, sparse map detail, biggest gaps) fed by the new `report_coverage` endpoint the apps can adopt (migration 0013).
 
 ## 1.0.0 (build 5) · 2026-11-11

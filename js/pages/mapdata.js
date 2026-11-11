@@ -38,8 +38,10 @@ export default async function mapData(ctx) {
         html`<strong>${r.region}</strong>`, fmtNum(r.segments), fmtNum(r.counties), html`${r.min_mph}–${r.max_mph} mph <span class="muted small">avg ${r.avg_mph}</span>`,
         html`<span class="mono small">${r.sources}</span>`, html`<span title="${fmtDate(r.updated_at)}">${rel(r.updated_at)}</span>`, state(r.enabled), regionSwitch('speed_limits', r)]),
         { emptyText: 'No speed limits imported yet.' })}
+      ${(d.speed_limit_sources || []).length ? html`<h3 class="eyebrow" style="margin-top:16px">Sources</h3>${table(['Source', 'Region', 'Segments', 'Counties', 'Limits', 'Updated', 'Status', ''], d.speed_limit_sources.map(r => [
+        html`<span class="mono">${r.source}</span>${/-streets|-centerline/.test(r.source) ? html` <span class="muted small">local streets</span>` : r.source.startsWith('fdot') ? html` <span class="muted small">state roads</span>` : ''}`, r.region, fmtNum(r.segments), fmtNum(r.counties), html`${r.min_mph}–${r.max_mph} mph`, rel(r.updated_at), state(r.enabled), regionSwitch('speed_limit_sources', { region: r.source, enabled: r.enabled })]))}` : ''}
       ${(d.speed_limits_by_mph || []).length ? html`<details class="collapse" style="margin-top:10px"><summary>Segments by posted limit</summary>${table(['Limit', 'Segments'], d.speed_limits_by_mph.map(x => [x.mph + ' mph', fmtNum(x.n)]))}</details>` : ''}
-      <p class="muted small" style="margin:10px 0 0">The apps read these ahead of OpenStreetMap inside each region. Turning a region off hides its rows from every app at once (enforced in the database), and they fall back to OpenStreetMap. Imports run from the iOS repo's <code>supabase/imports/</code>.</p>
+      <p class="muted small" style="margin:10px 0 0">The apps read these ahead of OpenStreetMap inside each region. Turning a region or a single source off (for example one city's street inventory) hides its rows from every app at once, enforced in the database, and the apps fall back to OpenStreetMap there. New regions and sources appear here automatically when imported. Imports run from the iOS repo's <code>supabase/imports/</code>.</p>
       <details class="collapse" style="margin-top:10px" data-counties-wrap><summary>Coverage by county (road miles)</summary><div data-counties><p class="loading">Loading…</p></div></details></section>
 
     <section class="card" style="margin-top:18px"><div class="card-head"><h2>Coverage from drives</h2><span class="muted small">Last 30 days · reported by the apps</span></div><div data-coverage><p class="loading">Loading…</p></div></section>
@@ -57,7 +59,7 @@ export default async function mapData(ctx) {
 
   qsa('[data-region]', ctx.el).forEach(b => b.onclick = async () => {
     const [dataset, region] = b.dataset.region.split('|'), on = !b.dataset.enabled;
-    const what = dataset === 'speed_limits' ? 'speed limits' : 'transit';
+    const what = { speed_limits: 'speed limits', speed_limit_sources: 'this speed-limit source', transit: 'transit' }[dataset];
     if (!on && !confirm(`Turn off ${what} for ${region}? Every app stops showing this data for ${region} right away.`)) return;
     b.disabled = true;
     try { await api.setDataRegion(dataset, region, on); ctx.notice(`${region} ${what} turned ${on ? 'on' : 'off'}.`); if (ctx.alive()) await mapData(ctx); }
@@ -65,8 +67,8 @@ export default async function mapData(ctx) {
   });
   const details = ctx.el.querySelector('[data-counties-wrap]');
   details.ontoggle = () => { if (!details.open || details.dataset.loaded) return; details.dataset.loaded = '1';
-    api.speedLimitCounties().then(rows => { const host = details.querySelector('[data-counties]'); if (!host || !ctx.alive()) return;
-      host.innerHTML = table(['Region', 'County', 'Road miles', 'Segments', 'Limits', '55 mph and up'], rows.map(r => [r.region, r.county, fmtNum(r.miles), fmtNum(r.segments), html`${r.min_mph}–${r.max_mph} <span class="muted small">avg ${r.avg_mph}</span>`, fmtNum(r.highway_segments)])).s; })
+    api.speedLimitCounties().then(res => { const host = details.querySelector('[data-counties]'); if (!host || !ctx.alive()) return; const rows = res.rows || [];
+      host.innerHTML = html`<p class="muted small">Computed ${rel(res.computed_at)}; refreshed every six hours.</p>`.s + table(['Region', 'County', 'Road miles', 'Segments', 'Sources', 'Limits', '55 mph and up'], rows.map(r => [r.region, r.county, fmtNum(r.miles), fmtNum(r.segments), html`<span class="mono small">${r.sources}</span>`, html`${r.min_mph}–${r.max_mph} <span class="muted small">avg ${r.avg_mph}</span>`, fmtNum(r.highway_segments)])).s; })
       .catch(e => { const host = details.querySelector('[data-counties]'); if (host) host.innerHTML = html`<p class="muted small">${e.message}</p>`.s; }); };
   api.coverage(30).then(c => { const host = ctx.el.querySelector('[data-coverage]'); if (!host || !ctx.alive()) return; host.innerHTML = coverageView(c).s; })
     .catch(e => { const host = ctx.el.querySelector('[data-coverage]'); if (host) host.innerHTML = e.needsUpgrade ? '<p class="muted small">Needs migration 0013.</p>' : html`<p class="muted small">${e.message}</p>`.s; });
