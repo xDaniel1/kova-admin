@@ -81,13 +81,13 @@ grant execute on function public.disabled_regions(text) to anon, authenticated;
 -- per query, not per row.
 drop policy if exists "Hide switched-off regions" on public.speed_limit_segments;
 create policy "Hide switched-off regions" on public.speed_limit_segments as restrictive for select to anon, authenticated
-    using (region <> all ((select public.disabled_regions('speed_limits'))));
+    using (region <> all ((select public.disabled_regions('speed_limits'))::text[]));
 drop policy if exists "Hide switched-off regions" on public.transit_stops;
 create policy "Hide switched-off regions" on public.transit_stops as restrictive for select to anon, authenticated
-    using (region <> all ((select public.disabled_regions('transit'))));
+    using (region <> all ((select public.disabled_regions('transit'))::text[]));
 drop policy if exists "Hide switched-off regions" on public.transit_lines;
 create policy "Hide switched-off regions" on public.transit_lines as restrictive for select to anon, authenticated
-    using (region <> all ((select public.disabled_regions('transit'))));
+    using (region <> all ((select public.disabled_regions('transit'))::text[]));
 
 -- 5. Map-data coverage for Tower.
 create or replace function public.admin_map_data()
