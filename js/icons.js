@@ -2,6 +2,8 @@
 'use strict';
 const wrap = paths => `<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
 export const icons = {
+  refresh: wrap('<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>'),
+  more: wrap('<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>'),
   home: wrap('<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/>'),
   activity: wrap('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
   users: wrap('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M17.5 14a6 6 0 0 1 4 6"/>'),

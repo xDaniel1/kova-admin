@@ -53,7 +53,7 @@ function applyTheme(next) {
   if (next) document.documentElement.dataset.theme = next; else delete document.documentElement.dataset.theme;
   try { next ? localStorage.setItem('tower-theme', next) : localStorage.removeItem('tower-theme'); } catch {}
 }
-$('theme').innerHTML = icon('theme'); $('menu').innerHTML = icon('menu'); $('search-form').insertAdjacentHTML('afterbegin', icon('search'));
+$('theme').innerHTML = icon('theme'); $('menu').innerHTML = icon('menu'); $('refresh').innerHTML = icon('refresh'); $('search-form').insertAdjacentHTML('afterbegin', icon('search'));
 $('theme').onclick = () => {
   const dark = matchMedia('(prefers-color-scheme: dark)').matches;
   const current = document.documentElement.dataset.theme || (dark ? 'dark' : 'light');
@@ -74,6 +74,9 @@ export function renderNav() {
     ? html`<div class="group">${label}</div>`
     : html`<a href="#${p}" ${raw(path === p || (p !== '/' && path.startsWith(p + '/')) ? 'aria-current="page"' : '')}><span class="ico">${raw(icon(iconName))}</span><span>${label}</span>${countKey && counts[countKey] ? html`<span class="badge accent count">${counts[countKey]}</span>` : ''}</a>`
   ).join('');
+  const tab = (p, label, iconName, count) => html`<a href="#${p}" ${raw(path === p || (p !== '/' && path.startsWith(p + '/')) ? 'aria-current="page"' : '')}>${raw(icon(iconName))}<span>${label}</span>${count ? html`<span class="badge accent count">${count}</span>` : ''}</a>`;
+  $('tabbar').innerHTML = html`${tab('/', 'Home', 'home')}${tab('/users', 'Users', 'users')}${tab('/feedback', 'Feedback', 'feedback', counts.feedback_new)}${tab('/controls', 'Controls', 'controls')}<button type="button" data-more>${raw(icon('more'))}<span>More</span></button>`.s;
+  $('tabbar').querySelector('[data-more]').onclick = () => openMenu(true);
 }
 let statsAt = 0, statsInFlight = null;
 export async function refreshStats({ maxAge = 0 } = {}) {
@@ -87,6 +90,31 @@ export async function refreshStats({ maxAge = 0 } = {}) {
 // ---- Search box --------------------------------------------------------------------------------
 document.addEventListener('keydown', e => { if (e.key === '/' && !e.metaKey && !e.ctrlKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName) && state.authorized) { e.preventDefault(); $('search').focus(); $('search').select(); } });
 $('search-form').onsubmit = e => { e.preventDefault(); const q = $('search').value.trim(); if (q) location.hash = '/search?q=' + encodeURIComponent(q); };
+
+// ---- Refresh, pull to refresh, home-screen app ----------------------------------------------------
+let refreshing = null;
+export function refreshNow() {
+  if (!state.authorized) return Promise.resolve();
+  refreshing ||= Promise.all([refreshStats().catch(() => {}), route()]).finally(() => { refreshing = null; });
+  return refreshing;
+}
+$('refresh').onclick = async () => { const b = $('refresh'); b.disabled = true; try { await refreshNow(); notice('Up to date.'); } finally { b.disabled = false; } };
+(() => {
+  const ptr = document.createElement('div'); ptr.id = 'ptr'; ptr.setAttribute('aria-hidden', 'true'); ptr.innerHTML = icon('refresh'); document.body.append(ptr);
+  let startY = null, pull = 0;
+  addEventListener('touchstart', e => { startY = scrollY <= 0 && state.authorized && !sidebar.classList.contains('open') ? e.touches[0].clientY : null; pull = 0; }, { passive: true });
+  addEventListener('touchmove', e => { if (startY == null) return; pull = Math.max(0, Math.min(120, e.touches[0].clientY - startY)); ptr.style.transform = `translate(-50%, ${pull - 60}px) rotate(${pull * 3}deg)`; }, { passive: true });
+  addEventListener('touchend', async () => {
+    if (startY == null) return; startY = null;
+    if (pull < 70) { ptr.style.transform = ''; return; }
+    ptr.style.transform = 'translate(-50%, 10px)'; ptr.classList.add('spin');
+    try { await refreshNow(); } finally { ptr.classList.remove('spin'); ptr.style.transform = ''; }
+  });
+})();
+// Coming back to the app after a while (switching apps on the phone) reloads what is on screen.
+let hiddenAt = 0;
+document.addEventListener('visibilitychange', () => { if (document.hidden) hiddenAt = Date.now(); else if (hiddenAt && Date.now() - hiddenAt > 60000) refreshNow(); });
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 
 // ---- Router -----------------------------------------------------------------------------------
 const currentPath = () => (location.hash.replace(/^#/, '') || '/').split('?')[0];
@@ -129,7 +157,8 @@ window.addEventListener('hashchange', route);
 // ---- Auth -------------------------------------------------------------------------------------
 function showLogin(show) {
   $('login').hidden = !show; $('outlet').hidden = show; $('search-form').hidden = show; $('signed-in').hidden = show; $('signout').hidden = show;
-  if (show) { $('nav').innerHTML = ''; setTitle('Kova Tower'); }
+  document.body.classList.toggle('authed', !show); $('tabbar').hidden = show; $('refresh').hidden = show;
+  if (show) { $('nav').innerHTML = ''; $('tabbar').innerHTML = ''; setTitle('Kova Tower'); }
 }
 function clearPrivate() {
   state.authorized = false; state.user = null; state.stats = null; state.role = 'owner'; state.epoch++; document.body.classList.remove('role-viewer'); $('role-note').hidden = true;
@@ -174,9 +203,25 @@ window.addEventListener('DOMContentLoaded', async () => {
   $('google-signin').onclick = async () => { clearBanner(); try { api.unwrap(await db.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: redirect() } })); } catch (e) { fail(e); } };
   $('login-form').onsubmit = async e => {
     e.preventDefault(); $('send-link').disabled = true; clearBanner();
-    try { api.unwrap(await db.auth.signInWithOtp({ email: $('email').value.trim(), options: { emailRedirectTo: redirect() } })); notice('Check your email for the sign-in link.'); }
+    try { api.unwrap(await db.auth.signInWithOtp({ email: $('email').value.trim(), options: { emailRedirectTo: redirect(), shouldCreateUser: false } })); notice('Check your email.'); $('login-form').hidden = true; $('code-form').hidden = false; $('code').focus(); }
     catch (err) { fail(err); } finally { $('send-link').disabled = false; }
   };
+  $('code-form').onsubmit = async e => {
+    e.preventDefault(); $('verify-code').disabled = true; clearBanner();
+    try {
+      const raw = $('code').value.trim();
+      // A pasted email link carries the hashed token (?token=…&type=magiclink); a typed code is 6–8 digits.
+      let tokenHash = null, type = 'email';
+      try { const u = new URL(raw); tokenHash = u.searchParams.get('token') || u.searchParams.get('token_hash'); type = u.searchParams.get('type') || 'magiclink'; } catch {}
+      if (tokenHash) api.unwrap(await db.auth.verifyOtp({ token_hash: tokenHash, type }));
+      else if (/^\d{6,8}$/.test(raw)) api.unwrap(await db.auth.verifyOtp({ email: $('email').value.trim(), token: raw, type: 'email' }));
+      else throw new Error('Paste the whole link from the email, or the 6-digit code.');
+      $('code').value = '';
+    }
+    catch (err) { fail(err.message?.includes('expired') || err.message?.includes('invalid') ? new Error('That link or code is wrong or has expired. Request a new email.') : err); }
+    finally { $('verify-code').disabled = false; }
+  };
+  $('code-back').onclick = () => { $('code-form').hidden = true; $('login-form').hidden = false; $('email').focus(); };
   $('signout').onclick = async () => { clearPrivate(); try { api.unwrap(await db.auth.signOut()); notice('Signed out.'); } catch (e) { fail(e); } };
   // Do not await Supabase calls inside onAuthStateChange: schedule them after its auth lock releases.
   db.auth.onAuthStateChange((event, session) => {

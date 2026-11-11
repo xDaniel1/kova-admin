@@ -1,6 +1,6 @@
 // System: database and storage health, retention tools.
 'use strict';
-import { html, raw, qs, fmtDate, fmtNum, fmtBytes, rel, table, upgradeCard } from '../util.js';
+import { html, raw, qs, fmtDate, fmtNum, fmtBytes, rel, table, badge, upgradeCard } from '../util.js';
 import * as api from '../api.js';
 import { versionsCard, loadSiteLive } from '../versions.js';
 
@@ -16,9 +16,12 @@ export default async function system(ctx) {
       ${tile(fmtNum(s.feedback?.count), 'Feedback items', fmtNum(s.feedback?.with_screenshot) + ' with screenshots')}
       ${tile(fmtBytes(s.screenshots?.bytes), 'Screenshot storage', fmtNum(s.screenshots?.count) + ' files')}
       ${tile(fmtNum(s.sessions?.count), 'Active sessions', fmtNum(s.sessions?.users) + ' users signed in')}
-      ${tile(fmtNum(s.audit_rows), 'Audit entries', 'since Tower v3')}
+      ${tile(fmtNum(s.audit_rows), 'Audit entries', 'since migration 0003')}
     </div>
     <div data-versions style="margin-top:18px"></div>
+    <section class="card" style="margin-top:18px"><div class="card-head"><h2>Tower on your iPhone</h2>${matchMedia('(display-mode: standalone)').matches || navigator.standalone ? badge('Installed here', 'ok') : ''}</div>
+      <ol class="steps"><li>Open <strong>tower.kovamaps.com</strong> in Safari on the iPhone.</li><li>Tap Share, then <strong>Add to Home Screen</strong>, then Add.</li><li>Open Tower from the new icon and sign in with Google, or request an email link and paste it in (press and hold <em>Sign in</em> in the email, Copy Link).</li></ol>
+      <p class="muted small" style="margin:8px 0 0">It is the same Tower, full screen, talking to the same Supabase project, with every change live. Pull down to refresh; it also refreshes when you come back to it. Updates arrive on their own the next time you open it.</p></section>
     <div class="grid two" style="margin-top:18px">
       <section class="card"><div class="card-head"><h2>Tables</h2><span class="muted small">Live row estimates</span></div>
         ${table(['Table', 'Rows', 'Size'], (s.tables || []).map(t => [html`<span class="mono">${t.name}</span>`, fmtNum(t.rows), fmtBytes(t.bytes)]))}</section>

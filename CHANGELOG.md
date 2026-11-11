@@ -2,6 +2,13 @@
 
 Tower uses the shared Kova version (semantic version plus a build number that only goes up). Releases are tagged `tower-v<version>`. Database migrations in `supabase/migrations/` are numbered separately.
 
+## 1.0.0 (build 4) · 2026-11-11
+
+- Tower installs on the iPhone home screen (Share → Add to Home Screen): app icon, full-screen standalone mode, safe areas for the notch and home indicator, and a service worker so it opens instantly.
+- Phone layout: bottom tab bar (Home, Users, Feedback with the new-feedback count, Controls, More), refresh button, pull to refresh, and automatic refresh when you come back to the app.
+- Email sign-in works inside the home-screen app: paste the link from the email (or type the code once custom email is set up). New accounts are never created from Tower's sign-in.
+- System page: "Tower on your iPhone" install steps.
+
 ## 1.0.0 (build 3) · 2026-11-09
 
 - Users by platform: active today, 7 and 30 days, signed-in accounts, new installs and all-time installs for the iOS, Android and web apps, with a 30-day daily chart per app (Users page) and the summary on Home. Backed by migration 0011, which logs one row per install per day from each app's launch check-in.

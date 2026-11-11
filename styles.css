@@ -185,3 +185,23 @@ body.role-viewer main button.primary,body.role-viewer main button.danger,body.ro
 p a,.small a,dd a,.kv a,.message a{text-decoration:underline;text-underline-offset:2px}
 .feedback-item,.feedback-item:hover,a.tile,a.btn,a.chip,.breadcrumb a{text-decoration:none}
 .timeline .what a,.note .meta a{text-decoration:underline;text-underline-offset:2px}
+
+/* iPhone home-screen app and phone layout */
+#tabbar{display:none}
+@media (max-width:900px){
+  #topbar{padding-top:calc(8px + env(safe-area-inset-top))}
+  #sidebar{padding-top:calc(16px + env(safe-area-inset-top));padding-bottom:calc(14px + env(safe-area-inset-bottom))}
+  body.authed #tabbar:not([hidden]){display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:9;background:color-mix(in srgb,var(--panel) 92%,transparent);backdrop-filter:saturate(1.6) blur(14px);-webkit-backdrop-filter:saturate(1.6) blur(14px);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+  #tabbar a,#tabbar button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 0;border:0;background:none;color:var(--muted);font-size:11px;font-weight:500;text-decoration:none;position:relative;min-height:44px;justify-content:center}
+  #tabbar a[aria-current=page]{color:var(--accent)}
+  #tabbar svg.i{width:22px;height:22px}
+  #tabbar .count{position:absolute;top:0;left:calc(50% + 6px);font-size:10px;padding:0 5px;min-width:16px}
+  body.authed main{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+  #notice{bottom:calc(84px + env(safe-area-inset-bottom))}
+  #search-form{min-width:0}
+}
+#ptr{position:fixed;left:50%;top:calc(6px + env(safe-area-inset-top));transform:translate(-50%,-60px);z-index:30;background:var(--panel);border:1px solid var(--line);border-radius:999px;box-shadow:var(--shadow-2);width:36px;height:36px;display:grid;place-items:center;color:var(--accent);transition:transform .15s ease;pointer-events:none}
+#ptr.spin svg{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (display-mode:standalone){#topbar{-webkit-user-select:none;user-select:none}}
+.steps{margin:0;padding-left:20px;display:grid;gap:6px}
