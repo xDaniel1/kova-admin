@@ -2,6 +2,13 @@
 
 Tower uses the shared Kova version (semantic version plus a build number that only goes up). Releases are tagged `tower-v<version>`. Database migrations in `supabase/migrations/` are numbered separately.
 
+## 1.0.0 (build 5) · 2026-11-11
+
+- Map data page: speed-limit coverage by region (Florida DOT, 15,803 segments in 67 counties), transit by region and agency, indoor venues by kind with Mapbox coverage, the nightly indoor plan cells, and incident feeds. Speed limits and transit can be switched off per region; the database hides that region's rows from every app at once, with no app update.
+- Feature switches gain speed limits, traffic colouring, transit, voice guidance, CarPlay and Android Auto. Saving keeps switches this page does not know.
+- Platform overrides: switch features off, run maintenance, or post an announcement on iOS, Android or web alone.
+- Migration 0012: the new switches and overrides (additive, existing keys unchanged), `data_regions` with restrictive read policies, `admin_map_data()`, and write grants removed from anon on public map data.
+
 ## 1.0.0 (build 4) · 2026-11-11
 
 - Tower installs on the iPhone home screen (Share → Add to Home Screen): app icon, full-screen standalone mode, safe areas for the notch and home indicator, and a service worker so it opens instantly.

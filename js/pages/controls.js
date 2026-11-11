@@ -9,8 +9,23 @@ const toggle = (label, name, on, hint) => html`<label class="inline switch"><inp
 const VER = 'pattern="[0-9]+(\\.[0-9]+)*" title="Numbers separated by dots, e.g. 1.2.0"';
 const local = iso => iso ? new Date(iso).toISOString().slice(0, 16) : '';
 
+// Every switch the apps can read. Who reads it today is in the hint; a switch an app does not read yet is harmless.
+export const FEATURES = [
+  ['indoor_maps', 'Indoor maps', 'Floor plans inside airports, stations and malls · iOS, web'],
+  ['traffic_reports', 'Traffic reports', 'Submitting and showing community reports · iOS, web'],
+  ['feedback', 'Feedback form', 'Send feedback and shake-to-report · iOS, web'],
+  ['incident_feeds', 'Incident feeds', 'State DOT work zones (FDOT and others) · iOS, web'],
+  ['sync', 'Cloud sync', 'Favorites and recents across devices · iOS, web'],
+  ['speed_limits', 'Speed limits', 'Posted limits from our database (Florida) and OpenStreetMap · new, apps adopting'],
+  ['traffic_coloring', 'Traffic colouring', 'Live traffic colours on routes and the map · new, apps adopting'],
+  ['transit', 'Transit', 'Transit stops and rail lines outside New York · new, apps adopting'],
+  ['voice_guidance', 'Voice guidance', 'Spoken turn-by-turn directions · new, apps adopting'],
+  ['carplay', 'CarPlay', 'Kova on the car screen · iOS'],
+  ['android_auto', 'Android Auto', 'Kova on the car screen · Android'],
+];
+const PLATFORMS = [['ios', 'iOS'], ['android', 'Android'], ['web', 'Web']];
 const REL = [['ios', 'iOS', 'build'], ['android', 'Android', 'versionCode'], ['web', 'Web app', 'build'], ['site', 'Site']];
-const ORDER = ['maintenance', 'released_versions', 'min_version', 'latest_version', 'features', 'announcement'];
+const ORDER = ['maintenance', 'released_versions', 'min_version', 'latest_version', 'features', 'platform_overrides', 'announcement'];
 const SECTIONS = {
   maintenance: {
     title: 'Maintenance mode', blurb: 'Stops network features in the apps and shows a message. Use it during a bad deploy or a Supabase incident.',
@@ -37,10 +52,33 @@ const SECTIONS = {
     status: v => badge(`iOS ${v.ios || '–'} · Android ${v.android || '–'} · web ${v.web || '–'}`),
   },
   features: {
-    title: 'Feature switches', blurb: 'Turn parts of the product off without shipping a build.',
-    form: v => html`<div class="switches">${[['indoor_maps', 'Indoor maps', 'Floor plans inside venues'], ['traffic_reports', 'Traffic reports', 'Submitting and showing community reports'], ['feedback', 'Feedback form', 'Send feedback and shake-to-report'], ['incident_feeds', 'Incident feeds', 'State DOT work-zone data'], ['sync', 'Cloud sync', 'Favorites and recents across devices']].map(([k, l, h]) => toggle(l, k, v[k] !== false, h))}</div>`,
-    read: f => Object.fromEntries(['indoor_maps', 'traffic_reports', 'feedback', 'incident_feeds', 'sync'].map(k => [k, f.get(k) === 'on'])),
-    status: v => { const off = Object.entries(v).filter(([, on]) => on === false).map(([k]) => k.replace('_', ' ')); return off.length ? badge(off.length + ' off: ' + off.join(', '), 'tone-seen') : badge('All on', 'ok'); },
+    title: 'Feature switches', blurb: 'Turn parts of the product off everywhere without shipping a build. Per-platform switches are in Platform overrides.',
+    form: v => html`<div class="switches">${FEATURES.map(([k, l, h]) => toggle(l, k, v[k] !== false, h))}</div>`,
+    // Keeps keys this page does not know, so a newer app's switch is never wiped by saving here.
+    read: (f, cur = {}) => ({ ...cur, ...Object.fromEntries(FEATURES.map(([k]) => [k, f.get(k) === 'on'])) }),
+    status: v => { const off = FEATURES.filter(([k]) => v[k] === false).map(([, l]) => l); return off.length ? badge(off.length + ' off: ' + off.join(', '), 'tone-seen') : badge('All on', 'ok'); },
+  },
+  platform_overrides: {
+    title: 'Platform overrides', blurb: 'Switch a feature off, pause, or announce on one platform only. A feature runs only if it is on in Feature switches and not off here. Read by apps that have adopted overrides (see the contract).',
+    form: v => html`${PLATFORMS.map(([p, label]) => { const o = v[p] || {}, f = o.features || {}, m = o.maintenance || {}, a = o.announcement || {}; return html`
+      <fieldset class="stack platform-override"><legend>${label}</legend>
+        ${toggle(label + ' maintenance mode', p + '_maint', m.enabled, 'Pauses network features on ' + label + ' only.')}
+        <label>Maintenance message<input name="${p}_maint_msg" maxlength="300" value="${m.message || ''}"></label>
+        <details class="collapse"><summary>Features on ${label} (${FEATURES.filter(([k]) => f[k] === false).length} off)</summary><div class="switches" style="margin-top:8px">${FEATURES.map(([k, l]) => toggle(l, p + '_f_' + k, f[k] !== false))}</div></details>
+        <details class="collapse"><summary>${label} announcement ${a.enabled ? '(live)' : ''}</summary><div class="stack" style="margin-top:8px">
+          ${toggle('Show on ' + label, p + '_ann', a.enabled, 'Replaces the global announcement on ' + label + ' while live.')}
+          <div class="form-grid"><label>Title<input name="${p}_ann_title" maxlength="80" value="${a.title || ''}"></label><label>Level<select name="${p}_ann_level">${['info', 'warning', 'critical'].map(l => html`<option ${raw(l === (a.level || 'info') ? 'selected' : '')}>${l}</option>`)}</select></label></div>
+          <label>Body<textarea name="${p}_ann_body" maxlength="500">${a.body || ''}</textarea></label>
+          <label>Link (optional)<input name="${p}_ann_url" type="url" value="${a.url || ''}" placeholder="https://"></label></div></details>
+      </fieldset>`; })}`,
+    read: (f, cur = {}) => Object.fromEntries(PLATFORMS.map(([p]) => { const prev = cur[p] || {}; return [p, {
+      ...prev,
+      // Only switches that are off are stored; unknown keys from newer apps are kept as they were.
+      features: { ...Object.fromEntries(Object.entries(prev.features || {}).filter(([k]) => !FEATURES.some(([x]) => x === k))), ...Object.fromEntries(FEATURES.filter(([k]) => f.get(p + '_f_' + k) !== 'on').map(([k]) => [k, false])) },
+      maintenance: { enabled: f.get(p + '_maint') === 'on', message: f.get(p + '_maint_msg').trim() },
+      announcement: { ...(prev.announcement || {}), enabled: f.get(p + '_ann') === 'on', title: f.get(p + '_ann_title').trim(), body: f.get(p + '_ann_body').trim(), level: f.get(p + '_ann_level'), url: f.get(p + '_ann_url').trim() || null },
+    }]; })),
+    status: v => { const bits = PLATFORMS.flatMap(([p, l]) => { const o = v[p] || {}; return [o.maintenance?.enabled && l + ' paused', Object.values(o.features || {}).includes(false) && l + ' ' + Object.values(o.features).filter(x => x === false).length + ' off', o.announcement?.enabled && l + ' announcing'].filter(Boolean); }); return bits.length ? badge(bits.join(' · '), bits.some(b => b.includes('paused')) ? 'danger' : 'tone-seen') : badge('None', 'ok'); },
   },
   announcement: {
     title: 'Announcement banner', blurb: 'A banner in the apps. Leave the window empty to show it whenever it is enabled.',
@@ -72,9 +110,10 @@ export default async function controls(ctx) {
       e.preventDefault(); const b = form.querySelector('button[type=submit]'); b.disabled = true;
       try {
         const f = new FormData(form);
-        const value = s ? s.read(f) : JSON.parse(f.get('json'));
+        const value = s ? s.read(f, rows.find(r => r.key === key)?.value || {}) : JSON.parse(f.get('json'));
         if (key === 'min_version') { const cur = rows.find(r => r.key === 'latest_version')?.value || {}; const bad = ['ios', 'android', 'web'].filter(p => value[p] && cur[p] && versionLess(cur[p], value[p])); if (bad.length && !confirm(`The minimum for ${bad.join(', ')} is above the latest released version. Every user on that platform would be blocked. Save anyway?`)) return; }
         if (key === 'released_versions') { const cur = rows.find(r => r.key === key)?.value || {}; const down = ['ios', 'android', 'web'].filter(p => cur[p]?.build && value[p].build && Number(value[p].build) < Number(cur[p].build)); if (down.length) throw new Error(`Build numbers only go up: ${down.map(p => `${p} is ${cur[p].build}`).join(', ')}.`); }
+        if (key === 'platform_overrides') { const on = PLATFORMS.filter(([p]) => value[p].maintenance.enabled && !(rows.find(r => r.key === key)?.value?.[p]?.maintenance?.enabled)).map(([, l]) => l); if (on.length && !confirm(`Turn on maintenance for ${on.join(', ')}? Those users lose network features until you turn it off.`)) return; }
         if (key === 'maintenance' && value.enabled && !confirm('Turn on maintenance mode? Every app user will see the message and lose network features until you turn it off.')) return;
         await api.saveConfig(key, value); ctx.notice(`${s?.title || key} saved.`); if (ctx.alive()) await controls(ctx);
       } catch (err) { ctx.fail(err); } finally { b.disabled = false; }

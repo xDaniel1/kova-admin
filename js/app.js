@@ -10,6 +10,7 @@ const lazy = (file, name = 'default') => async ctx => (await import(`./pages/${f
 const home = lazy('home'), activity = lazy('activity'), users = lazy('users'), userProfile = lazy('users', 'userProfile');
 const feedback = lazy('feedback'), feedbackDetail = lazy('feedback', 'feedbackDetail'), reports = lazy('reports'), reportDetail = lazy('reports', 'reportDetail');
 const venues = lazy('venues'), venueDetail = lazy('venues', 'venueDetail'), feeds = lazy('feeds'), feedDetail = lazy('feeds', 'feedDetail');
+const mapDataPage = lazy('mapdata');
 const admins = lazy('admins'), search = lazy('search'), controls = lazy('controls'), system = lazy('system'), messagesPage = lazy('messages');
 
 const routes = [
@@ -21,6 +22,7 @@ const routes = [
   [/^\/feedback\/([^/]+)$/, feedbackDetail, 'Feedback'],
   [/^\/reports$/, reports, 'Reports'],
   [/^\/reports\/([^/]+)$/, reportDetail, 'Report'],
+  [/^\/map-data$/, mapDataPage, 'Map data'],
   [/^\/venues$/, venues, 'Venues'],
   [/^\/venues\/([^/]+)$/, venueDetail, 'Venue'],
   [/^\/feeds$/, feeds, 'Incident feeds'],
@@ -36,7 +38,7 @@ const NAV = [
   ['/', 'Home', 'home'], ['/activity', 'Activity', 'activity'],
   ['group', 'Records'],
   ['/users', 'Users', 'users'], ['/feedback', 'Feedback', 'feedback', 'feedback_new'], ['/reports', 'Reports', 'reports'],
-  ['/venues', 'Venues', 'venues'], ['/feeds', 'Incident feeds', 'feeds'],
+  ['/map-data', 'Map data', 'map'], ['/venues', 'Venues', 'venues'], ['/feeds', 'Incident feeds', 'feeds'],
   ['group', 'Console'],
   ['/messages', 'Messages', 'message'], ['/controls', 'App controls', 'controls'], ['/system', 'System', 'system'], ['/admins', 'Admins', 'admins'],
 ];
