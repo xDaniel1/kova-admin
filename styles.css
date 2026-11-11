@@ -207,3 +207,13 @@ p a,.small a,dd a,.kv a,.message a{text-decoration:underline;text-underline-offs
 .steps{margin:0;padding-left:20px;display:grid;gap:6px}
 .platform-override{border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;margin:0}.platform-override legend{font-weight:600;padding:0 6px}
 .card-head .badge{white-space:normal;max-width:100%;text-align:right}.card-head{flex-wrap:wrap;gap:8px}fieldset{min-width:0}
+/* App feel: no grey tap flashes, no rubber-band over the custom pull-to-refresh, no callouts on controls */
+html{-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none}
+@media (display-mode:standalone){
+  body{overscroll-behavior-y:none}
+  #tabbar,#sidebar nav,#topbar button,.tile{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+  #tabbar a:active,#tabbar button:active,.tile:active{transform:scale(.97);transition:transform .08s}
+}
+.srcbar{display:flex;height:10px;min-width:120px;border-radius:999px;overflow:hidden;background:var(--bg-2)}
+.srcbar span{display:block;height:100%}.srcbar .db,.legend .db{background:var(--accent)}.srcbar .osm,.legend .osm{background:#7fb3a3}.srcbar .none,.legend .none{background:#e0a04f}
+.legend{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.legend .key{display:inline-block;width:10px;height:10px;border-radius:3px;margin-left:8px}

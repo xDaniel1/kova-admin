@@ -2,6 +2,12 @@
 
 Tower uses the shared Kova version (semantic version plus a build number that only goes up). Releases are tagged `tower-v<version>`. Database migrations in `supabase/migrations/` are numbered separately.
 
+## 1.0.0 (build 6) · 2026-11-11
+
+- Push notifications for the installed app (iPhone 16.4+ from the Home Screen, Android, desktop): new feedback and new accounts, chosen per device on System → Notifications, with a test button. Migration 0014 and the `tower-push` Edge Function.
+- iPhone launch screens (light and dark) for current iPhone sizes; Android home-screen shortcuts (Feedback, Controls, Users, Map data); no tap flashes or rubber-banding in the installed app.
+- Coverage: speed limits by county in road miles, and a "Coverage from drives" view (miles by speed-limit source, rural miles, sparse map detail, biggest gaps) fed by the new `report_coverage` endpoint the apps can adopt (migration 0013).
+
 ## 1.0.0 (build 5) · 2026-11-11
 
 - Map data page: speed-limit coverage by region (Florida DOT, 15,803 segments in 67 counties), transit by region and agency, indoor venues by kind with Mapbox coverage, the nightly indoor plan cells, and incident feeds. Speed limits and transit can be switched off per region; the database hides that region's rows from every app at once, with no app update.

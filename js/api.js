@@ -155,5 +155,7 @@ export async function bulkDeleteFeedback(rows) {
 export const versions = () => rpc('admin_versions');
 export const platformUsers = () => rpc('admin_platform_users');
 export const mapData = () => rpc('admin_map_data');
+export const coverage = (days = 30) => rpc('admin_coverage', { days });
+export const speedLimitCounties = () => rpc('admin_speed_limit_counties');
 export async function setDataRegion(dataset, region, enabled) { return unwrap(await db.from('data_regions').update({ enabled }).eq('dataset', dataset).eq('region', region).select('*').single()); }
 export async function userDevices(userId) { return unwrap(await db.from('app_clients').select('platform,app_version,build,os_version,first_seen,last_seen').eq('user_id', userId).order('last_seen', { ascending: false }).limit(20)); }
