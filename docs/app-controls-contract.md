@@ -115,13 +115,27 @@ Tells Tower which version is installed. Call once per launch, after the first co
 
 These tables are public read-only data: `anon`/`authenticated` have SELECT only (write grants revoked in migration 0012). Imports run as the database owner. New regions appear in Tower automatically after an import; to be switchable they need a row in `data_regions`, which migration 0012 seeds and Tower's Map data page lists (re-run its seed after importing a new region, or ask the Tower thread).
 
+## 5. Coverage report: `POST /rpc/report_coverage` (optional, added in migration 0013)
+
+Tells Tower how well our map data covers real drives. Send once at the end of a trip (or every ~30 minutes of driving), fire-and-forget, anon key is enough:
+
+```json
+{ "install_id": "<same uuid as report_client>", "platform": "ios", "app_version": "1.0.0",
+  "cells": [ { "lat": 28.43, "lon": -81.31, "region": "FL", "miles": 3.2,
+               "limit_db": 2.9, "limit_osm": 0.2, "limit_none": 0.1, "rural": 1.0, "sparse": 0.4 } ] }
+```
+
+- One entry per ~11 km cell driven (round lat/lon to one decimal, or let the server do it); at most 100 per call. No exact positions, no account.
+- `miles`: distance driven in the cell. `limit_db`: miles where the speed limit shown came from `speed_limit_segments`; `limit_osm`: from OpenStreetMap; `limit_none`: no limit shown. `rural`: miles on rural roads (your own classification, e.g. outside urban areas or OSM `highway` classes unclassified/track/tertiary outside towns). `sparse`: miles where map detail was thin (no lanes, no name, or no limit tag). Each part is capped at `miles`; values are added up per install, day and cell.
+- Respect the `speed_limits` feature switch and the user's privacy settings: skip the report if location sharing for analytics is off.
+
 ## Adoption status (Nov 11 2026)
 
-| | Config keys | `platform_overrides` | New feature keys | `report_client` |
-|---|---|---|---|---|
-| iOS | build 5+ (PR #33). Builds 3 and 4 read nothing | not yet | not yet | build 5+ |
-| Web | 1.0.x | not yet | not yet | yes (skips automated browsers) |
-| Android | **not yet** | not yet | not yet | **not yet** |
+| | Config keys | `platform_overrides` | New feature keys | `report_client` | `report_coverage` |
+|---|---|---|---|---|---|
+| iOS | build 5+ (PR #33). Builds 3 and 4 read nothing | not yet | not yet | build 5+ | not yet |
+| Web | 1.0.x | not yet | not yet | yes (skips automated browsers) | not yet |
+| Android | **not yet** | not yet | not yet | **not yet** | not yet |
 
 ## Reference implementation
 
