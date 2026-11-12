@@ -55,7 +55,8 @@ export default async function mapData(ctx) {
 
     <section class="card" style="margin-top:18px"><div class="card-head"><h2>Indoor maps</h2><a class="small" href="${href('/venues')}">Manage venues</a></div>
       ${table(['Kind', 'Venues', 'On', 'With Mapbox plans', 'Updated'], ven.map(v => [html`<strong>${v.kind}</strong>`, fmtNum(v.total), fmtNum(v.enabled), fmtNum(v.mapbox), rel(v.updated_at)]), { emptyText: 'No venues.' })}
-      <p class="muted small" style="margin:10px 0 0">Airports draw Mapbox's floor plans; stations, malls and others draw OpenStreetMap plans that a nightly job publishes to kovamaps.com/indoor (<span data-cells-line>checking…</span>). A venue switched off disappears from the apps' venue list. The Indoor maps switch on App controls turns the whole feature off.</p></section>`.s;
+      <p class="muted small" style="margin:10px 0 0">Airports draw Mapbox's floor plans; stations, malls and others draw OpenStreetMap plans that a nightly job publishes to kovamaps.com/indoor (<span data-cells-line>checking…</span>). A venue switched off disappears from the apps' venue list. The Indoor maps switch on App controls turns the whole feature off.</p>
+      <h3 class="eyebrow" style="margin-top:16px">To do: airports without Mapbox floor plans</h3><div data-indoor-todo><p class="loading">Loading…</p></div></section>`.s;
 
   qsa('[data-region]', ctx.el).forEach(b => b.onclick = async () => {
     const [dataset, region] = b.dataset.region.split('|'), on = !b.dataset.enabled;
@@ -72,6 +73,10 @@ export default async function mapData(ctx) {
       .catch(e => { const host = details.querySelector('[data-counties]'); if (host) host.innerHTML = html`<p class="muted small">${e.message}</p>`.s; }); };
   api.coverage(30).then(c => { const host = ctx.el.querySelector('[data-coverage]'); if (!host || !ctx.alive()) return; host.innerHTML = coverageView(c).s; })
     .catch(e => { const host = ctx.el.querySelector('[data-coverage]'); if (host) host.innerHTML = e.needsUpgrade ? '<p class="muted small">Needs migration 0013.</p>' : html`<p class="muted small">${e.message}</p>`.s; });
+  api.venues().then(vs => { const host = ctx.el.querySelector('[data-indoor-todo]'); if (!host || !ctx.alive()) return;
+    const todo = vs.filter(v => v.kind === 'airport' && !(v.sources || []).includes('mapbox'));
+    host.innerHTML = todo.length ? html`<ul class="todo">${todo.map(v => html`<li><a href="${href('/venues/' + encodeURIComponent(v.short_name))}"><strong>${v.short_name}</strong> ${v.name}</a> <span class="muted small">${(v.sources || []).join(', ') || 'no plan source'}${v.enabled ? '' : ' · off'}</span></li>`)}</ul>
+      <p class="muted small" style="margin:6px 0 0">These show OpenStreetMap plans (or none) instead of Mapbox's. When Mapbox maps one inside, add <code>mapbox</code> to its sources on the venue page and it leaves this list.</p>`.s : '<p class="muted small">Every airport has a Mapbox floor plan.</p>'; }).catch(() => {});
   api.speedAuthority().then(a => { if (!ctx.alive()) return; qsa('[data-auth]', ctx.el).forEach(el => { const x = a[el.dataset.auth] || {}; const t = (+x.authoritative || 0) + (+x.advisory || 0);
     el.innerHTML = !t ? '—' : +x.authoritative === t ? 'All (authoritative)' : !+x.authoritative ? '<span class="muted">No (advisory)</span>' : fmtNum(x.authoritative) + ' of ' + fmtNum(t); }); }).catch(() => {});
   indoorPlans().then(p => {

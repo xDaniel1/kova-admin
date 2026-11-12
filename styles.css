@@ -220,3 +220,4 @@ html{-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none}
 .error-group summary{cursor:pointer;line-height:1.4}.stack-trace{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius-sm);padding:10px;max-height:260px;overflow:auto}
 body.role-viewer main [data-block],body.role-viewer main [data-unblock],body.role-viewer main [data-clear],body.role-viewer main [data-mark],body.role-viewer main [data-unmark],body.role-viewer main [data-block-form]{pointer-events:none;opacity:.4}
 .reader{display:block;margin:2px 0 6px 30px}.card-head .reader{margin-left:0}
+.todo{margin:6px 0 0;padding-left:18px;display:grid;gap:4px}

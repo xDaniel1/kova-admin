@@ -16,13 +16,24 @@ export const FEATURES = [
   ['feedback', 'Feedback form', 'Send feedback and shake-to-report · iOS, web'],
   ['incident_feeds', 'Incident feeds', 'State DOT work zones (FDOT and others) · iOS, web'],
   ['sync', 'Cloud sync', 'Favorites and recents across devices · iOS, web'],
-  ['speed_limits', 'Speed limits', 'Posted limits from our database (Florida) and OpenStreetMap · iOS build 6+'],
-  ['traffic_coloring', 'Traffic colouring', 'Live traffic colours on routes and the map · iOS build 6+'],
-  ['transit', 'Transit', 'Transit stops and rail lines outside New York · iOS build 6+'],
-  ['voice_guidance', 'Voice guidance', 'Spoken turn-by-turn directions · iOS build 6+'],
-  ['carplay', 'CarPlay', 'Kova on the car screen · iOS build 6+'],
+  ['speed_limits', 'Speed limits', 'Posted limits from our database (Florida) and OpenStreetMap · iOS build 6+, web 1.0.2+'],
+  ['traffic_coloring', 'Traffic colouring', 'Live traffic colours on routes and the map · iOS build 6+, web 1.0.2+'],
+  ['transit', 'Transit', 'Transit stops and rail lines outside New York · iOS build 6+, web 1.0.2+'],
+  ['voice_guidance', 'Voice guidance', 'Spoken turn-by-turn directions · iOS build 6+, web 1.0.2+'],
+  ['carplay', 'CarPlay', 'Kova on the car screen · iOS build 7+ (CarPlay entitlement)'],
   ['android_auto', 'Android Auto', 'Kova on the car screen · Android (not yet reading)'],
+  ['place_labels', 'Place labels', 'Shops, restaurants and attractions named on the map at venues and on streets · iOS build 8 (not yet reading the switch)'],
+  ['flat_turns', 'Flat map for turns', 'Driving map drops to 2D before each turn · iOS build 9 (not yet reading the switch)'],
+  ['rural_detail', 'Rural map detail', 'Minor roads, small towns and unpaved surfaces drawn clearer · web 1.0.2 (not yet reading the switch)'],
 ];
+// Earliest build (iOS) or version (web) that honours each switch, for the reach estimate shown until
+// apps send config_keys.
+const SINCE = {
+  speed_limits: { ios: 6, web: '1.0.2' }, traffic_coloring: { ios: 6, web: '1.0.2' }, transit: { ios: 6, web: '1.0.2' },
+  voice_guidance: { ios: 6, web: '1.0.2' }, carplay: { ios: 7 }, platform_overrides: { ios: 6, web: '1.0.2' },
+  indoor_maps: { ios: 5, web: '1.0.0' }, traffic_reports: { ios: 5, web: '1.0.0' }, feedback: { ios: 5, web: '1.0.0' },
+  incident_feeds: { ios: 5, web: '1.0.0' }, sync: { ios: 5, web: '1.0.0' },
+};
 const PLATFORMS = [['ios', 'iOS'], ['android', 'Android'], ['web', 'Web']];
 const REL = [['ios', 'iOS', 'build'], ['android', 'Android', 'versionCode'], ['web', 'Web app', 'build'], ['site', 'Site']];
 const ORDER = ['maintenance', 'released_versions', 'min_version', 'latest_version', 'features', 'platform_overrides', 'announcement'];
@@ -60,7 +71,7 @@ const SECTIONS = {
     status: v => { const off = FEATURES.filter(([k]) => v[k] === false).map(([, l]) => l); return off.length ? badge(off.length + ' off: ' + off.join(', '), 'tone-seen') : badge('All on', 'ok'); },
   },
   platform_overrides: {
-    title: 'Platform overrides', blurb: 'Switch a feature off, pause, or announce on one platform only. A feature runs only if it is on in Feature switches and not off here. Read by iOS build 6+; web and Android not yet.',
+    title: 'Platform overrides', blurb: 'Switch a feature off, pause, or announce on one platform only. A feature runs only if it is on in Feature switches and not off here. Read by iOS build 6+ and web 1.0.2+; Android not yet.',
     form: v => html`${PLATFORMS.map(([p, label]) => { const o = v[p] || {}, f = o.features || {}, m = o.maintenance || {}, a = o.announcement || {}; return html`
       <fieldset class="stack platform-override"><legend>${label}</legend>
         ${toggle(label + ' maintenance mode', p + '_maint', m.enabled, 'Pauses network features on ' + label + ' only.')}
@@ -105,10 +116,16 @@ export default async function controls(ctx) {
           <div class="row"><button class="primary" type="submit">Save</button><span class="muted small">Updated ${rel(r.updated_at)}${r.updated_by ? ' by ' + (label(r.updated_by)?.email || 'an admin') : ''}</span></div></form>
         <details class="collapse" style="margin-top:14px"><summary>Notes and history</summary><div class="stack" style="margin-top:12px"><div data-annotations></div><div><h3 class="eyebrow">History</h3><div data-audit></div></div></div></details>
       </section>`; })}</div>`.s;
-  api.configReaders().then(readers => { if (!ctx.alive()) return;
+  let mix = null;
+  const reach = since => ['ios', 'web'].filter(p => since[p] != null).map(p => { const m = mix[p] || []; const all = m.reduce((a, x) => a + +x.n, 0);
+    const ok = m.filter(x => p === 'ios' ? +x.build >= since.ios : !versionLess(x.version, since.web)).reduce((a, x) => a + +x.n, 0);
+    return `${p === 'ios' ? 'iOS' : 'web'} ${ok} of ${all}`; }).join(' · ');
+  Promise.all([api.configReaders(), api.versions().then(v => { mix = Object.fromEntries(Object.entries(v.platforms || {}).map(([p, x]) => [p, x.mix || []])); }).catch(() => {})]).then(([readers]) => { if (!ctx.alive()) return;
     const P = { ios: 'iOS', android: 'Android', web: 'Web' };
     qsa('[data-reader]', ctx.el).forEach(el => { const r = readers[el.dataset.reader];
-      el.textContent = r ? 'Last seen reading this: ' + Object.entries(r).map(([p, x]) => `${P[p] || p} ${x.version}${x.build ? ' (' + x.build + ')' : ''} ${rel(x.last_seen)}, ${x.installs_30d} installs`).join(' · ') : (el.dataset.reader === 'released_versions' ? '' : 'No build has reported reading this yet.'); }); }).catch(() => {});
+      if (r) { el.textContent = 'Last seen reading this: ' + Object.entries(r).map(([p, x]) => `${P[p] || p} ${x.version}${x.build ? ' (' + x.build + ')' : ''} ${rel(x.last_seen)}, ${x.installs_30d} installs`).join(' · '); return; }
+      const since = SINCE[el.dataset.reader.replace(/^features\./, '')];
+      el.textContent = el.dataset.reader === 'released_versions' ? '' : since && mix ? 'Estimated reach (builds that honour it, 30 days): ' + reach(since) : 'No build has reported reading this yet.'; }); }).catch(() => {});
   qsa('.control', ctx.el).forEach(card => {
     const key = card.dataset.key, s = SECTIONS[key], form = qs('[data-form]', card);
     form.onsubmit = async e => {

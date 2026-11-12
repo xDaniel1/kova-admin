@@ -2,6 +2,13 @@
 
 Tower uses the shared Kova version (semantic version plus a build number that only goes up). Releases are tagged `tower-v<version>`. Database migrations in `supabase/migrations/` are numbered separately.
 
+## 1.0.0 (build 9) · 2026-11-12
+
+- Registry: iOS 1.0.0 build 11 (`ios-v1.0.0-b11`), public beta build 8; web 1.0.2 build 41. Newer web CI builds marked as test.
+- Switches for place labels, flat map for turns and rural map detail; CarPlay and the extended switches note which builds honour them, with an estimated reach (installs on those builds) until apps send `config_keys`.
+- Map data: to-do list of airports without Mapbox floor plans.
+- Migration 0017.
+
 ## 1.0.0 (build 8) · 2026-11-12
 
 - Registry shows the public beta build (iOS: build 10 released, public Kova Beta on build 8) and lets editors set it.
