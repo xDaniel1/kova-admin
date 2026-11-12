@@ -2,6 +2,10 @@
 
 Tower uses the shared Kova version (semantic version plus a build number that only goes up). Releases are tagged `tower-v<version>`. Database migrations in `supabase/migrations/` are numbered separately.
 
+## 1.0.0 (build 8) · 2026-11-12
+
+- Registry shows the public beta build (iOS: build 10 released, public Kova Beta on build 8) and lets editors set it.
+
 ## 1.0.0 (build 7) · 2026-11-11
 
 - Errors page: client error reports grouped by message, with page, browser, stack, a 30-day chart and clearing.

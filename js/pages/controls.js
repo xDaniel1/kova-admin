@@ -35,9 +35,9 @@ const SECTIONS = {
   },
   released_versions: {
     title: 'Released versions', blurb: 'What has shipped. One shared version across products, plus a build number per platform that only goes up. Informational: the apps do not act on it.',
-    form: v => html`<div class="form-grid">${REL.map(([k, l, b]) => html`${field(l + ' version', k, (v[k] || {}).version, { placeholder: '1.0.0', attrs: VER })}${b ? field(l + ' ' + b, k + '_build', (v[k] || {}).build, { placeholder: '1', attrs: 'pattern="[0-9]+" title="A whole number"' }) : ''}${b ? field(l + ' pending ' + b, k + '_pending', (v[k] || {}).pending_build, { placeholder: 'in review', attrs: 'pattern="[0-9]*" title="A whole number, or empty"' }) : ''}${b ? field(l + ' release tag', k + '_tag', (v[k] || {}).tag, { placeholder: k + '-v1.0.0-b5' }) : ''}`)}</div>`,
+    form: v => html`<div class="form-grid">${REL.map(([k, l, b]) => html`${field(l + ' version', k, (v[k] || {}).version, { placeholder: '1.0.0', attrs: VER })}${b ? field(l + ' ' + b, k + '_build', (v[k] || {}).build, { placeholder: '1', attrs: 'pattern="[0-9]+" title="A whole number"' }) : ''}${b ? field(l + ' pending ' + b, k + '_pending', (v[k] || {}).pending_build, { placeholder: 'in review', attrs: 'pattern="[0-9]*" title="A whole number, or empty"' }) : ''}${b ? field(l + ' release tag', k + '_tag', (v[k] || {}).tag, { placeholder: k + '-v1.0.0-b5' }) : ''}${k === 'ios' || k === 'android' ? field(l + ' public beta build', k + '_beta', (v[k] || {}).beta_build, { placeholder: 'TestFlight / beta link', attrs: 'pattern="[0-9]*"' }) : ''}`)}</div>`,
     read: (f, cur = {}) => Object.fromEntries(REL.map(([k, , b]) => [k, { ...(cur[k] || {}), version: f.get(k).trim(), build: b ? f.get(k + '_build').trim() || null : null,
-      ...(b ? { pending_build: f.get(k + '_pending').trim() || null, tag: f.get(k + '_tag').trim() || null } : {}) }])),
+      ...(b ? { pending_build: f.get(k + '_pending').trim() || null, tag: f.get(k + '_tag').trim() || null } : {}), ...(k === 'ios' || k === 'android' ? { beta_build: f.get(k + '_beta').trim() || null } : {}) }])),
     status: v => badge(REL.map(([k, l]) => `${l} ${(v[k] || {}).version || '–'}${(v[k] || {}).build ? ' (' + v[k].build + ')' : ''}`).join(' · ')),
   },
   min_version: {

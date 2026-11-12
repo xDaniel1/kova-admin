@@ -5,7 +5,7 @@ import { html, fmtNum, rel, badge, table, href, versionLess } from './util.js';
 
 const PLATFORMS = [['ios', 'iOS'], ['android', 'Android'], ['web', 'Web app'], ['site', 'Marketing site']];
 const REPORTING = new Set(['ios', 'android', 'web']);
-const rel_ = r => r?.version ? html`${r.version}${r.build ? html` <span class="muted small">build ${r.build}</span>` : ''}${r.tag ? html`<br><span class="mono small muted">${r.tag}</span>` : ''}${r.pending_build ? html`<br>${badge('build ' + r.pending_build + ' pending', 'tone-seen')}` : ''}` : html`<span class="muted">—</span>`;
+const rel_ = r => r?.version ? html`${r.version}${r.build ? html` <span class="muted small">build ${r.build}</span>` : ''}${r.tag ? html`<br><span class="mono small muted">${r.tag}</span>` : ''}${r.pending_build ? html`<br>${badge('build ' + r.pending_build + ' pending', 'tone-seen')}` : ''}${r.beta_build ? html`<br><span class="muted small">public beta: build ${r.beta_build}</span>` : ''}` : html`<span class="muted">—</span>`;
 
 export function versionsCard(v, { detailed = false } = {}) {
   const min = v.min || {}, latest = v.latest || {}, p = v.platforms || {}, released = v.released || {};
