@@ -123,7 +123,7 @@ export default async function controls(ctx) {
   Promise.all([api.configReaders(), api.versions().then(v => { mix = Object.fromEntries(Object.entries(v.platforms || {}).map(([p, x]) => [p, x.mix || []])); }).catch(() => {})]).then(([readers]) => { if (!ctx.alive()) return;
     const P = { ios: 'iOS', android: 'Android', web: 'Web' };
     qsa('[data-reader]', ctx.el).forEach(el => { const r = readers[el.dataset.reader];
-      if (r) { el.textContent = 'Last seen reading this: ' + Object.entries(r).map(([p, x]) => `${P[p] || p} ${x.version}${x.build ? ' (' + x.build + ')' : ''} ${rel(x.last_seen)}, ${x.installs_30d} installs`).join(' · '); return; }
+      if (r) { el.textContent = 'Last seen reading this: ' + Object.entries(r).sort(([, a], [, b]) => a.test - b.test).map(([p, x]) => `${P[p] || (P[p.split(' ')[0]] + ' (test)')} ${x.version}${x.build ? ' (' + x.build + ')' : ''} ${rel(x.last_seen)}, ${x.installs_30d} installs`).join(' · '); return; }
       const since = SINCE[el.dataset.reader.replace(/^features\./, '')];
       el.textContent = el.dataset.reader === 'released_versions' ? '' : since && mix ? 'Estimated reach (builds that honour it, 30 days): ' + reach(since) : 'No build has reported reading this yet.'; }); }).catch(() => {});
   qsa('.control', ctx.el).forEach(card => {
