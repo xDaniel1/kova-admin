@@ -2,6 +2,10 @@
 
 Tower uses the shared Kova version (semantic version plus a build number that only goes up). Releases are tagged `tower-v<version>`. Database migrations in `supabase/migrations/` are numbered separately.
 
+## Unreleased
+
+- Database migration 0020 (already applied to production): `speed_limits_in_box` no longer times out for signed-out apps. Row-level security stopped Postgres from using the overlap index, so every call scanned 1.86 M rows (about 5.2 s, past the 3 s limit). It now takes 0.2–0.5 s, and the Speed limits region and source switches still apply. Fixes database speed limits on iPhone and web.
+
 ## 1.0.0 (build 10) · 2026-11-13
 
 - Home: new Live status card. It lists maintenance, switches that are off, and every counted build seen this week with the CarPlay switch it reads. It flags any build still on a switch whose builds crash when a trip starts.
