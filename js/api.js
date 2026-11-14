@@ -162,7 +162,7 @@ export const blockReporter = (target, reason) => rpc('admin_block_reporter', { t
 export const unblockReporter = target => rpc('admin_unblock_reporter', { target });
 export const speedAuthority = () => rpc('admin_speed_authority');
 export const configReaders = () => rpc('admin_config_readers');
-export async function recentClients() { return unwrap(await db.from('app_clients').select('platform,app_version,build,channel,last_seen').gte('last_seen', new Date(Date.now() - 30 * 864e5).toISOString()).order('last_seen', { ascending: false }).limit(5000)); }
+export async function recentClients() { return unwrap(await db.from('app_clients').select('platform,app_version,build,channel,config_keys,last_seen').gte('last_seen', new Date(Date.now() - 30 * 864e5).toISOString()).order('last_seen', { ascending: false }).limit(5000)); }
 export async function testBuilds() { return unwrap(await db.from('test_builds').select('*').order('created_at', { ascending: false })); }
 export async function markTestBuild(platform, app_version, build, note) { return unwrap(await db.from('test_builds').insert({ platform, app_version, build, note })); }
 export async function unmarkTestBuild(platform, app_version, build) { return unwrap(await db.from('test_builds').delete().eq('platform', platform).eq('app_version', app_version).eq('build', build)); }

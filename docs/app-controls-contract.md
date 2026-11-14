@@ -24,7 +24,7 @@ Returns an array of `{ "key": string, "value": object }`. Decode each key on its
 | `min_version` | `{ "ios": "1.0", "android": "1.0", "web": "0.1", "message": string }` |
 | `latest_version` | `{ "ios": "1.0.0", "android": "1.0.0", "web": "0.1.0", "message": string, "store_urls": { "ios": url, "android": url, "web": url } }` |
 | `released_versions` | `{ "ios": { "version": "1.0.0", "build": "4" }, "android": { "version": "1.0.0", "build": "1" }, "web": { "version": "1.0.0", "build": null }, "site": {…} }`. Informational record of what shipped; apps may ignore it. |
-| `features` | `{ "indoor_maps": bool, "traffic_reports": bool, "feedback": bool, "incident_feeds": bool, "sync": bool, "speed_limits": bool, "traffic_coloring": bool, "transit": bool, "voice_guidance": bool, "carplay": bool, "android_auto": bool }` |
+| `features` | `{ "indoor_maps": bool, "traffic_reports": bool, "feedback": bool, "incident_feeds": bool, "sync": bool, "speed_limits": bool, "traffic_coloring": bool, "transit": bool, "voice_guidance": bool, "carplay": bool, "carplay_safe": bool, "carplay_b17": bool, "android_auto": bool, "place_labels": bool, "flat_turns": bool, "rural_detail": bool }` |
 | `platform_overrides` | `{ "ios" \| "android" \| "web": { "features": { <feature key>: false, … }, "maintenance": { "enabled": bool, "message": string }, "announcement": { same shape as announcement } } }` (added in migration 0012; optional to adopt) |
 | `announcement` | `{ "enabled": bool, "title": string, "body": string, "level": "info" \| "warning" \| "critical", "url": url \| null, "starts_at": ISO-8601 \| null, "ends_at": ISO-8601 \| null }` |
 
@@ -54,7 +54,9 @@ Returns an array of `{ "key": string, "value": object }`. Decode each key on its
 | `traffic_coloring` | Draw routes and roads without live traffic colours. |
 | `transit` | Do not fetch `transit_stops` / `transit_lines`; hide the transit layer and transit stops. |
 | `voice_guidance` | No spoken directions; on-screen guidance continues. |
-| `carplay` | iOS: the CarPlay scene shows "Kova is unavailable in the car right now" instead of the map. |
+| `carplay` | iOS builds 7–14: the CarPlay scene shows "Kova is unavailable in the car right now" instead of the map. Checked when the car connects. |
+| `carplay_safe` | Same, for iOS builds 15–16. |
+| `carplay_b17` | Same, for iOS build 17 and later. A new key per fixed build lets Tower keep crashing builds off the car. |
 | `android_auto` | Android: the car app shows the same unavailable screen. |
 | `place_labels` | Do not name shops, restaurants and attractions on the map (venues and streets). |
 | `flat_turns` | Keep the driving map's tilt through turns instead of dropping to 2D. |
@@ -150,6 +152,7 @@ Tells Tower how well our map data covers real drives. Send once at the end of a 
 |---|---|---|---|---|---|---|
 | iOS 1.0.0 b5 | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
 | iOS 1.0.0 b6–b11 (b11 latest upload `ios-v1.0.0-b11`; public beta b8) | ✅ | ✅ speed_limits, traffic_coloring, transit, voice_guidance; carplay from b7 | ✅ | ✅ | ❌ (please add) | ❌ |
+| iOS 1.0.0 b12–b17 (latest `ios-v1.0.0-b17`) | ✅ | ✅ as b11; car screen reads `carplay` (b7–14), `carplay_safe` (b15–16), `carplay_b17` (b17+); sends channel and config_keys from b12 | ✅ | ✅ | ❌ (please add) | ❌ |
 | iOS builds 3, 4 | read nothing | | | | | |
 | Web 1.0.2 (deploy build 41) | ✅ | ✅ speed_limits, traffic_coloring, transit, voice_guidance | ✅ | ✅ (skips automated browsers) | ❌ (please add; CI runs are marked as test in Tower by hand until then) | ❌ |
 | Android 1.0.0 (1) | ❌ | ❌ (`android_auto` is its key) | ❌ | ❌ | ❌ | ❌ |

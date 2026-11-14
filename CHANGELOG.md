@@ -2,6 +2,14 @@
 
 Tower uses the shared Kova version (semantic version plus a build number that only goes up). Releases are tagged `tower-v<version>`. Database migrations in `supabase/migrations/` are numbered separately.
 
+## 1.0.0 (build 10) · 2026-11-13
+
+- Home: new Live status card. It lists maintenance, switches that are off, and every counted build seen this week with the CarPlay switch it reads. It flags any build still on a switch whose builds crash when a trip starts.
+- App controls: CarPlay is split into three switches by build: `carplay` (iOS 7–14), `carplay_safe` (15–16) and `carplay_b17` (17+). Place labels and rural detail now note that web 1.0.3+ reads them.
+- Registry: iOS 1.0.0 build 17 (`ios-v1.0.0-b17`) and web 1.0.4 build 47. The New York State speed-limit region (NYSDOT, 63,036 segments) can now be switched off.
+- Design refresh: calmer surfaces, card headers with a divider, an accent marker on the current page, softer tiles and tables.
+- Migration 0019.
+
 ## 1.0.0 (build 9) · 2026-11-12
 
 - Registry: iOS 1.0.0 build 11 (`ios-v1.0.0-b11`), public beta build 8; web 1.0.2 build 41. Newer web CI builds marked as test.

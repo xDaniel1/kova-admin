@@ -6,6 +6,7 @@ import { eventList } from './activity.js';
 import { recordHref, typeLabel } from '../records.js';
 import { versionsCard, loadSiteLive } from '../versions.js';
 import { platformUsersCard } from '../platform-users.js';
+import { liveStatusCard } from '../live-status.js';
 
 export default async function home(ctx) {
   const s = await ctx.refreshStats({ maxAge: 5000 });
@@ -34,7 +35,8 @@ export default async function home(ctx) {
       ${s.sync_users != null ? tile(href('/users', { filter: 'sync' }), fmtNum(s.sync_users), 'Users with sync') : ''}
       ${s.admins_count != null ? tile(href('/admins'), fmtNum(s.admins_count), 'Admins') : ''}
     </div>
-    <div class="grid two" style="margin-top:16px">
+    <div data-live style="margin-top:18px"></div>
+    <div class="grid two" style="margin-top:18px">
       <section class="card"><div class="card-head"><h2>Needs attention</h2><a class="small" href="${href('/feedback', { status: 'new' })}">All new feedback</a></div><div data-attention><p class="loading">Loading…</p></div></section>
       <section class="card"><div class="card-head"><h2>Latest activity</h2><a class="small" href="#/activity">Full log</a></div><div data-activity><p class="loading">Loading…</p></div></section>
     </div>
@@ -51,6 +53,7 @@ export default async function home(ctx) {
     </div>`.s;
 
   const tasks = [];
+  tasks.push((async () => { const host = qs('[data-live]', ctx.el); try { const c = await liveStatusCard(); if (ctx.alive()) host.innerHTML = c.s; } catch (e) { if (ctx.alive()) host.innerHTML = ''; console.warn(e); } })());
   tasks.push((async () => { const host = qs('[data-platform-users]', ctx.el); try { const d = await api.platformUsers(); if (ctx.alive()) host.innerHTML = platformUsersCard(d, { charts: false }).s + '<div style="height:18px"></div>'; } catch (e) { if (!e.needsUpgrade) console.warn(e); } })());
   tasks.push((async () => { const host = qs('[data-versions]', ctx.el); try { const v = await api.versions(); if (ctx.alive()) host.innerHTML = versionsCard(v).s + '<div style="height:18px"></div>'; loadSiteLive(host, v.released); } catch (e) { if (!e.needsUpgrade) console.warn(e); } })());
   tasks.push((async () => {

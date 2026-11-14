@@ -16,21 +16,24 @@ export const FEATURES = [
   ['feedback', 'Feedback form', 'Send feedback and shake-to-report · iOS, web'],
   ['incident_feeds', 'Incident feeds', 'State DOT work zones (FDOT and others) · iOS, web'],
   ['sync', 'Cloud sync', 'Favorites and recents across devices · iOS, web'],
-  ['speed_limits', 'Speed limits', 'Posted limits from our database (Florida) and OpenStreetMap · iOS build 6+, web 1.0.2+'],
+  ['speed_limits', 'Speed limits', 'Posted limits from our database (Florida, New York State) and OpenStreetMap · iOS build 6+, web 1.0.2+'],
   ['traffic_coloring', 'Traffic colouring', 'Live traffic colours on routes and the map · iOS build 6+, web 1.0.2+'],
   ['transit', 'Transit', 'Transit stops and rail lines outside New York · iOS build 6+, web 1.0.2+'],
   ['voice_guidance', 'Voice guidance', 'Spoken turn-by-turn directions · iOS build 6+, web 1.0.2+'],
-  ['carplay', 'CarPlay', 'Kova on the car screen · iOS build 7+ (CarPlay entitlement)'],
+  ['carplay_b17', 'CarPlay (build 17+)', 'Kova on the car screen for the build with the trip-crash fix · iOS build 17+'],
+  ['carplay_safe', 'CarPlay (builds 15–16)', 'Car screen on builds 15 and 16, which can still crash when a trip starts · switch off to keep them off the car'],
+  ['carplay', 'CarPlay (builds 7–14)', 'Car screen on builds 7–14, which crash when a trip starts · switch off to keep them off the car'],
   ['android_auto', 'Android Auto', 'Kova on the car screen · Android (not yet reading)'],
-  ['place_labels', 'Place labels', 'Shops, restaurants and attractions named on the map at venues and on streets · iOS build 8 (not yet reading the switch)'],
+  ['place_labels', 'Place labels', 'Shops, restaurants and attractions named on the map at venues and on streets · iOS build 8 (not reading the switch yet), web 1.0.3+'],
   ['flat_turns', 'Flat map for turns', 'Driving map drops to 2D before each turn · iOS build 9 (not yet reading the switch)'],
-  ['rural_detail', 'Rural map detail', 'Minor roads, small towns and unpaved surfaces drawn clearer · web 1.0.2 (not yet reading the switch)'],
+  ['rural_detail', 'Rural map detail', 'Minor roads, small towns and unpaved surfaces drawn clearer · web 1.0.3+'],
 ];
 // Earliest build (iOS) or version (web) that honours each switch, for the reach estimate shown until
 // apps send config_keys.
 const SINCE = {
   speed_limits: { ios: 6, web: '1.0.2' }, traffic_coloring: { ios: 6, web: '1.0.2' }, transit: { ios: 6, web: '1.0.2' },
-  voice_guidance: { ios: 6, web: '1.0.2' }, carplay: { ios: 7 }, platform_overrides: { ios: 6, web: '1.0.2' },
+  voice_guidance: { ios: 6, web: '1.0.2' }, carplay: { ios: 7 }, carplay_safe: { ios: 15 }, carplay_b17: { ios: 17 },
+  place_labels: { web: '1.0.3' }, rural_detail: { web: '1.0.3' }, platform_overrides: { ios: 6, web: '1.0.2' },
   indoor_maps: { ios: 5, web: '1.0.0' }, traffic_reports: { ios: 5, web: '1.0.0' }, feedback: { ios: 5, web: '1.0.0' },
   incident_feeds: { ios: 5, web: '1.0.0' }, sync: { ios: 5, web: '1.0.0' },
 };
