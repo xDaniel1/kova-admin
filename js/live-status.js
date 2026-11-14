@@ -2,21 +2,22 @@
 // that are off, and every counted build seen in the last 7 days with the car-screen switch it reads,
 // so a switch that reaches a known-bad build stands out before anyone has to go looking.
 'use strict';
-import { html, raw, fmtNum, rel, href, badge } from './util.js';
+import { html, raw, fmtNum, rel, href, badge, versionLess } from './util.js';
 import * as api from './api.js';
 
 const PLATFORM = { ios: 'iOS', android: 'Android', web: 'Web' };
 // Car-screen keys per iOS build range (contract §2). A key whose builds crash on a CarPlay trip is flagged.
 const CAR_KEYS = [
-  { key: 'carplay', builds: '7–14', bad: true },
-  { key: 'carplay_safe', builds: '15–16', bad: true },
-  { key: 'carplay_b17', builds: '17+', bad: false },
+  { key: 'carplay', from: 7, to: 14, bad: true },
+  { key: 'carplay_safe', from: 15, to: 16, bad: true },
+  { key: 'carplay_b17', from: 17, to: Infinity, bad: false },
 ];
 const COUNTED = new Set(['production', 'beta', null, undefined]);
 const buildNum = b => /^\d+$/.test(b || '') ? +b : -1;
 
 export async function liveStatusCard() {
-  const [cfg, clients] = await Promise.all([api.config(), api.recentClients()]);
+  const [cfg, clients, tests] = await Promise.all([api.config(), api.recentClients(), api.testBuilds().catch(() => [])]);
+  const isTest = new Set(tests.map(t => `${t.platform}|${t.app_version}|${t.build}`));
   const conf = Object.fromEntries(cfg.map(r => [r.key, r.value]));
   const features = conf.features || {}, overrides = conf.platform_overrides || {};
   const on = (platform, key) => features[key] !== false && overrides[platform]?.features?.[key] !== false;
@@ -39,22 +40,26 @@ export async function liveStatusCard() {
   for (const c of clients) {
     if (new Date(c.last_seen) < since || !COUNTED.has(c.channel) || !c.build || c.build === 'dev') continue;
     const id = `${c.platform}|${c.app_version}|${c.build}`;
+    if (isTest.has(id)) continue;
     const g = groups.get(id) || { platform: c.platform, version: c.app_version, build: c.build, n: 0, beta: 0, last: c.last_seen, keys: new Set() };
     g.n++; if (c.channel === 'beta') g.beta++;
     if (c.last_seen > g.last) g.last = c.last_seen;
     (c.config_keys || []).forEach(k => g.keys.add(k));
     groups.set(id, g);
   }
-  const rows = [...groups.values()].sort((a, b) => a.platform.localeCompare(b.platform) || buildNum(b.build) - buildNum(a.build));
+  const rows = [...groups.values()].sort((a, b) => a.platform.localeCompare(b.platform) || (versionLess(a.version, b.version) ? 1 : versionLess(b.version, a.version) ? -1 : 0) || buildNum(b.build) - buildNum(a.build));
 
   const risky = [];
   const carCell = g => {
     if (g.platform !== 'ios') return html`<span class="muted">—</span>`;
-    const car = CAR_KEYS.find(k => g.keys.has('features.' + k.key));
-    if (!car) return html`<span class="muted small">${buildNum(g.build) >= 7 ? 'not reported' : 'no CarPlay'}</span>`;
+    // Builds before 12 do not send config_keys; their key follows from the build number.
+    const n = buildNum(g.build);
+    const reported = CAR_KEYS.find(k => g.keys.has('features.' + k.key));
+    const car = reported || CAR_KEYS.find(k => n >= k.from && n <= k.to);
+    if (!car) return html`<span class="muted small">no CarPlay</span>`;
     const live = on('ios', car.key);
     if (car.bad && live) risky.push(g);
-    return html`<code>${car.key}</code> ${live ? badge(car.bad ? 'On · crashes' : 'On', car.bad ? 'danger' : 'ok') : badge('Off', car.bad ? 'ok' : 'tone-seen')}`;
+    return html`<code>${car.key}</code>${reported ? '' : html`<span class="muted small"> (by build)</span>`} ${live ? badge(car.bad ? 'On · crashes' : 'On', car.bad ? 'danger' : 'ok') : badge('Off', car.bad ? 'ok' : 'tone-seen')}`;
   };
   const body = rows.map(g => html`<tr>
       <td><span class="plat plat-${g.platform}">${PLATFORM[g.platform] || g.platform}</span></td>
