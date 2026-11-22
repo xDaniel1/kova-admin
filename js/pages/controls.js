@@ -1,6 +1,6 @@
 // App controls: the remote switches the apps read at launch. Every save is audited.
 'use strict';
-import { html, raw, qs, qsa, fmtDate, rel, badge, upgradeCard, versionLess, announcementLive, platformAnnouncement } from '../util.js';
+import { html, raw, qs, qsa, fmtDate, rel, badge, upgradeCard, versionLess, announcementLive, platformAnnouncement, parseInstant } from '../util.js';
 import * as api from '../api.js';
 import { state } from '../app.js';
 import { annotations, auditList } from '../records.js';
@@ -32,7 +32,7 @@ const fromLocal = (value, orig, label, drop = false) => {
 };
 // The full config, set before each render so platform badges can apply global maintenance and fallback.
 let CONF = {};
-const local = iso => { if (typeof iso !== 'string' || !/^\d{4}-\d{2}-\d{2}T/.test(iso)) return ''; const d = new Date(iso); return isNaN(d) ? '' : new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
+const local = iso => { if (Number.isNaN(parseInstant(iso))) return ''; const d = new Date(iso); return isNaN(d) ? '' : new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
 
 // Every switch the apps can read. Who reads it today is in the hint; a switch an app does not read yet is harmless.
 export const FEATURES = [

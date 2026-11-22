@@ -97,11 +97,25 @@ export function versionLess(a, b) {
   return false;
 }
 
+// A strict ISO-8601 instant (date, time, and Z or an offset), with real calendar values: no 2026-02-30,
+// no 24:00, no bare dates and no numbers. Returns epoch ms or NaN. Used by Live status and App controls.
+export function parseInstant(v) {
+  if (typeof v !== 'string') return NaN;
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(\.\d{1,6})?)?(Z|[+-](\d{2}):(\d{2}))$/.exec(v);
+  if (!m) return NaN;
+  const [y, mo, d, h, mi, s = '0'] = [m[1], m[2], m[3], m[4], m[5], m[6]].map(Number);
+  const dim = new Date(Date.UTC(y, mo, 0)).getUTCDate();
+  if (mo < 1 || mo > 12 || d < 1 || d > dim || h > 23 || mi > 59 || s > 59) return NaN;
+  if (m[8] !== 'Z' && (+m[9] > 14 || +m[10] > 59)) return NaN;
+  const t = Date.parse(v);
+  return Number.isNaN(t) ? NaN : t;
+}
+
 // Contract §announcement: live when enabled, with a title or body, and now inside [starts_at, ends_at).
 // Malformed values count as absent. Shared by Home's Live status and App controls.
 export function announcementLive(x, now = Date.now()) {
   const text = v => typeof v === 'string' ? v.trim() : '';
-  const bound = (v, dflt) => { if (v == null || v === '') return dflt; if (typeof v !== 'string') return NaN; const t = Date.parse(v); return Number.isNaN(t) ? NaN : t; };
+  const bound = (v, dflt) => (v == null || v === '' ? dflt : parseInstant(v));
   if (!x || typeof x !== 'object' || x.enabled !== true || !(text(x.title) || text(x.body))) return false;
   const s = bound(x.starts_at, -Infinity), e = bound(x.ends_at, Infinity);
   return !Number.isNaN(s) && !Number.isNaN(e) && now >= s && now < e;

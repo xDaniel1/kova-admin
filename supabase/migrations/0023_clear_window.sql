@@ -6,6 +6,8 @@ begin;
 
 -- Every Errors query filters by time.
 create index if not exists client_errors_created_at_idx on public.client_errors (created_at);
+-- Group key (null-safe), so first-seen and id lookups per returned group are index scans.
+create index if not exists client_errors_group_idx on public.client_errors ((coalesce(app, '')), (coalesce(left(message, 300), '')), created_at);
 
 drop function if exists public.admin_clear_error_group(text, text, timestamptz);
 drop function if exists public.admin_clear_error_group(text, text, timestamptz, timestamptz);
@@ -54,12 +56,12 @@ begin
             -- First report ever, only for the groups being returned.
             f as (select t.app, t.message, min(a.created_at) as first_ever
                     from top t join public.client_errors a
-                      on a.app is not distinct from t.app and left(a.message, 300) is not distinct from t.message
+                      on coalesce(a.app, '') = coalesce(t.app, '') and coalesce(left(a.message, 300), '') = coalesce(t.message, '')
                    group by t.app, t.message),
             -- Ids (one join, not one lookup per group) only for returned groups small enough for one clear.
             ids as (select t.app, t.message, array_agg(c.id order by c.created_at desc) as ids
                       from top t join public.client_errors c
-                        on c.created_at > since and c.app is not distinct from t.app and left(c.message, 300) is not distinct from t.message
+                        on coalesce(c.app, '') = coalesce(t.app, '') and coalesce(left(c.message, 300), '') = coalesce(t.message, '') and c.created_at > since
                      where t.n <= 20000 group by t.app, t.message)
         select json_build_object(
             'since', since,

@@ -26,7 +26,12 @@ export default async function errors(ctx) {
 
   const list = qs('[data-list]', ctx.el);
   // Heading and list always come from the same accepted response and its filter snapshot.
+  let rendered = { app: ctx.query.app || null, q: ctx.query.q || null };
+  // Clear acts only on what is on screen: it is locked while the requested filters differ from the rendered ones.
+  const syncClear = () => { const same = (ctx.query.app || null) === rendered.app && (ctx.query.q || null) === rendered.q;
+    qsa('[data-clear]', ctx.el).forEach(b => { b.disabled = !same; b.title = same ? '' : 'Waiting for the new filter results'; }); };
   const render = (r, snap) => {
+    rendered = snap;
     const groups = r.groups || [], since = Date.parse(r.since);
     const filtered = !!(snap.q || snap.app);
     // Before 0023 the total and chart cover all apps even when the list is filtered; say so.
@@ -40,12 +45,13 @@ export default async function errors(ctx) {
         ${g.stack ? html`<pre class="mono small stack-trace">${g.stack}</pre>` : ''}
         <div class="row" style="margin-top:8px"><button type="button" class="sm ghost" data-copy="${i}">Copy details</button>${canWrite && r.clear === 'ids' ? (Array.isArray(g.ids) ? html`<button type="button" class="sm danger" data-clear="${i}">Clear ${fmtNum(g.n)} reports</button>` : html`<span class="muted small">Too many reports to clear at once (${fmtNum(g.n)}). Pick a shorter range, or clear in the database if this is already the 24-hour view.</span>`) : ''}</div></details>`)}</div>`
         : empty(filtered ? 'No errors match.' : 'No errors in this window.')}`.s;
+    syncClear();
     qsa('[data-copy]', list).forEach(b => b.onclick = async () => { const g = groups[+b.dataset.copy];
       const ok = await copy(`${g.message || '(no message)'}\n${g.app || 'unknown app'} · ${g.n} times · last ${g.last}\nPage: ${g.url || '-'}\nBrowser: ${g.user_agent || '-'}\n\n${g.stack || ''}`);
       if (ctx.alive()) ctx.notice(ok ? 'Copied.' : 'Copy failed.'); });
     qsa('[data-clear]', list).forEach(b => b.onclick = async () => {
-      if (!canWrite) return; const g = groups[+b.dataset.clear];
-      if (!confirm(`Delete ${g.n} reports of "${(g.message || '').slice(0, 80)}"? Only these reports are deleted; any that arrived since are kept.`)) return;
+      if (!canWrite || b.disabled) return; const g = groups[+b.dataset.clear];
+      if (!confirm(`Delete ${g.n} ${g.app || 'unknown app'} reports of "${(g.message || '').slice(0, 80)}"? Only these reports are deleted; any that arrived since are kept.`)) return;
       b.disabled = true;
       try { const n = await api.clearErrorGroup(g.app, g.message, g.ids); if (!ctx.alive()) return; ctx.notice(n ? `Cleared ${n} reports.` : 'Nothing was cleared (already gone).'); refetch(++seq); }
       catch (e) { if (ctx.alive()) { ctx.fail(e); b.disabled = false; } }
@@ -61,7 +67,7 @@ export default async function errors(ctx) {
       try { history.replaceState(null, '', '#/errors?' + new URLSearchParams({ days, ...(snap.q ? { q: snap.q } : {}), ...(snap.app ? { app: snap.app } : {}) })); } catch {} }
     catch (e) { if (!ctx.alive() || gen !== seq) return; if (e.needsUpgrade) ctx.el.innerHTML = NEEDS_UPGRADE; else ctx.fail(e); } };
   const debounced = debounce(gen => refetch(gen), 250);
-  filter.oninput = () => { ctx.query.q = filter.value.trim(); debounced(++seq); };
-  if (appSel) appSel.onchange = () => { ctx.query.app = appSel.value; refetch(++seq); };
+  filter.oninput = () => { ctx.query.q = filter.value.trim(); syncClear(); debounced(++seq); };
+  if (appSel) appSel.onchange = () => { ctx.query.app = appSel.value; syncClear(); refetch(++seq); };
   qsa('[data-days]', ctx.el).forEach(b => b.onclick = () => { location.hash = '/errors?' + new URLSearchParams({ days: b.dataset.days, ...(ctx.query.q ? { q: ctx.query.q } : {}), ...(ctx.query.app ? { app: ctx.query.app } : {}) }); });
 }
