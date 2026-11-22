@@ -121,7 +121,7 @@ as $$ begin
                case when r.settled_at is not null then coalesce(r.outcome, 'unknown')
                     when h.id is null then 'sending'
                     else coalesce(d.outcome, 'failed') end as outcome,
-               case when r.settled_at is not null then r.detail else d.detail end as detail
+               case when r.settled_at is not null then r.detail when h.id is null then null else d.detail end as detail
           from kova_private.digest_runs r left join net._http_response h on h.id = r.request_id
           left join lateral kova_private.digest_result(h.status_code, h.timed_out, h.content::text, h.error_msg) d on true
          order by r.at desc limit 10) x);

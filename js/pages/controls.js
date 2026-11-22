@@ -174,18 +174,18 @@ export default async function controls(ctx) {
       const since = SINCE[key.replace(/^features\./, '')], reach = since && builds ? reachOf(since, builds) : null;
       const reached = reach?.some(x => x.ok > 0);
       // Reported readers first; when none is a counted, active install, the estimate is shown too.
-      const est = reach ? 'Estimated reach (installs on older builds that honour it but don\'t report config_keys, 7 days): ' + reach.map(x => `${x.label} ${x.ok} of ${x.all}`).join(' · ') : '';
+      const est = reach ? 'Estimated reach (installs on builds that honour it but haven\'t reported config_keys, 7 days): ' + reach.map(x => `${x.label} ${x.ok} of ${x.all}`).join(' · ') : '';
       el.textContent = [r ? 'Last seen reading this: ' + Object.entries(r).sort(([, a], [, b]) => a.test - b.test).map(([p, x]) => `${P[p] || (P[p.split(' ')[0]] + ' (test)')} ${x.version}${x.build ? ' (' + x.build + ')' : ''} ${rel(x.last_seen)}, ${x.installs_30d} installs`).join(' · ') : '', !real ? est : ''].filter(Boolean).join('. ');
       const u = el.parentElement?.querySelector('[data-unread]'); if (!u) return;
       u.classList.remove('pending');
       if (real) u.remove();
       else if (!readers) { u.textContent = 'Reader check unavailable'; u.title = 'Could not load config_keys reports, so this is unknown'; }
       else if (since && !builds) { u.textContent = 'No reported readers · estimate unavailable'; u.title = 'Live builds could not be loaded'; }
-      else if (reached) { u.textContent = 'Unconfirmed · estimated from build numbers'; u.title = 'Only older builds that do not report config_keys are thought to read it'; }
+      else if (reached) { u.textContent = 'Unconfirmed · estimated from build numbers'; u.title = 'Only builds that have not reported config_keys are thought to read it'; }
       else if (r) { u.textContent = 'Only test or inactive builds read this'; u.title = 'No counted install read it in 30 days'; }
       // A switch documented as read by some builds is never called unread: missing reports only mean
       // nothing has been confirmed recently (for example right after the 0023 reset, or for idle installs).
-      else if (since) { u.textContent = 'No recent readers confirmed'; u.title = 'Builds documented to read it exist, but none reported it in the last 30 days or is active this week'; }
+      else if (since) { u.textContent = 'No recent readers confirmed'; u.title = 'Some builds are documented to read this switch. No counted install reported it in the last 30 days, and the seven-day build estimate found no eligible installs without key reports.'; }
       else { u.textContent = 'No app reads this yet'; u.title = 'No counted install reads it; flipping it changes nothing today'; } });
   });
   if (state.role === 'viewer') qsa('[data-form]', ctx.el).forEach(f => { f.querySelectorAll('input,select,textarea').forEach(i => { i.disabled = true; }); f.querySelector('button[type=submit]')?.remove(); });
