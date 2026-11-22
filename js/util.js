@@ -106,3 +106,13 @@ export function announcementLive(x, now = Date.now()) {
   const s = bound(x.starts_at, -Infinity), e = bound(x.ends_at, Infinity);
   return !Number.isNaN(s) && !Number.isNaN(e) && now >= s && now < e;
 }
+
+// What a platform's installs see for the announcement (contract §platform_overrides and §announcement):
+// 'live', 'hidden' (live but that platform is in maintenance), or 'none'. Android reads no config yet.
+export function platformAnnouncement(conf, platform, now = Date.now()) {
+  if (platform === 'android') return 'none';
+  const o = conf?.platform_overrides?.[platform] || {};
+  const live = announcementLive(o.announcement, now) || announcementLive(conf?.announcement, now);
+  if (!live) return 'none';
+  return conf?.maintenance?.enabled === true || o.maintenance?.enabled === true ? 'hidden' : 'live';
+}

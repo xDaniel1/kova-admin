@@ -11,11 +11,11 @@ export default async function errors(ctx) {
   const days = +ctx.query.days || 7;
   const canWrite = state.role !== 'viewer';
   let d;
-  try { d = await api.clientErrors(days, ctx.query.app || null, ctx.query.q || null); } catch (e) { if (e.needsUpgrade) { ctx.el.innerHTML = upgradeCard(); return; } throw e; }
+  try { d = await api.clientErrors(days, ctx.query.app || null, ctx.query.q || null); } catch (e) { if (!ctx.alive()) return; if (e.needsUpgrade) { ctx.el.innerHTML = upgradeCard(); return; } throw e; }
   if (!ctx.alive()) return;
   const apps = [...new Set([...(d.apps || []), ...(ctx.query.app ? [ctx.query.app] : [])])].sort();
   ctx.el.innerHTML = html`
-    <section class="card"><div class="card-head"><h2>${fmtNum(d.total)} errors${ctx.query.app ? ' from ' + ctx.query.app : ''}</h2>
+    <section class="card"><div class="card-head"><h2 data-total></h2>
       <div class="seg">${RANGES.map(([n, l]) => html`<button type="button" data-days="${n}" aria-pressed="${n === days ? 'true' : 'false'}">${l}</button>`)}</div></div>
       ${barChart('Errors per day · 30 days', d.daily)}</section>
     <section class="card" style="margin-top:18px"><div class="card-head"><h2>By message</h2><span class="muted small">Newest first. Clearing deletes those reports.</span></div>
@@ -24,9 +24,11 @@ export default async function errors(ctx) {
       <div data-list></div></section>`.s;
 
   const list = qs('[data-list]', ctx.el);
-  const render = r => {
+  // Heading and list always come from the same accepted response and its filter snapshot.
+  const render = (r, snap) => {
     const groups = r.groups || [], since = Date.parse(r.since);
-    const filtered = !!(ctx.query.q || ctx.query.app);
+    const filtered = !!(snap.q || snap.app);
+    qs('[data-total]', ctx.el).textContent = `${fmtNum(r.total)} errors${snap.app ? ' from ' + snap.app : ''}`;
     list.innerHTML = html`<p class="muted small" style="margin:0 0 8px">${fmtNum(r.matching)} ${filtered ? 'matching ' : ''}distinct ${r.matching === 1 ? 'message' : 'messages'}${r.capped ? ' · showing the newest 500' : ''}</p>
       ${groups.length ? html`<div class="stack">${groups.map((g, i) => html`<details class="collapse error-group">
         <summary><strong>${g.message || '(no message)'}</strong> ${g.first_ever && Date.parse(g.first_ever) >= since ? badge('New', 'tone-new') : ''}<br><span class="muted small">${g.app || 'unknown app'} · ${fmtNum(g.n)} times · ${fmtNum(g.users)} signed-in users · last ${rel(g.last)} · first in window ${rel(g.first)}</span></summary>
@@ -40,17 +42,17 @@ export default async function errors(ctx) {
       if (!canWrite) return; const g = groups[+b.dataset.clear];
       if (!confirm(`Delete ${g.n} reports of "${(g.message || '').slice(0, 80)}"? Reports that arrive after ${fmtDate(g.last)} are kept.`)) return;
       b.disabled = true;
-      try { const n = await api.clearErrorGroup(g.app, g.message, r.since, g.last); ctx.notice(n ? `Cleared ${n} reports.` : 'Nothing was cleared (already gone).'); if (ctx.alive()) await errors(ctx); }
+      try { const n = await api.clearErrorGroup(g.app, g.message, r.since, g.last); ctx.notice(n ? `Cleared ${n} reports.` : 'Nothing was cleared (already gone).'); if (ctx.alive()) refetch(++seq); }
       catch (e) { ctx.fail(e); b.disabled = false; }
     });
   };
-  render(d);
+  let seq = 0;
+  render(d, { app: ctx.query.app || null, q: ctx.query.q || null });
 
   const filter = qs('[data-filter]', ctx.el), appSel = qs('[data-app]', ctx.el);
   // Each change bumps the generation at once, so a response for an older filter is never painted.
-  let seq = 0;
   const refetch = async gen => { const snap = { app: ctx.query.app || null, q: ctx.query.q || null };
-    try { const r = await api.clientErrors(days, snap.app, snap.q); if (!ctx.alive() || gen !== seq) return; render(r);
+    try { const r = await api.clientErrors(days, snap.app, snap.q); if (!ctx.alive() || gen !== seq) return; render(r, snap);
       try { history.replaceState(null, '', '#/errors?' + new URLSearchParams({ days, ...(snap.q ? { q: snap.q } : {}), ...(snap.app ? { app: snap.app } : {}) })); } catch {} }
     catch (e) { if (ctx.alive() && gen === seq) ctx.fail(e); } };
   const debounced = debounce(gen => refetch(gen), 250);

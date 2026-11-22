@@ -1,6 +1,6 @@
 // App controls: the remote switches the apps read at launch. Every save is audited.
 'use strict';
-import { html, raw, qs, qsa, fmtDate, rel, badge, upgradeCard, versionLess, announcementLive } from '../util.js';
+import { html, raw, qs, qsa, fmtDate, rel, badge, upgradeCard, versionLess, announcementLive, platformAnnouncement } from '../util.js';
 import * as api from '../api.js';
 import { state } from '../app.js';
 import { annotations, auditList } from '../records.js';
@@ -15,12 +15,22 @@ const VER = 'pattern="[0-9]+(\\.[0-9]+)*" title="Numbers separated by dots, e.g.
 const fromLocal = (value, orig, label) => {
   if (!value) return null;
   if (orig && local(orig) === value) return orig;
-  const d = new Date(value);
-  if (isNaN(d) || local(d.toISOString()) !== value) throw new Error(`${label}: ${value.replace('T', ' ')} doesn't exist in your time zone (clocks skip that hour). Pick another time.`);
-  const twin = [d.getTime() - 36e5, d.getTime() + 36e5].map(t => new Date(t)).find(x => local(x.toISOString()) === value);
-  if (twin) { const [early, late] = [d, twin].sort((a, b) => a - b); return (confirm(`${label}: ${value.replace('T', ' ')} happens twice when clocks go back. OK for the first one (${early.toISOString().slice(11, 16)} UTC), Cancel for the second (${late.toISOString().slice(11, 16)} UTC).`) ? early : late).toISOString(); }
-  return d.toISOString();
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+  if (!m) throw new Error(`${label}: enter a date and time.`);
+  // Every instant whose local wall time is this value: try each UTC offset from -14h to +14h in 15-minute
+  // steps, so half-hour and 30-minute DST zones are handled too.
+  const asUtc = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+  const hits = [];
+  for (let k = -56; k <= 56; k++) { const t = asUtc - k * 9e5; if (local(new Date(t).toISOString()) === value && !hits.includes(t)) hits.push(t); }
+  hits.sort((a, b) => a - b);
+  const pretty = value.replace('T', ' ');
+  if (!hits.length) throw new Error(`${label}: ${pretty} doesn't exist in your time zone (the clocks skip it). Pick another time.`);
+  if (hits.length === 1) return new Date(hits[0]).toISOString();
+  const [early, late] = [hits[0], hits[hits.length - 1]].map(t => new Date(t));
+  return (confirm(`${label}: ${pretty} happens twice when the clocks go back. OK for the first one (${early.toISOString().slice(11, 16)} UTC), Cancel for the second (${late.toISOString().slice(11, 16)} UTC).`) ? early : late).toISOString();
 };
+// The full config, set before each render so platform badges can apply global maintenance and fallback.
+let CONF = {};
 const local = iso => { if (!iso) return ''; const d = new Date(iso); return isNaN(d) ? '' : new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
 
 // Every switch the apps can read. Who reads it today is in the hint; a switch an app does not read yet is harmless.
@@ -96,7 +106,7 @@ const SECTIONS = {
         ${toggle(label + ' maintenance mode', p + '_maint', m.enabled, 'Pauses network features on ' + label + ' only.')}
         <label>Maintenance message<input name="${p}_maint_msg" maxlength="300" value="${m.message || ''}"></label>
         <details class="collapse"><summary>Features on ${label} (${FEATURES.filter(([k]) => f[k] === false).length} off)</summary><div class="switches" style="margin-top:8px">${FEATURES.map(([k, l]) => toggle(l, p + '_f_' + k, f[k] !== false))}</div></details>
-        <details class="collapse"><summary>${label} announcement ${announcementLive(a) ? '(live)' : a.enabled ? '(on, not showing)' : ''}</summary><div class="stack" style="margin-top:8px">
+        <details class="collapse"><summary>${label} announcement ${!announcementLive(a) ? (a.enabled ? '(on, not showing)' : '') : platformAnnouncement({ ...CONF, platform_overrides: v }, p) === 'live' ? '(live)' : p === 'android' ? '(set, Android does not read it yet)' : '(set, hidden by maintenance)'}</summary><div class="stack" style="margin-top:8px">
           ${toggle('Show on ' + label, p + '_ann', a.enabled, 'Replaces the global announcement on ' + label + ' while live.')}
           <div class="form-grid"><label>Title<input name="${p}_ann_title" maxlength="80" value="${a.title || ''}"></label><label>Level<select name="${p}_ann_level">${['info', 'warning', 'critical'].map(l => html`<option ${raw(l === (a.level || 'info') ? 'selected' : '')}>${l}</option>`)}</select></label></div>
           <label>Body<textarea name="${p}_ann_body" maxlength="500">${a.body || ''}</textarea></label>
@@ -109,7 +119,7 @@ const SECTIONS = {
       maintenance: { enabled: f.get(p + '_maint') === 'on', message: f.get(p + '_maint_msg').trim() },
       announcement: { ...(prev.announcement || {}), enabled: f.get(p + '_ann') === 'on', title: f.get(p + '_ann_title').trim(), body: f.get(p + '_ann_body').trim(), level: f.get(p + '_ann_level'), url: f.get(p + '_ann_url').trim() || null },
     }]; })),
-    status: v => { const bits = PLATFORMS.flatMap(([p, l]) => { const o = v[p] || {}; return [o.maintenance?.enabled && l + ' paused', Object.values(o.features || {}).includes(false) && l + ' ' + Object.values(o.features).filter(x => x === false).length + ' off', p !== 'android' && announcementLive(o.announcement) && !(o.maintenance?.enabled === true) && l + ' announcing'].filter(Boolean); }); return bits.length ? badge(bits.join(' · '), bits.some(b => b.includes('paused')) ? 'danger' : 'tone-seen') : badge('None', 'ok'); },
+    status: v => { const bits = PLATFORMS.flatMap(([p, l]) => { const o = v[p] || {}; return [o.maintenance?.enabled && l + ' paused', Object.values(o.features || {}).includes(false) && l + ' ' + Object.values(o.features).filter(x => x === false).length + ' off', platformAnnouncement({ ...CONF, platform_overrides: v }, p) === 'live' && announcementLive(o.announcement) && l + ' announcing'].filter(Boolean); }); return bits.length ? badge(bits.join(' · '), bits.some(b => b.includes('paused')) ? 'danger' : 'tone-seen') : badge('None', 'ok'); },
   },
   announcement: {
     title: 'Announcement banner', blurb: 'A banner in the apps. Leave the window empty to show it whenever it is enabled.',
@@ -122,6 +132,7 @@ const SECTIONS = {
 export default async function controls(ctx) {
   let rows;
   try { rows = await api.config(); } catch (e) { if (e.needsUpgrade) { ctx.el.innerHTML = upgradeCard(); return; } throw e; }
+  CONF = Object.fromEntries(rows.map(r => [r.key, r.value]));
   if (!ctx.alive()) return;
   const label = await api.labels(rows.map(r => r.updated_by)); if (!ctx.alive()) return;
   const endpoint = `${api.client().supabaseUrl || window.KOVA_SUPABASE.url}/rest/v1/app_config?select=key,value`;

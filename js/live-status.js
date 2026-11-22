@@ -2,7 +2,7 @@
 // that are off, and every counted build seen in the last 7 days with the car-screen switch it reads,
 // so a switch that reaches a known-bad build stands out before anyone has to go looking.
 'use strict';
-import { html, raw, fmtNum, rel, href, badge, versionLess, announcementLive } from './util.js';
+import { html, raw, fmtNum, rel, href, badge, versionLess, announcementLive, platformAnnouncement } from './util.js';
 import * as api from './api.js';
 
 const PLATFORM = { ios: 'iOS', android: 'Android', web: 'Web' };
@@ -42,8 +42,9 @@ export async function liveStatusCard() {
   const shown = [], hidden = [];
   // Android 1.0.0 reads no config yet (contract adoption table), so it is left out.
   for (const [p, label] of READS) {
-    const own = isLive(overrides[p]?.announcement), any = own || isLive(conf.announcement);
-    if (any) (inMaint(p) ? hidden : shown).push(own ? `${label} (its own)` : label);
+    const st = platformAnnouncement(conf, p, now); if (st === 'none') continue;
+    const tag = announcementLive(overrides[p]?.announcement, now) ? `${label} (its own)` : label;
+    (st === 'live' ? shown : hidden).push(tag);
   }
   if (shown.length) alerts.push(['info', `Announcement live on ${shown.join(', ')}`]);
   if (hidden.length) alerts.push(['warn', `Announcement set for ${hidden.join(', ')} but hidden by maintenance there`]);
