@@ -23,9 +23,12 @@ export async function liveStatusCard() {
   const on = (platform, key) => features[key] !== false && overrides[platform]?.features?.[key] !== false;
 
   const alerts = [];
-  if (conf.maintenance?.enabled) alerts.push(['danger', 'Maintenance is on everywhere']);
-  for (const [p, label] of Object.entries(PLATFORM)) {
-    if (overrides[p]?.maintenance?.enabled) alerts.push(['danger', `${label} is in maintenance`]);
+  // Apps honour only a real true (contract fail-safe rules); Android reads no config yet, so it is left out.
+  const READS = Object.entries(PLATFORM).filter(([p]) => p !== 'android');
+  const inMaint = p => conf.maintenance?.enabled === true || overrides[p]?.maintenance?.enabled === true;
+  if (conf.maintenance?.enabled === true) alerts.push(['danger', 'Maintenance is on for iOS and web']);
+  for (const [p, label] of READS) {
+    if (overrides[p]?.maintenance?.enabled === true) alerts.push(['danger', `${label} is in maintenance`]);
     const off = Object.entries(overrides[p]?.features || {}).filter(([, v]) => v === false).map(([k]) => k);
     if (off.length) alerts.push(['warn', `${label}: ${off.join(', ')} off`]);
   }
@@ -36,16 +39,15 @@ export async function liveStatusCard() {
   // Apps hide it while that platform is in maintenance, and treat malformed values as absent.
   const now = Date.now();
   const isLive = x => announcementLive(x, now);
-  const inMaint = p => conf.maintenance?.enabled === true || overrides[p]?.maintenance?.enabled === true;
   const shown = [], hidden = [];
   // Android 1.0.0 reads no config yet (contract adoption table), so it is left out.
-  for (const [p, label] of Object.entries(PLATFORM).filter(([p]) => p !== 'android')) {
+  for (const [p, label] of READS) {
     const own = isLive(overrides[p]?.announcement), any = own || isLive(conf.announcement);
     if (any) (inMaint(p) ? hidden : shown).push(own ? `${label} (its own)` : label);
   }
   if (shown.length) alerts.push(['info', `Announcement live on ${shown.join(', ')}`]);
   if (hidden.length) alerts.push(['warn', `Announcement set for ${hidden.join(', ')} but hidden by maintenance there`]);
-  else if (!hidden.length && conf.announcement?.enabled) alerts.push(['info', 'Announcement is switched on but not showing (empty, scheduled or expired)']);
+  if (!shown.length && !hidden.length && conf.announcement?.enabled === true) alerts.push(['info', 'Announcement is switched on but not showing (empty, scheduled or expired)']);
 
   rows = (rows || []).map(g => ({ ...g, keys: new Set(g.car_keys || []) }))
     .sort((a, b) => a.platform.localeCompare(b.platform) || (versionLess(a.version, b.version) ? 1 : versionLess(b.version, a.version) ? -1 : 0) || buildNum(b.build) - buildNum(a.build));

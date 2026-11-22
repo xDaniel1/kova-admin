@@ -40,20 +40,21 @@ export default async function errors(ctx) {
       if (!canWrite) return; const g = groups[+b.dataset.clear];
       if (!confirm(`Delete ${g.n} reports of "${(g.message || '').slice(0, 80)}"? Reports that arrive after ${fmtDate(g.last)} are kept.`)) return;
       b.disabled = true;
-      try { const n = await api.clearErrorGroup(g.app, g.message, g.last); ctx.notice(n ? `Cleared ${n} reports.` : 'Nothing was cleared (already gone).'); if (ctx.alive()) await errors(ctx); }
+      try { const n = await api.clearErrorGroup(g.app, g.message, r.since, g.last); ctx.notice(n ? `Cleared ${n} reports.` : 'Nothing was cleared (already gone).'); if (ctx.alive()) await errors(ctx); }
       catch (e) { ctx.fail(e); b.disabled = false; }
     });
   };
   render(d);
 
   const filter = qs('[data-filter]', ctx.el), appSel = qs('[data-app]', ctx.el);
-  const url = () => '#/errors?' + new URLSearchParams({ days, ...(ctx.query.q ? { q: ctx.query.q } : {}), ...(ctx.query.app ? { app: ctx.query.app } : {}) });
+  // Each change bumps the generation at once, so a response for an older filter is never painted.
   let seq = 0;
-  const refetch = async () => { const mine = ++seq;
-    try { const r = await api.clientErrors(days, ctx.query.app || null, ctx.query.q || null); if (!ctx.alive() || mine !== seq) return; render(r); try { history.replaceState(null, '', url()); } catch {} }
-    catch (e) { if (ctx.alive()) ctx.fail(e); } };
-  const debounced = debounce(refetch, 250);
-  filter.oninput = () => { ctx.query.q = filter.value.trim(); debounced(); };
-  if (appSel) appSel.onchange = () => { ctx.query.app = appSel.value; refetch(); };
+  const refetch = async gen => { const snap = { app: ctx.query.app || null, q: ctx.query.q || null };
+    try { const r = await api.clientErrors(days, snap.app, snap.q); if (!ctx.alive() || gen !== seq) return; render(r);
+      try { history.replaceState(null, '', '#/errors?' + new URLSearchParams({ days, ...(snap.q ? { q: snap.q } : {}), ...(snap.app ? { app: snap.app } : {}) })); } catch {} }
+    catch (e) { if (ctx.alive() && gen === seq) ctx.fail(e); } };
+  const debounced = debounce(gen => refetch(gen), 250);
+  filter.oninput = () => { ctx.query.q = filter.value.trim(); debounced(++seq); };
+  if (appSel) appSel.onchange = () => { ctx.query.app = appSel.value; refetch(++seq); };
   qsa('[data-days]', ctx.el).forEach(b => b.onclick = () => { location.hash = '/errors?' + new URLSearchParams({ days: b.dataset.days, ...(ctx.query.q ? { q: ctx.query.q } : {}), ...(ctx.query.app ? { app: ctx.query.app } : {}) }); });
 }

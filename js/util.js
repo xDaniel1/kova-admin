@@ -101,8 +101,8 @@ export function versionLess(a, b) {
 // Malformed values count as absent. Shared by Home's Live status and App controls.
 export function announcementLive(x, now = Date.now()) {
   const text = v => typeof v === 'string' ? v.trim() : '';
-  const bound = (v, dflt) => { if (v == null || v === '') return dflt; const t = Date.parse(v); return Number.isNaN(t) ? NaN : t; };
-  if (!x || x.enabled !== true || !(text(x.title) || text(x.body))) return false;
+  const bound = (v, dflt) => { if (v == null || v === '') return dflt; if (typeof v !== 'string') return NaN; const t = Date.parse(v); return Number.isNaN(t) ? NaN : t; };
+  if (!x || typeof x !== 'object' || x.enabled !== true || !(text(x.title) || text(x.body))) return false;
   const s = bound(x.starts_at, -Infinity), e = bound(x.ends_at, Infinity);
   return !Number.isNaN(s) && !Number.isNaN(e) && now >= s && now < e;
 }

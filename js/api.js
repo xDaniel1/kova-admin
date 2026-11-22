@@ -157,7 +157,7 @@ export const versions = () => rpc('admin_versions');
 export const platformUsers = () => rpc('admin_platform_users');
 export const mapData = () => rpc('admin_map_data');
 export const clientErrors = (days = 7, app = null, q = null) => rpc('admin_client_errors', { days, app, q });
-export const clearErrorGroup = (app, message, until) => rpc('admin_clear_error_group', { app, message, until });
+export const clearErrorGroup = (app, message, since, until) => rpc('admin_clear_error_group', { app, message, since, until });
 export const moderation = () => rpc('admin_moderation');
 export const blockReporter = (target, reason) => rpc('admin_block_reporter', { target, reason });
 export const unblockReporter = target => rpc('admin_unblock_reporter', { target });

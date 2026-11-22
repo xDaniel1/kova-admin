@@ -9,6 +9,18 @@ const field = (label, name, value, opts = {}) => html`<label>${label}<input name
 const toggle = (label, name, on, hint) => html`<label class="inline switch"><input type="checkbox" name="${name}" ${raw(on ? 'checked' : '')}><span><strong>${label}</strong>${hint ? html`<br><span class="muted small">${hint}</span>` : ''}</span></label>`;
 const VER = 'pattern="[0-9]+(\\.[0-9]+)*" title="Numbers separated by dots, e.g. 1.2.0"';
 // datetime-local fields hold local wall-clock time; convert from the stored UTC instant.
+// Back from a datetime-local value to an instant. An untouched field keeps its stored instant (seconds and
+// the repeated DST hour included). A time that doesn't exist (spring-forward gap) is refused; a time that
+// happens twice (fall-back) asks which one is meant.
+const fromLocal = (value, orig, label) => {
+  if (!value) return null;
+  if (orig && local(orig) === value) return orig;
+  const d = new Date(value);
+  if (isNaN(d) || local(d.toISOString()) !== value) throw new Error(`${label}: ${value.replace('T', ' ')} doesn't exist in your time zone (clocks skip that hour). Pick another time.`);
+  const twin = [d.getTime() - 36e5, d.getTime() + 36e5].map(t => new Date(t)).find(x => local(x.toISOString()) === value);
+  if (twin) { const [early, late] = [d, twin].sort((a, b) => a - b); return (confirm(`${label}: ${value.replace('T', ' ')} happens twice when clocks go back. OK for the first one (${early.toISOString().slice(11, 16)} UTC), Cancel for the second (${late.toISOString().slice(11, 16)} UTC).`) ? early : late).toISOString(); }
+  return d.toISOString();
+};
 const local = iso => { if (!iso) return ''; const d = new Date(iso); return isNaN(d) ? '' : new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
 
 // Every switch the apps can read. Who reads it today is in the hint; a switch an app does not read yet is harmless.
@@ -101,8 +113,8 @@ const SECTIONS = {
   },
   announcement: {
     title: 'Announcement banner', blurb: 'A banner in the apps. Leave the window empty to show it whenever it is enabled.',
-    form: v => html`${toggle('Show the announcement', 'enabled', v.enabled)}<div class="form-grid">${field('Title', 'title', v.title, { attrs: 'maxlength="80"' })}<label>Level<select name="level">${['info', 'warning', 'critical'].map(l => html`<option ${raw(l === (v.level || 'info') ? 'selected' : '')}>${l}</option>`)}</select></label></div><label>Body<textarea name="body" maxlength="500">${v.body || ''}</textarea></label><div class="form-grid">${field('Link (optional)', 'url', v.url, { type: 'url', placeholder: 'https://' })}${field('Starts (your local time)', 'starts_at', local(v.starts_at), { type: 'datetime-local' })}${field('Ends (your local time)', 'ends_at', local(v.ends_at), { type: 'datetime-local' })}</div>`,
-    read: f => ({ enabled: f.get('enabled') === 'on', title: f.get('title').trim(), body: f.get('body').trim(), level: f.get('level'), url: f.get('url').trim() || null, starts_at: f.get('starts_at') ? new Date(f.get('starts_at')).toISOString() : null, ends_at: f.get('ends_at') ? new Date(f.get('ends_at')).toISOString() : null }),
+    form: v => html`${toggle('Show the announcement', 'enabled', v.enabled)}<div class="form-grid">${field('Title', 'title', v.title, { attrs: 'maxlength="80"' })}<label>Level<select name="level">${['info', 'warning', 'critical'].map(l => html`<option ${raw(l === (v.level || 'info') ? 'selected' : '')}>${l}</option>`)}</select></label></div><label>Body<textarea name="body" maxlength="500">${v.body || ''}</textarea></label><div class="form-grid">${field('Link (optional)', 'url', v.url, { type: 'url', placeholder: 'https://' })}${field('Starts (your local time)', 'starts_at', local(v.starts_at), { type: 'datetime-local' })}${field('Ends (your local time)', 'ends_at', local(v.ends_at), { type: 'datetime-local' })}<input type="hidden" name="starts_at_orig" value="${v.starts_at || ''}"><input type="hidden" name="ends_at_orig" value="${v.ends_at || ''}"></div>`,
+    read: f => ({ enabled: f.get('enabled') === 'on', title: f.get('title').trim(), body: f.get('body').trim(), level: f.get('level'), url: f.get('url').trim() || null, starts_at: fromLocal(f.get('starts_at'), f.get('starts_at_orig'), 'Starts'), ends_at: fromLocal(f.get('ends_at'), f.get('ends_at_orig'), 'Ends') }),
     status: v => announcementLive(v) ? badge('Live', 'accent') : v.enabled ? badge('On · not showing (empty, scheduled or expired)', 'tone-seen') : badge('Hidden'),
   },
 };
