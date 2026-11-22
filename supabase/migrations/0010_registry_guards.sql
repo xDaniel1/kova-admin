@@ -15,6 +15,7 @@ begin
     foreach p in array array['ios', 'android', 'web', 'site'] loop
         old_b := old.value #>> array[p, 'build'];
         new_b := new.value #>> array[p, 'build'];
+        if new_b is not distinct from old_b then continue; end if; -- an untouched platform is never re-validated
         if new_b is not null and new_b !~ '^[0-9]+$' then
             raise exception 'Build for % must be a whole number, got %', p, new_b using errcode = '22023';
         end if;

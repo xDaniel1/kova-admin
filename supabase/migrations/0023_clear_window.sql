@@ -153,6 +153,29 @@ end $$;
 revoke all on function public.report_client(uuid, text, text, text, text, text, text[]) from public;
 grant execute on function public.report_client(uuid, text, text, text, text, text, text[]) to anon, authenticated;
 
+-- Registry guard (from 0010): a platform whose build did not change is not re-validated, so seeding one
+-- platform never fails on another platform's untouched (even malformed) build.
+create or replace function public.app_config_builds_only_up()
+returns trigger language plpgsql set search_path = ''
+as $$
+declare p text; old_b text; new_b text;
+begin
+    if new.key <> 'released_versions' then return new; end if;
+    foreach p in array array['ios', 'android', 'web', 'site'] loop
+        old_b := old.value #>> array[p, 'build'];
+        new_b := new.value #>> array[p, 'build'];
+        if new_b is not distinct from old_b then continue; end if; -- an untouched platform is never re-validated
+        if new_b is not null and new_b !~ '^[0-9]+$' then
+            raise exception 'Build for % must be a whole number, got %', p, new_b using errcode = '22023';
+        end if;
+        if old_b ~ '^[0-9]+$' and (new_b is null or new_b::bigint < old_b::bigint) then
+            raise exception 'Build numbers only go up: % is %', p, old_b using errcode = '22023';
+        end if;
+    end loop;
+    return new;
+end $$;
+
+
 -- No direct deletes any more: Tower clears through the RPC above.
 drop policy if exists "Editors clear error reports" on public.client_errors;
 revoke delete on public.client_errors from authenticated;
