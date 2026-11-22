@@ -51,7 +51,10 @@ begin
                        (array_agg(left(e.stack, 1500) order by e.created_at desc))[1] as stack,
                        -- Search covers every report in the group: its full message (not only the first 300
                        -- characters used to group), page and browser, not only the newest report.
-                       coalesce(bool_or(e.message ilike pat or e.url ilike pat or e.user_agent ilike pat), false) as search_hit
+                       coalesce(bool_or(e.message ilike pat or e.url ilike pat or e.user_agent ilike pat), false) as search_hit,
+                       -- Whether the newest report itself matches (full message, page or browser), so Tower can
+                       -- say when the match came from an earlier report. Both flags are sent on purpose.
+                       coalesce((array_agg(e.message ilike pat or e.url ilike pat or e.user_agent ilike pat order by e.created_at desc))[1], false) as newest_hit
                   from public.client_errors e
                  where e.created_at > since and (admin_client_errors.app is null or e.app = admin_client_errors.app)
                  group by e.app, left(e.message, 300)),
