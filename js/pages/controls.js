@@ -135,7 +135,7 @@ const SECTIONS = {
       const counted = all.filter(x => x.n > 0), r = counted.filter(x => x.source === 'global');
       return r.some(x => x.state === 'live') ? badge('Live', 'accent') : r.some(x => x.state === 'hidden') ? badge('On · hidden by maintenance', 'tone-seen')
         : r.some(x => x.state === 'blocked') ? badge('On · installs need the required update', 'tone-seen')
-        : counted.some(x => x.source === 'platform') ? badge('On · replaced by platform announcements', 'tone-seen') : badge('On · reaches no counted installs', 'tone-seen');
+        : counted.some(x => x.source === 'platform') ? badge(counted.some(x => x.source === 'platform' && x.state === 'live') ? 'On · replaced by platform announcements' : 'On · replaced by platform announcements (not shown: maintenance or required update)', 'tone-seen') : badge('On · reaches no counted installs', 'tone-seen');
     },
   },
 };
