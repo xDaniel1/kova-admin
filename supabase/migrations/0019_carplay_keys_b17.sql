@@ -11,12 +11,15 @@ update public.app_config
  where key = 'features';
 
 -- Each platform under its own guard, merged into its existing object: keeps beta_build and any other
--- fields, sets version/build (and tag/note where given), and drops pending_build now that it is released.
-update public.app_config set value = jsonb_set(value, '{ios}', (coalesce(value->'ios', '{}') - 'pending_build') || jsonb_build_object('version', '1.0.0', 'build', '17', 'tag', 'ios-v1.0.0-b17',
+-- fields, sets version/build (and tag/note where given), and drops pending_build only when it is at or
+-- below the seeded release. A missing or JSON-null entry starts empty; any other non-object is left alone.
+update public.app_config set value = jsonb_set(value, '{ios}', ((case when jsonb_typeof(value->'ios') = 'object' then value->'ios' else '{}'::jsonb end) - (case when (value #>> '{ios,pending_build}') ~ '^[0-9]+$' then case when (value #>> '{ios,pending_build}')::numeric <= 17 then 'pending_build' else '' end else '' end)) || jsonb_build_object('version', '1.0.0', 'build', '17', 'tag', 'ios-v1.0.0-b17',
         'note', 'Build 17 fixes the CarPlay trip crash (builds 7-16)'))
- where key = 'released_versions' and ((value #>> '{ios,build}') is null or case when (value #>> '{ios,build}') ~ '^[0-9]+$' then (value #>> '{ios,build}')::numeric < 17 else false end);
-update public.app_config set value = jsonb_set(value, '{web}', (coalesce(value->'web', '{}') - 'pending_build') || jsonb_build_object('version', '1.0.4', 'build', '47'))
- where key = 'released_versions' and ((value #>> '{web,build}') is null or case when (value #>> '{web,build}') ~ '^[0-9]+$' then (value #>> '{web,build}')::numeric < 47 else false end);
+ where key = 'released_versions' and coalesce(jsonb_typeof(value->'ios'), 'null') in ('object', 'null')
+   and ((value #>> '{ios,build}') is null or case when (value #>> '{ios,build}') ~ '^[0-9]+$' then (value #>> '{ios,build}')::numeric < 17 else false end);
+update public.app_config set value = jsonb_set(value, '{web}', ((case when jsonb_typeof(value->'web') = 'object' then value->'web' else '{}'::jsonb end) - (case when (value #>> '{web,pending_build}') ~ '^[0-9]+$' then case when (value #>> '{web,pending_build}')::numeric <= 47 then 'pending_build' else '' end else '' end)) || jsonb_build_object('version', '1.0.4', 'build', '47'))
+ where key = 'released_versions' and coalesce(jsonb_typeof(value->'web'), 'null') in ('object', 'null')
+   and ((value #>> '{web,build}') is null or case when (value #>> '{web,build}') ~ '^[0-9]+$' then (value #>> '{web,build}')::numeric < 47 else false end);
 update public.app_config set value = jsonb_set(value, '{web}', '"1.0.4"') where key = 'latest_version' and value->>'web' in ('1.0.0', '1.0.1', '1.0.2', '1.0.3');
 
 -- The NY import registered its source but not its region.

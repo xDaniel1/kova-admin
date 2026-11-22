@@ -173,8 +173,9 @@ export default async function controls(ctx) {
       const real = r && Object.entries(r).some(([p, x]) => P[p] && !x.test && +x.installs_30d > 0);
       const since = SINCE[key.replace(/^features\./, '')], reach = since && builds ? reachOf(since, builds) : null;
       const reached = reach?.some(x => x.ok > 0);
-      if (r) el.textContent = 'Last seen reading this: ' + Object.entries(r).sort(([, a], [, b]) => a.test - b.test).map(([p, x]) => `${P[p] || (P[p.split(' ')[0]] + ' (test)')} ${x.version}${x.build ? ' (' + x.build + ')' : ''} ${rel(x.last_seen)}, ${x.installs_30d} installs`).join(' · ');
-      else if (reach) el.textContent = 'Estimated reach (installs on older builds that honour it but don\'t report config_keys, 7 days): ' + reach.map(x => `${x.label} ${x.ok} of ${x.all}`).join(' · ');
+      // Reported readers first; when none is a counted, active install, the estimate is shown too.
+      const est = reach && reach.some(x => x.ok > 0) ? 'Estimated reach (installs on older builds that honour it but don\'t report config_keys, 7 days): ' + reach.map(x => `${x.label} ${x.ok} of ${x.all}`).join(' · ') : reach && !r ? 'Estimated reach (installs on older builds that honour it but don\'t report config_keys, 7 days): ' + reach.map(x => `${x.label} ${x.ok} of ${x.all}`).join(' · ') : '';
+      el.textContent = [r ? 'Last seen reading this: ' + Object.entries(r).sort(([, a], [, b]) => a.test - b.test).map(([p, x]) => `${P[p] || (P[p.split(' ')[0]] + ' (test)')} ${x.version}${x.build ? ' (' + x.build + ')' : ''} ${rel(x.last_seen)}, ${x.installs_30d} installs`).join(' · ') : '', !real ? est : ''].filter(Boolean).join(' · ');
       const u = el.parentElement?.querySelector('[data-unread]'); if (!u) return;
       u.classList.remove('pending');
       if (real) u.remove();
