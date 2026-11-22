@@ -106,7 +106,7 @@ export function parseInstant(v) {
   const [y, mo, d, h, mi, s = '0'] = [m[1], m[2], m[3], m[4], m[5], m[6]].map(Number);
   const dim = new Date(Date.UTC(y, mo, 0)).getUTCDate();
   if (mo < 1 || mo > 12 || d < 1 || d > dim || h > 23 || mi > 59 || s > 59) return NaN;
-  if (m[8] !== 'Z' && (+m[9] > 14 || +m[10] > 59)) return NaN;
+  if (m[8] !== 'Z' && (+m[9] * 60 + +m[10] > 840 || +m[10] > 59)) return NaN; // offsets run to ±14:00
   const t = Date.parse(v);
   return Number.isNaN(t) ? NaN : t;
 }
