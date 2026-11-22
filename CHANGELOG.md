@@ -13,6 +13,7 @@ Tower uses the shared Kova version (semantic version plus a build number that on
 - Daily digest: the schedule reads its secret from `kova_private.settings`, and the function checks it in constant time.
 - Viewer-role admins get no write controls on Controls, System, Errors, Moderation or record notes and tags (not only greyed out). The digest schedule logs each run (`admin_digest_runs`).
 - Light-theme contrast fixes. Migration 0021.
+- Daily digest is live: `tower-digest` deployed, Resend key and secret set, scheduled at 13:00 UTC. The Admins page shows recent sends and their HTTP result.
 - Database migration 0020 (already applied to production): `speed_limits_in_box` no longer times out for signed-out apps. Row-level security stopped Postgres from using the overlap index, so every call scanned 1.86 M rows (about 5.2 s, past the 3 s limit). It now takes 0.2–0.5 s, and the Speed limits region and source switches still apply. Fixes database speed limits on iPhone and web.
 
 ## 1.0.0 (build 10) · 2026-11-13

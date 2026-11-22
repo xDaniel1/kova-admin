@@ -17,7 +17,9 @@ export default async function admins(ctx) {
         <div class="form-grid" style="margin-top:10px"><label>Find account<input data-find type="search" placeholder="Start typing an email…" autocomplete="off"></label><label>Role${roleSelect('editor', 'data-newrole')}</label></div><div data-matches style="margin-top:10px"></div></section>` : ''}
       <section class="card"><div class="card-head"><h2>Daily digest</h2><label class="inline" style="margin:0"><input type="checkbox" data-digest> Email me</label></div>
         <p class="muted small" style="margin-top:-4px">A morning email with sign-ups, reports, new feedback and admin actions from the last 24 hours. Preview of what it would say right now:</p>
-        <div data-preview><p class="loading">Loading…</p></div></section>
+        <div data-preview><p class="loading">Loading…</p></div>
+        <h3 class="eyebrow" style="margin-top:16px">Recent sends</h3><div data-runs><p class="loading">Loading…</p></div>
+        <p class="muted small" style="margin:8px 0 0">Sent daily at 13:00 UTC through Resend, only on days something happened. Until kovamaps.com is verified in Resend, mail only reaches the address that owns the Resend account.</p></section>
     </div></div>`.s;
   const list = qs('[data-list]', ctx.el);
   async function load() {
@@ -51,5 +53,8 @@ export default async function admins(ctx) {
       preview.innerHTML = html`<dl class="kv"><dt>New sign-ups</dt><dd>${fmtNum(d.signups)}</dd><dt>Active users</dt><dd>${fmtNum(d.active_users)} of ${fmtNum(d.total_users)}</dd><dt>Traffic reports</dt><dd>${fmtNum(d.reports)}</dd><dt>New feedback</dt><dd>${fmtNum(d.feedback)} <span class="muted small">(${fmtNum(d.feedback_new_total)} untriaged in total)</span></dd><dt>Admin actions</dt><dd>${fmtNum(d.admin_actions)}</dd><dt>Recipients</dt><dd class="small">${(d.recipients || []).join(', ') || 'nobody opted in'}</dd></dl>`.s;
     } catch (e) { if (ctx.alive()) preview.innerHTML = e.needsUpgrade ? '<p class="muted small">Needs <code>supabase/migrations/0005_messages_roles.sql</code>.</p>' : html`<p class="muted small">${e.message}</p>`.s; }
   })();
+  api.digestRuns().then(runs => { const host = qs('[data-runs]', ctx.el); if (!host || !ctx.alive()) return;
+    host.innerHTML = runs.length ? html`<dl class="kv">${runs.map(r => html`<dt>${rel(r.at)}</dt><dd>${r.status_code == null ? (r.timed_out ? badge('Timed out', 'danger') : badge('Sent, result expired')) : r.status_code < 300 ? badge(`OK · ${r.status_code}`, 'ok') : badge(`Failed · ${r.status_code}`, 'danger')} <span class="muted small">${r.detail || ''}</span></dd>`)}</dl>`.s : '<p class="muted small">No scheduled sends yet.</p>';
+  }).catch(e => { const host = qs('[data-runs]', ctx.el); if (host) host.innerHTML = html`<p class="muted small">${e.needsUpgrade ? 'Needs supabase/digest-cron.sql.' : e.message}</p>`.s; });
   await load();
 }

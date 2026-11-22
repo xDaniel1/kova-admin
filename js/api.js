@@ -139,6 +139,7 @@ export const system = () => rpc('admin_system');
 export const whoami = () => rpc('admin_whoami');
 export const setRole = (id, role) => rpc('admin_set_role', { target: id, new_role: role });
 export const setDigest = enabled => rpc('admin_set_digest', { enabled });
+export const digestRuns = () => rpc('admin_digest_runs');
 export const digest = since => rpc('admin_digest', since ? { since } : {});
 export const messages = () => rpc('admin_messages');
 export async function sendMessage(m) { return unwrap(await db.from('app_messages').insert(m).select('id').single()); }

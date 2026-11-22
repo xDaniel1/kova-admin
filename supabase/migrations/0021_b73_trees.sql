@@ -11,9 +11,9 @@ update public.app_config
 update public.app_config set value = jsonb_set(value, '{ios}', coalesce(value->'ios', '{}') || jsonb_build_object('version', '1.0.0', 'build', '73',
         'tag', 'ios-v1.0.0-b73', 'note', 'Builds 18-73: trees, routes on map roads, /collab review rounds'))
  where key = 'released_versions' and coalesce((value #>> '{ios,build}')::int, 0) <= 73;
--- The web deploy build for 1.0.8 is not known here; clear the 1.0.4 one rather than pair it with 1.0.8.
-update public.app_config set value = jsonb_set(value, '{web}', coalesce(value->'web', '{}') || jsonb_build_object('version', '1.0.8', 'build', null))
- where key = 'released_versions' and (value #>> '{web,version}') in ('1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.0.4', '1.0.5', '1.0.6', '1.0.7', '1.0.8');
+-- Web 1.0.8 is deploy build 57 (seen checking in from production).
+update public.app_config set value = jsonb_set(value, '{web}', coalesce(value->'web', '{}') || jsonb_build_object('version', '1.0.8', 'build', '57'))
+ where key = 'released_versions' and coalesce((value #>> '{web,build}')::int, 0) <= 57;
 update public.app_config set value = jsonb_set(value, '{web}', '"1.0.8"')
  where key = 'latest_version' and value->>'web' in ('1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.0.4', '1.0.5', '1.0.6', '1.0.7');
 
@@ -68,6 +68,8 @@ begin
                     from (select gs::date as day from generate_series(current_date - 29, current_date, interval '1 day') gs) g
                     left join (select created_at::date as day, count(*) as n from public.client_errors where created_at > current_date - 30 group by 1) x on x.day = g.day));
 end $$;
+revoke all on function public.admin_client_errors(integer) from public, anon;
+grant execute on function public.admin_client_errors(integer) to authenticated;
 
 -- Exact, case-insensitive account lookup by email for Moderation's block form.
 -- Editors only (it exists for the block action). More than one account with the email is an error, not a guess.
