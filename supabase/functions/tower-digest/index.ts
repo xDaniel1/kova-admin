@@ -6,7 +6,7 @@
 // Secrets: RESEND_API_KEY, DIGEST_SECRET (any long random string), optional DIGEST_FROM
 //          (defaults to "Kova Tower <onboarding@resend.dev>", which Resend only delivers to the
 //          address that owns the Resend account until kovamaps.com is verified there).
-// Schedule: supabase/digest-cron.sql.
+// Schedule: supabase/digest-cron.sql (reads DIGEST_SECRET from kova_private.settings 'digest_secret').
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 type Digest = {
@@ -47,9 +47,17 @@ function render(d: Digest): { subject: string; html: string; text: string } {
   return { subject, html, text };
 }
 
+// Compares in constant time so the secret can't be guessed from response timing.
+function sameSecret(a: string, b: string): boolean {
+  const x = new TextEncoder().encode(a), y = new TextEncoder().encode(b);
+  let diff = x.length ^ y.length;
+  for (let i = 0; i < Math.max(x.length, y.length); i++) diff |= (x[i] ?? 0) ^ (y[i] ?? 0);
+  return diff === 0;
+}
+
 Deno.serve(async (req) => {
   const secret = Deno.env.get("DIGEST_SECRET");
-  if (!secret || req.headers.get("x-digest-secret") !== secret) return json(401, { error: "unauthorized" });
+  if (!secret || !sameSecret(req.headers.get("x-digest-secret") ?? "", secret)) return json(401, { error: "unauthorized" });
   const key = Deno.env.get("RESEND_API_KEY");
   if (!key) return json(500, { error: "RESEND_API_KEY is not set" });
 
