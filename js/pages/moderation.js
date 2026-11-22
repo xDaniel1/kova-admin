@@ -25,12 +25,12 @@ export default async function moderation(ctx) {
       <section class="card"><div class="card-head"><h2>Most flags given · 30 days</h2></div>
         ${table(['User', 'Flags', 'Last'], (d.flaggers || []).map(f => [who(f.user_id), fmtNum(f.flags), rel(f.last)]), { emptyText: 'Nobody has flagged anything.' })}</section>
       <section class="card"><div class="card-head"><h2>Blocked reporters</h2><span class="muted small">Cannot file traffic reports</span></div>
-        ${table(['User', 'Reason', 'Since', ''], (d.blocked || []).map(b => [who(b.user_id), b.reason || '—', rel(b.created_at), canWrite ? html`<button type="button" class="sm ghost" data-unblock="${b.user_id}">Unblock</button>` : '']), { emptyText: 'No one is blocked.' })}
+        ${table(['User', 'Reason', 'Since', ''], (d.blocked || []).map(b => [who(b.user_id), b.reason || '—', rel(b.created_at), canWrite ? html`<button type="button" class="sm ghost" data-unblock="${b.user_id}" data-who="${label(b.user_id)?.email || b.user_id.slice(0, 8)}">Unblock</button>` : '']), { emptyText: 'No one is blocked.' })}
         ${canWrite ? html`<form class="row" data-block-form style="margin-top:12px;align-items:flex-end"><label style="flex:1">Block a reporter<input name="id" placeholder="Email or user ID" required autocomplete="off"></label><button class="danger sm">Block</button></form>` : ''}</section>
     </div>`.s;
   const act = async (b, fn, msg) => { b.disabled = true; try { await fn(); ctx.notice(msg); if (ctx.alive()) await moderation(ctx); } catch (e) { ctx.fail(e); b.disabled = false; } };
-  qsa('[data-block]', ctx.el).forEach(b => b.onclick = () => { const reason = prompt('Reason (shown to admins only):', 'Repeated false reports'); if (reason !== null) act(b, () => api.blockReporter(b.dataset.block, reason), 'Reporter blocked.'); });
-  qsa('[data-unblock]', ctx.el).forEach(b => b.onclick = () => confirm('Unblock this reporter? They can file traffic reports again.') && act(b, () => api.unblockReporter(b.dataset.unblock), 'Reporter unblocked.'));
+  qsa('[data-block]', ctx.el).forEach(b => b.onclick = () => { if (!canWrite) return; const reason = prompt('Reason (shown to admins only):', 'Repeated false reports'); if (reason !== null) act(b, () => api.blockReporter(b.dataset.block, reason), 'Reporter blocked.'); });
+  qsa('[data-unblock]', ctx.el).forEach(b => b.onclick = () => canWrite && confirm(`Unblock ${b.dataset.who}? They can file traffic reports again.`) && act(b, () => api.unblockReporter(b.dataset.unblock), 'Reporter unblocked.'));
   const form = ctx.el.querySelector('[data-block-form]');
   if (form)   form.onsubmit = async e => { e.preventDefault(); if (!canWrite) return;
     const btn = form.querySelector('button'), q = new FormData(form).get('id').trim();

@@ -70,7 +70,7 @@ const SECTIONS = {
   },
   features: {
     title: 'Feature switches', blurb: 'Turn parts of the product off everywhere without shipping a build. Per-platform switches are in Platform overrides.',
-    form: v => html`<div class="switches">${FEATURES.map(([k, l, h]) => html`<div>${toggle(l, k, v[k] !== false, h)}${SINCE[k] ? '' : html`<span class="badge unread pending" data-unread="${k}">Checking readers…</span>`}<span class="reader small muted" data-reader="features.${k}"></span></div>`)}</div>`,
+    form: v => html`<div class="switches">${FEATURES.map(([k, l, h]) => html`<div>${toggle(l, k, v[k] !== false, h)}<span class="badge unread pending" data-unread="${k}">Checking readers…</span><span class="reader small muted" data-reader="features.${k}"></span></div>`)}</div>`,
     // Keeps keys this page does not know, so a newer app's switch is never wiped by saving here.
     read: (f, cur = {}) => ({ ...cur, ...Object.fromEntries(FEATURES.map(([k]) => [k, f.get(k) === 'on'])) }),
     status: v => { const off = FEATURES.filter(([k]) => v[k] === false).map(([, l]) => l); return off.length ? badge(off.length + ' off: ' + off.join(', '), 'tone-seen') : badge('All on', 'ok'); },
@@ -122,26 +122,26 @@ export default async function controls(ctx) {
         <details class="collapse" style="margin-top:14px"><summary>Notes and history</summary><div class="stack" style="margin-top:12px"><div data-annotations></div><div><h3 class="eyebrow">History</h3><div data-audit></div></div></div></details>
       </section>`; })}</div>`.s;
   const P = { ios: 'iOS', android: 'Android', web: 'Web' };
-  const fillReaders = readers => qsa('[data-reader]', ctx.el).forEach(el => { const r = readers?.[el.dataset.reader];
-    const u = el.parentElement?.querySelector('[data-unread]');
-    if (u) { // switches with no known reader: say exactly what the check found
-      const real = r && Object.entries(r).some(([p]) => P[p]);
-      u.classList.remove('pending');
-      if (!readers) { u.textContent = 'Reader check unavailable'; u.title = 'Could not load config_keys reports'; }
-      else if (real) u.remove();
-      else if (r) { u.textContent = 'Only test builds read this'; u.title = 'No shipped build has reported reading it'; }
-      else { u.textContent = 'No app reads this yet'; u.title = 'No build has reported reading it in config_keys; flipping it changes nothing today'; } }
-    if (r) { el.textContent = 'Last seen reading this: ' + Object.entries(r).sort(([, a], [, b]) => a.test - b.test).map(([p, x]) => `${P[p] || (P[p.split(' ')[0]] + ' (test)')} ${x.version}${x.build ? ' (' + x.build + ')' : ''} ${rel(x.last_seen)}, ${x.installs_30d} installs`).join(' · '); return; }
-    el.dataset.noReader = '1'; });
-  api.configReaders().then(r => ctx.alive() && fillReaders(r), () => ctx.alive() && fillReaders(null));
-  let mix = null;
-  const reach = since => ['ios', 'web'].filter(p => since[p] != null).map(p => { const m = mix[p] || []; const all = m.reduce((a, x) => a + +x.n, 0);
+  // Reach: counted installs (30 days) on builds that honour a switch, from the version mix.
+  const reachOf = (since, mix) => ['ios', 'web'].filter(p => since[p] != null).map(p => { const m = mix[p] || []; const all = m.reduce((a, x) => a + +x.n, 0);
     const ok = m.filter(x => p === 'ios' ? +x.build >= since.ios : !versionLess(x.version, since.web)).reduce((a, x) => a + +x.n, 0);
-    return `${p === 'ios' ? 'iOS' : 'web'} ${ok} of ${all}`; }).join(' · ');
-  api.versions().then(v => { if (!ctx.alive()) return; mix = Object.fromEntries(Object.entries(v.platforms || {}).map(([p, x]) => [p, x.mix || []]));
-    qsa('[data-reader]', ctx.el).forEach(el => { if (el.textContent || el.dataset.reader === 'released_versions') return;
-      const since = SINCE[el.dataset.reader.replace(/^features\./, '')];
-      if (since) el.textContent = 'Estimated reach (builds that honour it, 30 days): ' + reach(since); }); }).catch(() => {});
+    return { label: p === 'ios' ? 'iOS' : 'web', ok, all }; });
+  Promise.allSettled([api.configReaders(), api.versions()]).then(([rd, vs]) => { if (!ctx.alive()) return;
+    const readers = rd.status === 'fulfilled' ? rd.value : null;
+    const mix = vs.status === 'fulfilled' ? Object.fromEntries(Object.entries(vs.value.platforms || {}).map(([p, x]) => [p, x.mix || []])) : null;
+    qsa('[data-reader]', ctx.el).forEach(el => { const key = el.dataset.reader, r = readers?.[key];
+      const real = r && Object.values(r).some(x => !x.test);
+      const since = SINCE[key.replace(/^features\./, '')], reach = since && mix ? reachOf(since, mix) : null;
+      const reached = reach?.some(x => x.ok > 0);
+      if (r) el.textContent = 'Last seen reading this: ' + Object.entries(r).sort(([, a], [, b]) => a.test - b.test).map(([p, x]) => `${P[p] || (P[p.split(' ')[0]] + ' (test)')} ${x.version}${x.build ? ' (' + x.build + ')' : ''} ${rel(x.last_seen)}, ${x.installs_30d} installs`).join(' · ');
+      else if (reached) el.textContent = 'Estimated reach (builds that honour it, 30 days): ' + reach.map(x => `${x.label} ${x.ok} of ${x.all}`).join(' · ');
+      const u = el.parentElement?.querySelector('[data-unread]'); if (!u) return;
+      u.classList.remove('pending');
+      if (real || reached) u.remove();
+      else if (!readers && !mix) { u.textContent = 'Reader check unavailable'; u.title = 'Could not load config_keys reports or the version mix'; }
+      else if (r) { u.textContent = 'Only test builds read this'; u.title = 'No shipped build has reported reading it'; }
+      else { u.textContent = 'No app reads this yet'; u.title = 'No shipped build reads it; flipping it changes nothing today'; } });
+  });
   qsa('.control', ctx.el).forEach(card => {
     const key = card.dataset.key, s = SECTIONS[key], form = qs('[data-form]', card);
     form.onsubmit = async e => {

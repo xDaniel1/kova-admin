@@ -24,7 +24,7 @@ Returns an array of `{ "key": string, "value": object }`. Decode each key on its
 | `min_version` | `{ "ios": "1.0", "android": "1.0", "web": "0.1", "message": string }` |
 | `latest_version` | `{ "ios": "1.0.0", "android": "1.0.0", "web": "0.1.0", "message": string, "store_urls": { "ios": url, "android": url, "web": url } }` |
 | `released_versions` | `{ "ios": { "version": "1.0.0", "build": "4" }, "android": { "version": "1.0.0", "build": "1" }, "web": { "version": "1.0.0", "build": null }, "site": {…} }`. Informational record of what shipped; apps may ignore it. |
-| `features` | `{ "indoor_maps": bool, "traffic_reports": bool, "feedback": bool, "incident_feeds": bool, "sync": bool, "speed_limits": bool, "traffic_coloring": bool, "transit": bool, "voice_guidance": bool, "carplay": bool, "carplay_safe": bool, "carplay_b17": bool, "android_auto": bool, "place_labels": bool, "flat_turns": bool, "rural_detail": bool }` |
+| `features` | `{ "indoor_maps": bool, "traffic_reports": bool, "feedback": bool, "incident_feeds": bool, "sync": bool, "speed_limits": bool, "traffic_coloring": bool, "transit": bool, "voice_guidance": bool, "carplay": bool, "carplay_safe": bool, "carplay_b17": bool, "android_auto": bool, "place_labels": bool, "flat_turns": bool, "rural_detail": bool, "map_trees": bool, "route_road_matching": bool }` |
 | `platform_overrides` | `{ "ios" \| "android" \| "web": { "features": { <feature key>: false, … }, "maintenance": { "enabled": bool, "message": string }, "announcement": { same shape as announcement } } }` (added in migration 0012; optional to adopt) |
 | `announcement` | `{ "enabled": bool, "title": string, "body": string, "level": "info" \| "warning" \| "critical", "url": url \| null, "starts_at": ISO-8601 \| null, "ends_at": ISO-8601 \| null }` |
 
@@ -57,6 +57,9 @@ Returns an array of `{ "key": string, "value": object }`. Decode each key on its
 | `carplay` | iOS builds 7–14: the CarPlay scene shows "Kova is unavailable in the car right now" instead of the map. Checked when the car connects. |
 | `carplay_safe` | Same, for iOS builds 15–16. |
 | `carplay_b17` | Same, for iOS build 17 and later. A new key per fixed build lets Tower keep crashing builds off the car. |
+| `map_trees` | 3D trees planted from satellite tree cover (`tree_cover_tiles`). iOS build 19+, web 1.0.7+. Off: no trees drawn, no tiles fetched. |
+| `route_road_matching` | Driving routes matched to Mapbox roads (Map Matching). iOS build 53+. Off: Apple's route line is drawn as is. |
+| `flat_turns`, `android_auto` | No app reads these yet; flipping them changes nothing. Tower marks them. |
 | `android_auto` | Android: the car app shows the same unavailable screen. |
 | `place_labels` | Do not name shops, restaurants and attractions on the map (venues and streets). |
 | `flat_turns` | Keep the driving map's tilt through turns instead of dropping to 2D. |

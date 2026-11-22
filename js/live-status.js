@@ -42,7 +42,7 @@ export async function liveStatusCard() {
     // Builds 7-11 predate config_keys (build 12), so their key follows from the build number. A later
     // build that reports no car key is shown as unconfirmed rather than guessed.
     const n = buildNum(g.build);
-    const reported = CAR_KEYS.find(k => g.keys.has('features.' + k.key));
+    const reported = [...CAR_KEYS].reverse().find(k => g.keys.has('features.' + k.key));
     const car = reported || (n >= 7 && n <= 11 ? CAR_KEYS[0] : null);
     if (!car) return html`<span class="muted small">${n >= 12 ? 'reader unconfirmed' : 'no CarPlay'}</span>`;
     const live = on('ios', car.key);
