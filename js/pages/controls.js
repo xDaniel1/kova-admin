@@ -24,16 +24,18 @@ export const FEATURES = [
   ['carplay_safe', 'CarPlay (builds 15–16)', 'Car screen on builds 15 and 16, which can still crash when a trip starts · switch off to keep them off the car'],
   ['carplay', 'CarPlay (builds 7–14)', 'Car screen on builds 7–14, which crash when a trip starts · switch off to keep them off the car'],
   ['android_auto', 'Android Auto', 'Kova on the car screen · Android (not yet reading)'],
-  ['place_labels', 'Place labels', 'Shops, restaurants and attractions named on the map at venues and on streets · iOS build 8 (not reading the switch yet), web 1.0.3+'],
-  ['flat_turns', 'Flat map for turns', 'Driving map drops to 2D before each turn · iOS build 9 (not yet reading the switch)'],
+  ['place_labels', 'Place labels', 'Shops, restaurants and attractions named on the map at venues and on streets · web 1.0.3+ (iOS shows them but ignores the switch)'],
+  ['flat_turns', 'Flat map for turns', 'Driving map drops to 2D before each turn · iOS build 9+ draws it, ignores the switch'],
   ['rural_detail', 'Rural map detail', 'Minor roads, small towns and unpaved surfaces drawn clearer · web 1.0.3+'],
+  ['map_trees', '3D trees', 'Trees planted from satellite tree cover (Florida) · iOS build 19+, web 1.0.7+'],
+  ['route_road_matching', 'Routes on map roads', 'Driving routes matched to Mapbox roads so the line is on the right carriageway · iOS build 53+'],
 ];
 // Earliest build (iOS) or version (web) that honours each switch, for the reach estimate shown until
 // apps send config_keys.
 const SINCE = {
   speed_limits: { ios: 6, web: '1.0.2' }, traffic_coloring: { ios: 6, web: '1.0.2' }, transit: { ios: 6, web: '1.0.2' },
   voice_guidance: { ios: 6, web: '1.0.2' }, carplay: { ios: 7 }, carplay_safe: { ios: 15 }, carplay_b17: { ios: 17 },
-  place_labels: { web: '1.0.3' }, rural_detail: { web: '1.0.3' }, platform_overrides: { ios: 6, web: '1.0.2' },
+  place_labels: { web: '1.0.3' }, rural_detail: { web: '1.0.3' }, map_trees: { ios: 19, web: '1.0.7' }, route_road_matching: { ios: 53 }, platform_overrides: { ios: 6, web: '1.0.2' },
   indoor_maps: { ios: 5, web: '1.0.0' }, traffic_reports: { ios: 5, web: '1.0.0' }, feedback: { ios: 5, web: '1.0.0' },
   incident_feeds: { ios: 5, web: '1.0.0' }, sync: { ios: 5, web: '1.0.0' },
 };
@@ -68,7 +70,7 @@ const SECTIONS = {
   },
   features: {
     title: 'Feature switches', blurb: 'Turn parts of the product off everywhere without shipping a build. Per-platform switches are in Platform overrides.',
-    form: v => html`<div class="switches">${FEATURES.map(([k, l, h]) => html`<div>${toggle(l, k, v[k] !== false, h)}<span class="reader small muted" data-reader="features.${k}"></span></div>`)}</div>`,
+    form: v => html`<div class="switches">${FEATURES.map(([k, l, h]) => html`<div>${toggle(l, k, v[k] !== false, h)}${SINCE[k] ? '' : html`<span class="badge unread" data-unread="${k}" title="Flipping it changes nothing in any app today">No app reads this yet</span>`}<span class="reader small muted" data-reader="features.${k}"></span></div>`)}</div>`,
     // Keeps keys this page does not know, so a newer app's switch is never wiped by saving here.
     read: (f, cur = {}) => ({ ...cur, ...Object.fromEntries(FEATURES.map(([k]) => [k, f.get(k) === 'on'])) }),
     status: v => { const off = FEATURES.filter(([k]) => v[k] === false).map(([, l]) => l); return off.length ? badge(off.length + ' off: ' + off.join(', '), 'tone-seen') : badge('All on', 'ok'); },
@@ -126,7 +128,7 @@ export default async function controls(ctx) {
   Promise.all([api.configReaders(), api.versions().then(v => { mix = Object.fromEntries(Object.entries(v.platforms || {}).map(([p, x]) => [p, x.mix || []])); }).catch(() => {})]).then(([readers]) => { if (!ctx.alive()) return;
     const P = { ios: 'iOS', android: 'Android', web: 'Web' };
     qsa('[data-reader]', ctx.el).forEach(el => { const r = readers[el.dataset.reader];
-      if (r) { el.textContent = 'Last seen reading this: ' + Object.entries(r).sort(([, a], [, b]) => a.test - b.test).map(([p, x]) => `${P[p] || (P[p.split(' ')[0]] + ' (test)')} ${x.version}${x.build ? ' (' + x.build + ')' : ''} ${rel(x.last_seen)}, ${x.installs_30d} installs`).join(' · '); return; }
+      if (r) { const u = el.parentElement?.querySelector('[data-unread]'); if (u) u.remove(); el.textContent = 'Last seen reading this: ' + Object.entries(r).sort(([, a], [, b]) => a.test - b.test).map(([p, x]) => `${P[p] || (P[p.split(' ')[0]] + ' (test)')} ${x.version}${x.build ? ' (' + x.build + ')' : ''} ${rel(x.last_seen)}, ${x.installs_30d} installs`).join(' · '); return; }
       const since = SINCE[el.dataset.reader.replace(/^features\./, '')];
       el.textContent = el.dataset.reader === 'released_versions' ? '' : since && mix ? 'Estimated reach (builds that honour it, 30 days): ' + reach(since) : 'No build has reported reading this yet.'; }); }).catch(() => {});
   qsa('.control', ctx.el).forEach(card => {

@@ -266,3 +266,4 @@ tbody tr{transition:background .1s}tbody tr:hover td{background:color-mix(in srg
   .hero h1{font-size:26px}.tile strong{font-size:23px}
   #nav a[aria-current=page]::before{left:-14px}
 }
+.badge.unread{background:var(--warn-soft);color:var(--warn);border-color:transparent;margin:0 0 4px 30px}

@@ -24,11 +24,16 @@ export default async function moderation(ctx) {
         ${table(['User', 'Flags', 'Last'], (d.flaggers || []).map(f => [who(f.user_id), fmtNum(f.flags), rel(f.last)]), { emptyText: 'Nobody has flagged anything.' })}</section>
       <section class="card"><div class="card-head"><h2>Blocked reporters</h2><span class="muted small">Cannot file traffic reports</span></div>
         ${table(['User', 'Reason', 'Since', ''], (d.blocked || []).map(b => [who(b.user_id), b.reason || '—', rel(b.created_at), html`<button type="button" class="sm ghost" data-unblock="${b.user_id}">Unblock</button>`]), { emptyText: 'No one is blocked.' })}
-        <form class="row" data-block-form style="margin-top:12px"><input name="id" placeholder="User ID to block" required pattern="[0-9a-fA-F-]{36}" style="flex:1"><button class="danger sm">Block</button></form></section>
+        <form class="row" data-block-form style="margin-top:12px"><input name="id" placeholder="Email or user ID to block" required style="flex:1" autocomplete="off"><button class="danger sm">Block</button></form></section>
     </div>`.s;
   const act = async (b, fn, msg) => { b.disabled = true; try { await fn(); ctx.notice(msg); if (ctx.alive()) await moderation(ctx); } catch (e) { ctx.fail(e); b.disabled = false; } };
   qsa('[data-block]', ctx.el).forEach(b => b.onclick = () => { const reason = prompt('Reason (shown to admins only):', 'Repeated false reports'); if (reason !== null) act(b, () => api.blockReporter(b.dataset.block, reason), 'Reporter blocked.'); });
-  qsa('[data-unblock]', ctx.el).forEach(b => b.onclick = () => act(b, () => api.unblockReporter(b.dataset.unblock), 'Reporter unblocked.'));
+  qsa('[data-unblock]', ctx.el).forEach(b => b.onclick = () => confirm('Unblock this reporter? They can file traffic reports again.') && act(b, () => api.unblockReporter(b.dataset.unblock), 'Reporter unblocked.'));
   const form = ctx.el.querySelector('[data-block-form]');
-  form.onsubmit = e => { e.preventDefault(); const id = new FormData(form).get('id').trim(), reason = prompt('Reason:', ''); if (reason !== null) act(form.querySelector('button'), () => api.blockReporter(id, reason), 'Reporter blocked.'); };
+  form.onsubmit = async e => { e.preventDefault(); const q = new FormData(form).get('id').trim();
+    let id = q;
+    if (!/^[0-9a-f-]{36}$/i.test(q)) { // an email: find the account first
+      try { const hit = ((await api.search(q))?.users || []).find(u => (u.email || '').toLowerCase() === q.toLowerCase()); if (!hit) { ctx.fail(new Error(`No account with the email ${q}.`)); return; } id = hit.user_id; } catch (err) { ctx.fail(err); return; } }
+    if (blocked.has(id)) { ctx.notice('Already blocked.'); return; }
+    const reason = prompt('Reason (shown to admins only):', 'Repeated false reports'); if (reason !== null) act(form.querySelector('button'), () => api.blockReporter(id, reason), 'Reporter blocked.'); };
 }
