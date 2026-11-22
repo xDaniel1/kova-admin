@@ -67,7 +67,7 @@ export default async function errors(ctx) {
       if (!canWrite || !filtersMatch() || pending.has(b.dataset.key)) return; const g = groups[+b.dataset.clear], key = b.dataset.key;
       if (!confirm(`Delete ${g.n} ${(g.app || '').trim() || 'unknown app'} reports of "${(g.message || '').slice(0, 80)}"? Only these reports are deleted; any that arrived since are kept.`)) return;
       pending.add(key); syncClear();
-      try { const n = await api.clearErrorGroup(g.app, g.message, g.ids); pending.delete(key); done.add(key); if (!ctx.alive()) return; if (clearErrKey === key) { clearBanner(); clearErrKey = null; } const g = ++seq; syncClear(); ctx.notice(n ? `Cleared ${n} reports.` : 'Nothing was cleared (already gone).'); refetch(g); }
+      try { const n = await api.clearErrorGroup(g.app, g.message, g.ids); pending.delete(key); done.add(key); if (!ctx.alive()) return; if (clearErrKey === key) { clearBanner(); clearErrKey = null; } const gen = ++seq; syncClear(); ctx.notice(n ? `Cleared ${n} reports.` : 'Nothing was cleared (already gone).'); refetch(gen); }
       catch (e) { pending.delete(key); if (ctx.alive()) { clearErrKey = key; syncClear(); ctx.fail(e); } }
     });
   };
@@ -83,11 +83,11 @@ export default async function errors(ctx) {
       // Keep the old list visible but inert, and offer to retry the read.
       qs('[data-retry-row]', list)?.remove();
       list.insertAdjacentHTML('afterbegin', html`<p class="alert alert-warn" data-retry-row style="margin:0 0 10px">Couldn't refresh: ${e.message || e} <button type="button" class="sm" data-retry>Retry</button></p>`.s);
-      qs('[data-retry]', list).onclick = () => { const g = ++seq; syncClear(); refetch(g); };
+      qs('[data-retry]', list).onclick = () => { const gen = ++seq; syncClear(); refetch(gen); };
       stale = true; syncClear();
     } };
   const debounced = debounce(gen => refetch(gen), 250);
-  filter.oninput = () => { ctx.query.q = filter.value.trim(); const g = ++seq; syncClear(); debounced(g); };
-  appSel.onchange = () => { ctx.query.app = appSel.value; const g = ++seq; syncClear(); refetch(g); };
+  filter.oninput = () => { ctx.query.q = filter.value.trim(); const gen = ++seq; syncClear(); debounced(gen); };
+  appSel.onchange = () => { ctx.query.app = appSel.value; const gen = ++seq; syncClear(); refetch(gen); };
   qsa('[data-days]', ctx.el).forEach(b => b.onclick = () => { location.hash = '/errors?' + new URLSearchParams({ days: b.dataset.days, ...(ctx.query.q ? { q: ctx.query.q } : {}), ...(ctx.query.app ? { app: ctx.query.app } : {}) }); });
 }

@@ -161,7 +161,7 @@ Tells Tower how well our map data covers real drives. Send once at the end of a 
 | Web 1.0.2 (deploy build 41) | ✅ | ✅ speed_limits, traffic_coloring, transit, voice_guidance | ✅ | ✅ (skips automated browsers) | ❌ (please add; CI runs are marked as test in Tower by hand until then) | ❌ |
 | Android 1.0.0 (1) | ❌ | ❌ (`android_auto` is its key) | ❌ | ❌ | ❌ | ❌ |
 
-`flat_turns` and `android_auto` are not read by any build yet; they are on. `place_labels` and `rural_detail` are read by web 1.0.3+ only. Tower marks a switch "No app reads this yet" from live reader reports.
+`flat_turns` and `android_auto` are not read by any build yet; they are on. `place_labels` and `rural_detail` are read by web 1.0.3+ only. Tower marks a switch "No app reads this yet" only when no build is documented to read it; a documented switch with no recent reports shows "No recent readers confirmed".
 
 Tower controls every key above, including those no app reads yet; each control shows which builds were last seen reading it once apps send `config_keys`.
 
