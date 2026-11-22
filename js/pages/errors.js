@@ -15,7 +15,7 @@ export default async function errors(ctx) {
   if (!ctx.alive()) return;
   const apps = [...new Set([...(d.apps || []), ...(ctx.query.app ? [ctx.query.app] : [])])].sort();
   ctx.el.innerHTML = html`
-    <section class="card"><div class="card-head"><h2>${fmtNum(d.total)} errors</h2>
+    <section class="card"><div class="card-head"><h2>${fmtNum(d.total)} errors${ctx.query.app ? ' from ' + ctx.query.app : ''}</h2>
       <div class="seg">${RANGES.map(([n, l]) => html`<button type="button" data-days="${n}" aria-pressed="${n === days ? 'true' : 'false'}">${l}</button>`)}</div></div>
       ${barChart('Errors per day · 30 days', d.daily)}</section>
     <section class="card" style="margin-top:18px"><div class="card-head"><h2>By message</h2><span class="muted small">Newest first. Clearing deletes those reports.</span></div>

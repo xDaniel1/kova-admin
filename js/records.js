@@ -6,8 +6,8 @@ import * as api from './api.js';
 import { state } from './app.js';
 import { icon } from './icons.js';
 
-export const typeLabel = { user: 'User', feedback: 'Feedback', report: 'Report', venue: 'Venue', feed: 'Feed', config: 'App control' };
-export const recordHref = (type, id) => type === 'message' ? href('/messages') : type === 'config' ? href('/controls') : id === 'bulk' ? href('/' + type + 's') : href(`/${type === 'feedback' ? 'feedback' : type + 's'}/${encodeURIComponent(id)}`);
+export const typeLabel = { client_error: 'Error group', user: 'User', feedback: 'Feedback', report: 'Report', venue: 'Venue', feed: 'Feed', config: 'App control' };
+export const recordHref = (type, id) => type === 'client_error' ? href('/errors') : type === 'message' ? href('/messages') : type === 'config' ? href('/controls') : id === 'bulk' ? href('/' + type + 's') : href(`/${type === 'feedback' ? 'feedback' : type + 's'}/${encodeURIComponent(id)}`);
 
 export const tagChips = (tags, type) => (tags || []).map(t => html`<a class="chip" href="${href('/search', { q: t })}" title="Search for ${t}">${t}</a>`);
 
@@ -84,12 +84,13 @@ export const actionText = a => ({
   feed_added: 'Feed added', feed_updated: 'Feed updated', feed_deleted: 'Feed deleted',
   user_disabled: 'Account disabled', user_enabled: 'Account enabled', user_deleted: 'Account deleted', user_signed_out: 'Signed out everywhere', admin_granted: 'Admin access granted', admin_revoked: 'Admin access revoked',
   message_sent: 'Message sent', message_updated: 'Message updated', message_withdrawn: 'Message withdrawn', message_deleted: 'Message deleted', admin_role_changed: 'Admin role changed',
-  feedback_deleted: 'Feedback deleted', report_deleted: 'Report deleted', reports_purged: 'Old reports purged', config_changed: 'App control changed', config_added: 'App control added', config_removed: 'App control removed',
+  client_errors_cleared: 'Error reports cleared', data_region_enabled: 'Data region turned on', data_region_disabled: 'Data region turned off', feedback_deleted: 'Feedback deleted', report_deleted: 'Report deleted', reports_purged: 'Old reports purged', config_changed: 'App control changed', config_added: 'App control added', config_removed: 'App control removed',
 }[a] || a || 'Event');
 export function detailText(d) {
   if (!d || typeof d !== 'object') return raw('');
   const bits = [];
   if (d.tag) bits.push('#' + d.tag);
+  if (d.count != null) bits.push(d.count + (d.count === 1 ? ' report' : ' reports'));
   if (d.title) bits.push('“' + d.title + '”' + (d.audience === 'all' ? ' to everyone' : ''));
   if (d.role) bits.push('role ' + d.role);
   if (d.preview) bits.push('“' + d.preview + '”');

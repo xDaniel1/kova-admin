@@ -109,7 +109,7 @@ const SECTIONS = {
       maintenance: { enabled: f.get(p + '_maint') === 'on', message: f.get(p + '_maint_msg').trim() },
       announcement: { ...(prev.announcement || {}), enabled: f.get(p + '_ann') === 'on', title: f.get(p + '_ann_title').trim(), body: f.get(p + '_ann_body').trim(), level: f.get(p + '_ann_level'), url: f.get(p + '_ann_url').trim() || null },
     }]; })),
-    status: v => { const bits = PLATFORMS.flatMap(([p, l]) => { const o = v[p] || {}; return [o.maintenance?.enabled && l + ' paused', Object.values(o.features || {}).includes(false) && l + ' ' + Object.values(o.features).filter(x => x === false).length + ' off', announcementLive(o.announcement) && l + ' announcing'].filter(Boolean); }); return bits.length ? badge(bits.join(' · '), bits.some(b => b.includes('paused')) ? 'danger' : 'tone-seen') : badge('None', 'ok'); },
+    status: v => { const bits = PLATFORMS.flatMap(([p, l]) => { const o = v[p] || {}; return [o.maintenance?.enabled && l + ' paused', Object.values(o.features || {}).includes(false) && l + ' ' + Object.values(o.features).filter(x => x === false).length + ' off', p !== 'android' && announcementLive(o.announcement) && !(o.maintenance?.enabled === true) && l + ' announcing'].filter(Boolean); }); return bits.length ? badge(bits.join(' · '), bits.some(b => b.includes('paused')) ? 'danger' : 'tone-seen') : badge('None', 'ok'); },
   },
   announcement: {
     title: 'Announcement banner', blurb: 'A banner in the apps. Leave the window empty to show it whenever it is enabled.',

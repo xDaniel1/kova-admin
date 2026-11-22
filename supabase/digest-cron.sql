@@ -68,7 +68,12 @@ as $$ begin
 end $$;
 revoke all on function kova_private.settle_digest_runs() from public, anon, authenticated;
 -- Rows settled before outcomes existed: keep what is known, mark the rest unknown.
-update kova_private.digest_runs set outcome = case when status_code between 200 and 299 then 'unknown' when status_code is not null then 'failed' else 'unknown' end
+update kova_private.digest_runs set outcome = case
+        when request_id is null then 'not_sent'
+        when detail ilike '%timed out%' then 'timed_out'
+        when status_code between 200 and 299 then coalesce(kova_private.digest_outcome(status_code, false, detail), 'unknown')
+        when status_code is not null then 'failed'
+        else 'unknown' end
  where settled_at is not null and outcome is null;
 
 create or replace function kova_private.run_tower_digest()
