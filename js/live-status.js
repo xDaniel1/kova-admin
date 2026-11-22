@@ -53,8 +53,9 @@ export async function liveStatusCard() {
   const OVERRIDES_FROM = { ios: g => buildNum(g.build) >= 6, web: g => !versionLess(g.version, '1.0.2') };
   for (const [p, label] of READS) {
     const o = overrides[p] || {};
-    const active = o.maintenance?.enabled === true || Object.values(o.features || {}).includes(false) || announcementLive(o.announcement, now);
-    const legacy = (rows || []).filter(g => g.platform === p && !OVERRIDES_FROM[p](g)).reduce((a, g) => a + +g.n, 0);
+    const active = (o.maintenance?.enabled === true && conf.maintenance?.enabled !== true) || Object.values(o.features || {}).includes(false) || announcementLive(o.announcement, now);
+    // iOS builds 3 and 4 read no config at all, and an unknown build can't be placed, so only b5 counts.
+    const legacy = (rows || []).filter(g => g.platform === p && (p === 'ios' ? buildNum(g.build) === 5 : !OVERRIDES_FROM[p](g))).reduce((a, g) => a + +g.n, 0);
     if (active && legacy) alerts.push(['warn', `${fmtNum(legacy)} ${label} install${legacy === 1 ? '' : 's'} on ${p === 'ios' ? 'builds before 6' : 'versions before 1.0.2'} ignore${legacy === 1 ? 's' : ''} ${label}-only settings and follow the global ones`]);
   }
   if (!shown.length && !hidden.length && conf.announcement?.enabled === true) alerts.push(['info', 'Announcement is switched on but not showing (empty, scheduled or expired)']);
