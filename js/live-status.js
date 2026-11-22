@@ -48,6 +48,15 @@ export async function liveStatusCard() {
   }
   if (shown.length) alerts.push(['info', `Announcement live on ${shown.join(', ')}`]);
   if (hidden.length) alerts.push(['warn', `Announcement set for ${hidden.join(', ')} but hidden by maintenance there`]);
+  // Contract adoption table: platform_overrides are read from iOS build 6 and web 1.0.2. Older installs
+  // still in use follow only the global settings, so say so whenever an override is active for them.
+  const OVERRIDES_FROM = { ios: g => buildNum(g.build) >= 6, web: g => !versionLess(g.version, '1.0.2') };
+  for (const [p, label] of READS) {
+    const o = overrides[p] || {};
+    const active = o.maintenance?.enabled === true || Object.values(o.features || {}).includes(false) || announcementLive(o.announcement, now);
+    const legacy = (rows || []).filter(g => g.platform === p && !OVERRIDES_FROM[p](g)).reduce((a, g) => a + +g.n, 0);
+    if (active && legacy) alerts.push(['warn', `${fmtNum(legacy)} ${label} install${legacy === 1 ? '' : 's'} on ${p === 'ios' ? 'builds before 6' : 'versions before 1.0.2'} ignore${legacy === 1 ? 's' : ''} ${label}-only settings and follow the global ones`]);
+  }
   if (!shown.length && !hidden.length && conf.announcement?.enabled === true) alerts.push(['info', 'Announcement is switched on but not showing (empty, scheduled or expired)']);
 
   rows = (rows || []).map(g => ({ ...g, keys: new Set(g.car_keys || []) }))

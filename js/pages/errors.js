@@ -38,7 +38,7 @@ export default async function errors(ctx) {
   const render = (r, snap) => {
     rendered = snap; done.clear(); stale = false;
     // The app picker follows every accepted response (apps can appear after the page opened).
-    const sel = qs('[data-app]', ctx.el), opts = [...new Set([...(r.apps || []), ...(snap.app ? [snap.app] : [])])].sort();
+    const sel = qs('[data-app]', ctx.el), opts = [...new Set([...(r.apps || []), ...(snap.app ? [snap.app] : [])])].filter(a => typeof a === 'string' && a.trim() !== '').sort(); // a blank app can't be a filter value; it stays under All apps
     // Rebuild only when the list changed, so an open picker isn't closed by a background refresh.
     const optKey = JSON.stringify([opts, snap.app]);
     if (sel.dataset.opts !== optKey) { sel.dataset.opts = optKey; sel.innerHTML = html`<option value="">All apps</option>${opts.map(a => html`<option value="${a}" ${raw(a === snap.app ? 'selected' : '')}>${a}</option>`)}`.s; }
