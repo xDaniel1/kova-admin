@@ -38,33 +38,33 @@ const local = iso => { if (Number.isNaN(parseInstant(iso))) return ''; const d =
 
 // Every switch the apps can read. Who reads it today is in the hint; a switch an app does not read yet is harmless.
 export const FEATURES = [
-  ['indoor_maps', 'Indoor maps', 'Floor plans inside airports, stations and malls · iOS, web'],
-  ['traffic_reports', 'Traffic reports', 'Submitting and showing community reports · iOS, web'],
-  ['feedback', 'Feedback form', 'Send feedback and shake-to-report · iOS, web'],
-  ['incident_feeds', 'Incident feeds', 'State DOT work zones (FDOT and others) · iOS, web'],
-  ['sync', 'Cloud sync', 'Favorites and recents across devices · iOS, web'],
-  ['speed_limits', 'Speed limits', 'Posted limits from our database (Florida, New York State) and OpenStreetMap · iOS build 6+, web 1.0.2+'],
-  ['traffic_coloring', 'Traffic colouring', 'Live traffic colours on routes and the map · iOS build 6+, web 1.0.2+'],
-  ['transit', 'Transit', 'Transit stops and rail lines outside New York · iOS build 6+, web 1.0.2+'],
-  ['voice_guidance', 'Voice guidance', 'Spoken turn-by-turn directions · iOS build 6+, web 1.0.2+'],
+  ['indoor_maps', 'Indoor maps', 'Floor plans inside airports, stations and malls · iOS, web, Android 3+'],
+  ['traffic_reports', 'Traffic reports', 'Submitting and showing community reports · iOS, web, Android 3+'],
+  ['feedback', 'Feedback form', 'Send feedback and shake-to-report · iOS, web, Android 3+'],
+  ['incident_feeds', 'Incident feeds', 'State DOT work zones (FDOT and others) · iOS, web, Android 3+'],
+  ['sync', 'Cloud sync', 'Favorites and recents across devices · iOS, web, Android 3+'],
+  ['speed_limits', 'Speed limits', 'Posted limits from our database (Florida, New York State) and OpenStreetMap · iOS build 6+, web 1.0.2+, Android 3+'],
+  ['traffic_coloring', 'Traffic colouring', 'Live traffic colours on routes and the map · iOS build 6+, web 1.0.2+, Android 3+'],
+  ['transit', 'Transit', 'Transit stops and rail lines outside New York · iOS build 6+, web 1.0.2+, Android 3+'],
+  ['voice_guidance', 'Voice guidance', 'Spoken turn-by-turn directions · iOS build 6+, web 1.0.2+, Android 3+'],
   ['carplay_b17', 'CarPlay (build 17+)', 'Kova on the car screen for the build with the trip-crash fix · iOS build 17+'],
   ['carplay_safe', 'CarPlay (builds 15–16)', 'Car screen on builds 15 and 16, which can still crash when a trip starts · switch off to keep them off the car'],
   ['carplay', 'CarPlay (builds 7–14)', 'Car screen on builds 7–14, which crash when a trip starts · switch off to keep them off the car'],
-  ['android_auto', 'Android Auto', 'Kova on the car screen · Android (not yet reading)'],
+  ['android_auto', 'Android Auto', 'Kova on the Android Auto car screen · Android build 3+'],
   ['place_labels', 'Place labels', 'Shops, restaurants and attractions named on the map at venues and on streets · web 1.0.3+ (iOS shows them but ignores the switch)'],
   ['flat_turns', 'Flat map for turns', 'Driving map drops to 2D before each turn · iOS build 9+ draws it, ignores the switch'],
   ['rural_detail', 'Rural map detail', 'Minor roads, small towns and unpaved surfaces drawn clearer · web 1.0.3+'],
   ['map_trees', '3D trees', 'Trees planted from satellite tree cover (Florida) · iOS build 19+, web 1.0.7+'],
   ['route_road_matching', 'Routes on map roads', 'Driving routes matched to Mapbox roads so the line is on the right carriageway · iOS build 53+'],
 ];
-// Earliest build (iOS) or version (web) that honours each switch, for the reach estimate shown until
+// Earliest build (iOS, Android) or version (web) that honours each switch, for the reach estimate shown until
 // apps send config_keys.
 const SINCE = {
-  speed_limits: { ios: 6, web: '1.0.2' }, traffic_coloring: { ios: 6, web: '1.0.2' }, transit: { ios: 6, web: '1.0.2' },
-  voice_guidance: { ios: 6, web: '1.0.2' }, carplay: { ios: 7, iosTo: 14 }, carplay_safe: { ios: 15, iosTo: 16 }, carplay_b17: { ios: 17 },
-  place_labels: { web: '1.0.3' }, rural_detail: { web: '1.0.3' }, map_trees: { ios: 19, web: '1.0.7' }, route_road_matching: { ios: 53 }, platform_overrides: { ios: 6, web: '1.0.2' },
-  indoor_maps: { ios: 5, web: '1.0.0' }, traffic_reports: { ios: 5, web: '1.0.0' }, feedback: { ios: 5, web: '1.0.0' },
-  incident_feeds: { ios: 5, web: '1.0.0' }, sync: { ios: 5, web: '1.0.0' },
+  speed_limits: { ios: 6, web: '1.0.2', android: 3 }, traffic_coloring: { ios: 6, web: '1.0.2', android: 3 }, transit: { ios: 6, web: '1.0.2', android: 3 },
+  voice_guidance: { ios: 6, web: '1.0.2', android: 3 }, android_auto: { android: 3 }, carplay: { ios: 7, iosTo: 14 }, carplay_safe: { ios: 15, iosTo: 16 }, carplay_b17: { ios: 17 },
+  place_labels: { web: '1.0.3' }, rural_detail: { web: '1.0.3' }, map_trees: { ios: 19, web: '1.0.7' }, route_road_matching: { ios: 53 }, platform_overrides: { ios: 6, web: '1.0.2', android: 3 },
+  indoor_maps: { ios: 5, web: '1.0.0', android: 3 }, traffic_reports: { ios: 5, web: '1.0.0', android: 3 }, feedback: { ios: 5, web: '1.0.0', android: 3 },
+  incident_feeds: { ios: 5, web: '1.0.0', android: 3 }, sync: { ios: 5, web: '1.0.0', android: 3 },
 };
 const PLATFORMS = [['ios', 'iOS'], ['android', 'Android'], ['web', 'Web']];
 const REL = [['ios', 'iOS', 'build'], ['android', 'Android', 'versionCode'], ['web', 'Web app', 'build'], ['site', 'Site']];
@@ -103,13 +103,13 @@ const SECTIONS = {
     status: v => { const off = FEATURES.filter(([k]) => v[k] === false).map(([, l]) => l); return off.length ? badge(off.length + ' off: ' + off.join(', '), 'tone-seen') : badge('All on', 'ok'); },
   },
   platform_overrides: {
-    title: 'Platform overrides', blurb: 'Switch a feature off, pause, or announce on one platform only. A feature runs only if it is on in Feature switches and not off here. Read by iOS build 6+ and web 1.0.2+; Android not yet.',
+    title: 'Platform overrides', blurb: 'Switch a feature off, pause, or announce on one platform only. A feature runs only if it is on in Feature switches and not off here. Read by iOS build 6+, web 1.0.2+ and Android build 3+.',
     form: v => html`${PLATFORMS.map(([p, label]) => { const o = v[p] || {}, f = o.features || {}, m = o.maintenance || {}, a = o.announcement || {}; return html`
       <fieldset class="stack platform-override"><legend>${label}</legend>
         ${toggle(label + ' maintenance mode', p + '_maint', m.enabled === true, 'Pauses network features on ' + label + ' only.')}
         <label>Maintenance message<input name="${p}_maint_msg" maxlength="300" value="${m.message || ''}"></label>
         <details class="collapse"><summary>Features on ${label} (${FEATURES.filter(([k]) => f[k] === false).length} off)</summary><div class="switches" style="margin-top:8px">${FEATURES.map(([k, l]) => toggle(l, p + '_f_' + k, f[k] !== false))}</div></details>
-        <details class="collapse"><summary>${label} announcement ${!announcementLive(a) ? (a.enabled === true ? '(on, not showing)' : '') : (() => { if (p === 'android') return '(set, Android does not read it yet)'; const all = announcementReach({ ...CONF, platform_overrides: v }, BUILDS); if (!all) return '(install reach unavailable)'; const r = all.filter(x => x.n > 0 && x.platform === p && x.source === 'platform'); return r.some(x => x.state === 'live') ? '(live)' : r.some(x => x.state === 'hidden') ? '(set, hidden by maintenance)' : r.some(x => x.state === 'blocked') ? '(set, installs need the required update)' : '(set, not reaching anyone)'; })()}</summary><div class="stack" style="margin-top:8px">
+        <details class="collapse"><summary>${label} announcement ${!announcementLive(a) ? (a.enabled === true ? '(on, not showing)' : '') : (() => { const all = announcementReach({ ...CONF, platform_overrides: v }, BUILDS); if (!all) return '(install reach unavailable)'; const r = all.filter(x => x.n > 0 && x.platform === p && x.source === 'platform'); return r.some(x => x.state === 'live') ? '(live)' : r.some(x => x.state === 'hidden') ? '(set, hidden by maintenance)' : r.some(x => x.state === 'blocked') ? '(set, installs need the required update)' : '(set, not reaching anyone)'; })()}</summary><div class="stack" style="margin-top:8px">
           ${toggle('Show on ' + label, p + '_ann', a.enabled === true, 'Replaces the global announcement on ' + label + ' while live.')}
           <div class="form-grid"><label>Title<input name="${p}_ann_title" maxlength="80" value="${a.title || ''}"></label><label>Level<select name="${p}_ann_level">${['info', 'warning', 'critical'].map(l => html`<option ${raw(l === (a.level || 'info') ? 'selected' : '')}>${l}</option>`)}</select></label></div>
           <label>Body<textarea name="${p}_ann_body" maxlength="500">${a.body || ''}</textarea></label>
@@ -122,7 +122,7 @@ const SECTIONS = {
       maintenance: { enabled: f.get(p + '_maint') === 'on', message: f.get(p + '_maint_msg').trim() },
       announcement: { ...(prev.announcement || {}), enabled: f.get(p + '_ann') === 'on', title: f.get(p + '_ann_title').trim(), body: f.get(p + '_ann_body').trim(), level: f.get(p + '_ann_level'), url: f.get(p + '_ann_url').trim() || null },
     }]; })),
-    status: v => { const unknownReach = !BUILDS && ['ios', 'web'].some(p => announcementLive(v[p]?.announcement)); const bits = (unknownReach ? ['announcement reach unavailable'] : []).concat(PLATFORMS.flatMap(([p, l]) => { const o = v[p] || {}; return [p !== 'android' && o.maintenance?.enabled === true && l + ' paused', Object.values(o.features || {}).includes(false) && l + ' ' + Object.values(o.features).filter(x => x === false).length + ' off', (announcementReach({ ...CONF, platform_overrides: v }, BUILDS) || []).some(x => x.n > 0 && x.platform === p && x.source === 'platform' && x.state === 'live') && l + ' announcing'].filter(Boolean); })); return bits.length ? badge(bits.join(' · '), bits.some(b => b.includes('paused')) ? 'danger' : 'tone-seen') : badge('None', 'ok'); },
+    status: v => { const unknownReach = !BUILDS && ['ios', 'web', 'android'].some(p => announcementLive(v[p]?.announcement)); const bits = (unknownReach ? ['announcement reach unavailable'] : []).concat(PLATFORMS.flatMap(([p, l]) => { const o = v[p] || {}; return [o.maintenance?.enabled === true && l + ' paused', Object.values(o.features || {}).includes(false) && l + ' ' + Object.values(o.features).filter(x => x === false).length + ' off', (announcementReach({ ...CONF, platform_overrides: v }, BUILDS) || []).some(x => x.n > 0 && x.platform === p && x.source === 'platform' && x.state === 'live') && l + ' announcing'].filter(Boolean); })); return bits.length ? badge(bits.join(' · '), bits.some(b => b.includes('paused')) ? 'danger' : 'tone-seen') : badge('None', 'ok'); },
   },
   announcement: {
     title: 'Announcement banner', blurb: 'A banner in the apps. Leave the window empty to show it whenever it is enabled.',
@@ -167,9 +167,9 @@ export default async function controls(ctx) {
   const P = { ios: 'iOS', android: 'Android', web: 'Web' };
   // Reach: counted installs seen in the last 7 days on builds that honour a switch (admin_live_builds,
   // one row per actual build). Reported readers take priority; estimates only fill in where none reported.
-  const reachOf = (since, builds) => ['ios', 'web'].filter(p => since[p] != null).map(p => { const m = builds.filter(x => x.platform === p); const all = m.reduce((a, x) => a + +x.n, 0);
+  const reachOf = (since, builds) => ['ios', 'web', 'android'].filter(p => since[p] != null).map(p => { const m = builds.filter(x => x.platform === p); const all = m.reduce((a, x) => a + +x.n, 0);
     const ok = m.filter(x => switchEligible(x, since)).reduce((a, x) => a + (x.no_keys != null ? +x.no_keys : x.reports_keys ? 0 : +x.n), 0); // only installs that send no config_keys are estimated
-    return { label: p === 'ios' ? 'iOS' : 'web', ok, all }; });
+    return { label: { ios: 'iOS', web: 'web', android: 'Android' }[p], ok, all }; });
   const readerEls = qsa('[data-reader]', ctx.el); // this render's cards only
   Promise.allSettled([api.configReaders(), builds ? Promise.resolve(builds) : Promise.reject(new Error('live builds unavailable'))]).then(([rd, lb]) => { if (!ctx.alive() || myRender !== RENDER) return;
     const readers = rd.status === 'fulfilled' ? rd.value : null, builds = lb.status === 'fulfilled' ? lb.value : null;

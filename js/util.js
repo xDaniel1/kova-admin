@@ -126,9 +126,13 @@ export function announcementLive(x, now = Date.now()) {
 // before 1.0.2 (global only), null = reads nothing (iOS 3-4, unknown build, malformed web version).
 // `blocked` = a reader below a valid min_version, which sees the required-update screen instead.
 export const validVersion = v => typeof v === 'string' && /^\d+(\.\d+)*$/.test(v);
+export const ANDROID_READS_FROM = 3; // first Android release that reads Tower (contract adoption table)
 export function installCohort(platform, g, conf) {
   let kind = null;
-  if (platform === 'ios') { const n = /^\d+$/.test(g?.build || '') ? +g.build : -1; kind = n >= 6 ? 'override' : n === 5 ? 'global' : null; }
+  // Android reads global settings and its own override from build 3; an install that reports config_keys
+  // reads them whatever its build says (pre-release builds).
+  if (platform === 'android') { const n = /^\d+$/.test(g?.build || '') ? +g.build : -1; kind = n >= ANDROID_READS_FROM || g?.reports_keys === true || (Array.isArray(g?.config_keys) && g.config_keys.length > 0) ? 'override' : null; }
+  else if (platform === 'ios') { const n = /^\d+$/.test(g?.build || '') ? +g.build : -1; kind = n >= 6 ? 'override' : n === 5 ? 'global' : null; }
   else if (platform === 'web') kind = !validVersion(g?.version) ? null : versionLess(g.version, '1.0.2') ? 'global' : 'override';
   const min = conf?.min_version?.[platform];
   const blocked = !!kind && validVersion(min) && validVersion(g?.version) && versionLess(g.version, min);
@@ -145,18 +149,18 @@ export function installCohort(platform, g, conf) {
 // the platform-level rule. Returns [{ platform, label, state: 'live'|'hidden'|'blocked', source, n }].
 export function announcementReach(conf, builds, now = Date.now()) {
   if (!Array.isArray(builds)) return null;
-  const out = [], L = { ios: 'iOS', web: 'Web' };
+  const out = [], L = { ios: 'iOS', web: 'Web', android: 'Android' };
   const minV = conf?.min_version || {};
   const globalLive = announcementLive(conf?.announcement, now);
   const gMaint = conf?.maintenance?.enabled === true;
-  for (const p of ['ios', 'web']) {
+  for (const p of ['ios', 'web', 'android']) {
     const o = conf?.platform_overrides?.[p] || {};
     const ownLive = announcementLive(o.announcement, now);
     const pMaint = o.maintenance?.enabled === true;
     const rows = builds.filter(g => g.platform === p);
     const source = kind => kind === 'override' ? (ownLive ? 'platform' : globalLive ? 'global' : null) : (globalLive ? 'global' : null);
     const hiddenFor = kind => gMaint || (kind === 'override' && pMaint);
-    if (!rows.length) { const src = source('override'); if (src) out.push({ platform: p, label: L[p], n: null, state: hiddenFor('override') ? 'hidden' : 'live', source: src }); continue; }
+    if (!rows.length) { if (p === 'android') continue; const src = source('override'); if (src) out.push({ platform: p, label: L[p], n: null, state: hiddenFor('override') ? 'hidden' : 'live', source: src }); continue; }
     const acc = new Map(); // key: kind|state|source -> n
     for (const g of rows) {
       const { kind, blocked } = installCohort(p, g, conf); if (!kind) continue;
@@ -181,5 +185,6 @@ export function switchEligible(x, since) {
   if (!since || !x) return false;
   if (x.platform === 'ios') return since.ios != null && /^\d+$/.test(x.build || '') && +x.build >= since.ios && +x.build <= (since.iosTo ?? Infinity);
   if (x.platform === 'web') return since.web != null && validVersion(x.version) && !versionLess(x.version, since.web);
+  if (x.platform === 'android') return since.android != null && /^\d+$/.test(x.build || '') && +x.build >= since.android;
   return false;
 }

@@ -59,7 +59,7 @@ Returns an array of `{ "key": string, "value": object }`. Decode each key on its
 | `carplay_b17` | Same, for iOS build 17 and later. A new key per fixed build lets Tower keep crashing builds off the car. |
 | `map_trees` | 3D trees planted from satellite tree cover (`tree_cover_tiles`). iOS build 19+, web 1.0.7+. Off: no trees drawn, no tiles fetched. |
 | `route_road_matching` | Driving routes matched to Mapbox roads (Map Matching). iOS build 53+. Off: Apple's route line is drawn as is. |
-| `android_auto` | Android (once it reads the switch; no build does yet): the car app shows the same unavailable screen. |
+| `android_auto` | Android build 3+: the Android Auto car screen shows an unavailable screen instead of the map, read as the car session starts. |
 | `place_labels` | Web 1.0.3+: do not name shops, restaurants and attractions on the map (venues and streets). |
 | `flat_turns` | Once an app reads it (none does yet): keep the driving map's tilt through turns instead of dropping to 2D. |
 | `rural_detail` | Web: draw minor roads, small towns and unpaved surfaces with the standard style. |
@@ -159,9 +159,10 @@ Tells Tower how well our map data covers real drives. Send once at the end of a 
 | iOS builds 3, 4 | read nothing | | | | | |
 | Web 1.0.3–1.0.8 | ✅ | ✅ as 1.0.2; `place_labels`, `rural_detail` from 1.0.3, `map_trees` from 1.0.7 | ✅ | ✅ | ✅ | ❌ |
 | Web 1.0.2 (deploy build 41) | ✅ | ✅ speed_limits, traffic_coloring, transit, voice_guidance | ✅ | ✅ (skips automated browsers) | ❌ (please add; CI runs are marked as test in Tower by hand until then) | ❌ |
-| Android 1.0.0 (1) | ❌ | ❌ (`android_auto` is its key) | ❌ | ❌ | ❌ | ❌ |
+| Android 1.0.0 (1–2) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Android 1.0.0 build 3+ (next release; branch `android/kova-android`) | ✅ | ✅ indoor_maps, traffic_reports, feedback, incident_feeds, sync, transit, speed_limits, traffic_coloring, voice_guidance, `android_auto` | ✅ | ✅ (channel, config_keys) | ✅ | ❌ |
 
-`flat_turns` and `android_auto` are not read by any build yet; they are on. `place_labels` and `rural_detail` are read by web 1.0.3+ only. Tower marks a switch "No app reads this yet" only when no build is documented to read it; a documented switch with no recent reports shows "No recent readers confirmed".
+`flat_turns` is not read by any build yet; it is on. `android_auto` is read by Android build 3+. `place_labels` and `rural_detail` are read by web 1.0.3+ only. Tower marks a switch "No app reads this yet" only when no build is documented to read it; a documented switch with no recent reports shows "No recent readers confirmed".
 
 Tower controls every key above, including those no app reads yet; each control shows which builds were last seen reading it once apps send `config_keys`.
 

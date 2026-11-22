@@ -14,3 +14,11 @@ ok(Number.isNaN(p('2026-02-30T00:00:00Z')) && !Number.isNaN(p('2026-11-22T13:00:
 ok(!e({ platform: 'ios', build: '20' }, null), 'no thresholds: not eligible');
 ok(e({ platform: 'ios', build: '99' }, { ios: 19 }), 'iOS rule without iosTo is open-ended');
 ok(!e({ platform: 'web', version: '1.0.8' }, { ios: 19 }), 'web row with no web threshold: not eligible');
+import { installCohort as ic } from '../js/util.js';
+ok(ic('android', { build: '2' }, {}).kind === null, 'Android build 2 without keys reads nothing');
+ok(ic('android', { build: '2', reports_keys: true }, {}).kind === 'override', 'Android install that reports keys reads Tower');
+ok(ic('android', { build: '3' }, {}).kind === 'override', 'Android build 3 reads Tower');
+ok(e({ platform: 'android', build: '3' }, { android: 3 }) && !e({ platform: 'android', build: '2' }, { android: 3 }), 'Android switch eligibility');
+const ra = r({ announcement: { enabled: true, title: 'Hi' }, platform_overrides: { android: { maintenance: { enabled: true } } } }, [{ platform: 'android', version: '1.0.0', build: '3', n: 2 }]);
+ok(ra.some(x => x.platform === 'android' && x.state === 'hidden' && x.n === 2), 'Android maintenance hides the announcement for Android installs');
+ok(!r({ announcement: { enabled: true, title: 'Hi' } }, []).some(x => x.platform === 'android'), 'no Android rows: no Android claim');
