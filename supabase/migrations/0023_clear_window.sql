@@ -46,15 +46,15 @@ begin
     return (with w as (
                 select e.app, left(e.message, 300) as message, count(*) as n, count(distinct e.user_id) as users,
                        min(e.created_at) as first, max(e.created_at) as last,
-                       (array_agg(e.url order by e.created_at desc))[1] as url,
-                       (array_agg(e.user_agent order by e.created_at desc))[1] as user_agent,
-                       (array_agg(left(e.stack, 1500) order by e.created_at desc))[1] as stack,
+                       (array_agg(e.url order by e.created_at desc, e.id desc))[1] as url,
+                       (array_agg(e.user_agent order by e.created_at desc, e.id desc))[1] as user_agent,
+                       (array_agg(left(e.stack, 1500) order by e.created_at desc, e.id desc))[1] as stack,
                        -- Search covers every report in the group: its full message (not only the first 300
                        -- characters used to group), page and browser, not only the newest report.
                        coalesce(bool_or(e.message ilike pat or e.url ilike pat or e.user_agent ilike pat), false) as search_hit,
                        -- Whether the newest report itself matches (full message, page or browser), so Tower can
                        -- say when the match came from an earlier report. Both flags are sent on purpose.
-                       coalesce((array_agg(e.message ilike pat or e.url ilike pat or e.user_agent ilike pat order by e.created_at desc))[1], false) as newest_hit
+                       coalesce((array_agg(e.message ilike pat or e.url ilike pat or e.user_agent ilike pat order by e.created_at desc, e.id desc))[1], false) as newest_hit
                   from public.client_errors e
                  where e.created_at > since and (admin_client_errors.app is null or e.app = admin_client_errors.app)
                  group by e.app, left(e.message, 300)),

@@ -3,7 +3,7 @@
 'use strict';
 import { html, raw, qs, qsa, fmtNum, fmtDate, rel, barChart, empty, badge, copy, debounce } from '../util.js';
 import * as api from '../api.js';
-import { state, clearBanner } from '../app.js';
+import { state } from '../app.js';
 
 const RANGES = [[1, '24 hours'], [7, '7 days'], [30, '30 days']];
 const NEEDS_UPGRADE = html`<section class="card setup"><h2>Database update needed</h2><p>The Errors page needs <code>supabase/migrations/0022_error_filters.sql</code> (and <code>0023_clear_window.sql</code> for Clear).</p></section>`.s;
@@ -21,7 +21,7 @@ export default async function errors(ctx) {
       <div data-chart>${barChart('Errors per day · 30 days' + (ctx.query.app ? ' · ' + ctx.query.app : ''), d.daily)}</div></section>
     <section class="card" style="margin-top:18px"><div class="card-head"><h2>By message</h2><span class="muted small">Newest first. Clearing deletes those reports.</span></div>
       <div class="toolbar"><label>Filter<input type="search" data-filter placeholder="Message, page or browser" value="${ctx.query.q || ''}"></label>
-        ${apps.length ? html`<label class="narrow">App<select data-app><option value="">All apps</option>${apps.map(a => html`<option ${raw(a === ctx.query.app ? 'selected' : '')}>${a}</option>`)}</select></label>` : ''}</div>
+        <label class="narrow" data-app-wrap ${raw(apps.length ? '' : 'hidden')}>App<select data-app></select></label></div>
       <div data-list></div></section>`.s;
 
   const list = qs('[data-list]', ctx.el);
@@ -36,7 +36,11 @@ export default async function errors(ctx) {
     qsa('[data-clear]', ctx.el).forEach(b => { const k = b.dataset.key; b.disabled = stale || !same || pending.has(k) || done.has(k);
       b.textContent = done.has(k) ? 'Cleared · refresh pending' : b.dataset.label || b.textContent; b.title = !same ? 'Waiting for the new filter results' : pending.has(k) ? 'Clearing…' : ''; }); };
   const render = (r, snap) => {
-    rendered = snap; done.clear(); stale = false; if (seq > 0) clearBanner(); // fresh results supersede any earlier error banner on this page
+    rendered = snap; done.clear(); stale = false;
+    // The app picker follows every accepted response (apps can appear after the page opened).
+    const sel = qs('[data-app]', ctx.el), opts = [...new Set([...(r.apps || []), ...(snap.app ? [snap.app] : [])])].sort();
+    sel.innerHTML = html`<option value="">All apps</option>${opts.map(a => html`<option value="${a}" ${raw(a === snap.app ? 'selected' : '')}>${a}</option>`)}`.s;
+    qs('[data-app-wrap]', ctx.el).hidden = !opts.length;
     const groups = r.groups || [], since = Date.parse(r.since);
     const filtered = !!(snap.q || snap.app);
     // Before 0023 the total and chart cover all apps even when the list is filtered; say so.
@@ -46,7 +50,7 @@ export default async function errors(ctx) {
     list.innerHTML = html`<p class="muted small" style="margin:0 0 8px">${fmtNum(r.matching)} ${filtered ? 'matching ' : ''}distinct ${r.matching === 1 ? 'message' : 'messages'}${r.capped ? ' · showing the newest 500' : ''}</p>
       ${groups.length ? html`<div class="stack">${groups.map((g, i) => html`<details class="collapse error-group">
         <summary><strong>${g.message || '(no message)'}</strong> ${g.first_ever && Date.parse(g.first_ever) >= since ? badge('New', 'tone-new') : ''}<br><span class="muted small">${g.app || 'unknown app'} · ${fmtNum(g.n)} times · ${fmtNum(g.users)} signed-in users · last ${rel(g.last)} · first in window ${rel(g.first)}</span></summary>
-        ${snap.q && g.newest_hit === false ? html`<p class="muted small" style="margin:8px 0 0">Matched an earlier report in this group (its message, page or browser); the newest report is shown below.</p>` : ''}<dl class="kv" style="margin-top:10px"><dt>Page</dt><dd class="mono small">${g.url || '—'}</dd><dt>Browser</dt><dd class="small">${g.user_agent || '—'}</dd><dt>Last seen</dt><dd>${fmtDate(g.last)}</dd></dl>
+        ${snap.q && g.search_hit === true && g.newest_hit === false ? html`<p class="muted small" style="margin:8px 0 0">Matched an earlier report in this group (its message, page or browser); the newest report is shown below.</p>` : ''}<dl class="kv" style="margin-top:10px"><dt>Page</dt><dd class="mono small">${g.url || '—'}</dd><dt>Browser</dt><dd class="small">${g.user_agent || '—'}</dd><dt>Last seen</dt><dd>${fmtDate(g.last)}</dd></dl>
         ${g.stack ? html`<pre class="mono small stack-trace">${g.stack}</pre>` : ''}
         <div class="row" style="margin-top:8px"><button type="button" class="sm ghost" data-copy="${i}">Copy details</button>${canWrite && r.clear === 'ids' ? (Array.isArray(g.ids) ? html`<button type="button" class="sm danger" data-clear="${i}" data-key="${JSON.stringify([g.app, g.message])}" data-label="Clear ${fmtNum(g.n)} reports">Clear ${fmtNum(g.n)} reports</button>` : html`<span class="muted small">Too many reports to clear at once (${fmtNum(g.n)}). Pick a shorter range, or clear in the database if this is already the 24-hour view.</span>`) : ''}</div></details>`)}</div>`
         : empty(filtered ? 'No errors match.' : 'No errors in this window.')}`.s;
