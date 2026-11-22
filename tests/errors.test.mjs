@@ -5,12 +5,13 @@ const dom = new JSDOM('<!doctype html><body><main></main></body>', { url: 'https
 for (const k of ['window','document','history','location','HTMLElement','Node','navigator','URLSearchParams']) { try { globalThis[k] = dom.window[k]; } catch {} }
 globalThis.confirm = () => true;
 // Build a throwaway copy of the page with stubbed api.js/app.js next to the real util.js and errors.js.
-import { mkdtempSync, mkdirSync, copyFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, copyFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url)), root = join(here, '..');
 const tmp = mkdtempSync(join(tmpdir(), 'tower-errors-'));
+process.on('exit', () => rmSync(tmp, { recursive: true, force: true }));
 mkdirSync(join(tmp, 'js', 'pages'), { recursive: true });
 writeFileSync(join(tmp, 'package.json'), '{"type":"module"}');
 copyFileSync(join(root, 'js', 'util.js'), join(tmp, 'js', 'util.js'));
@@ -31,7 +32,7 @@ let ctx = mkctx(); await errors(ctx);
 ok(btns().length === 2 && btns().every(b => !b.disabled), 'initial clear buttons enabled');
 btns()[0].click(); await tick(5);
 ok(errs.length === 0, 'Clear success: no ReferenceError ' + (errs[0]?.message || ''));
-ok(api.calls.clear.length === 1 && api.calls.clear[0].ids.join() === '1,2', 'clearErrorGroup called with shown ids');
+ok(api.calls.clear.length === 1 && api.calls.clear[0].ids.join() === '1,2' && typeof api.calls.clear[0].ids[0] === 'string', 'clearErrorGroup called with shown ids');
 ok(notices.includes('Cleared 2 reports.'), 'notice shown');
 await tick(5);
 ok(api.calls.list.length === 2, 'refetch after clear');
