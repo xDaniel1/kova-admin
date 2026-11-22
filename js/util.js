@@ -96,3 +96,13 @@ export function versionLess(a, b) {
   for (let i = 0; i < Math.max(pa.length, pb.length); i++) { const x = pa[i] || 0, y = pb[i] || 0; if (x !== y) return x < y; }
   return false;
 }
+
+// Contract §announcement: live when enabled, with a title or body, and now inside [starts_at, ends_at).
+// Malformed values count as absent. Shared by Home's Live status and App controls.
+export function announcementLive(x, now = Date.now()) {
+  const text = v => typeof v === 'string' ? v.trim() : '';
+  const bound = (v, dflt) => { if (v == null || v === '') return dflt; const t = Date.parse(v); return Number.isNaN(t) ? NaN : t; };
+  if (!x || x.enabled !== true || !(text(x.title) || text(x.body))) return false;
+  const s = bound(x.starts_at, -Infinity), e = bound(x.ends_at, Infinity);
+  return !Number.isNaN(s) && !Number.isNaN(e) && now >= s && now < e;
+}

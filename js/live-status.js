@@ -2,7 +2,7 @@
 // that are off, and every counted build seen in the last 7 days with the car-screen switch it reads,
 // so a switch that reaches a known-bad build stands out before anyone has to go looking.
 'use strict';
-import { html, raw, fmtNum, rel, href, badge, versionLess } from './util.js';
+import { html, raw, fmtNum, rel, href, badge, versionLess, announcementLive } from './util.js';
 import * as api from './api.js';
 
 const PLATFORM = { ios: 'iOS', android: 'Android', web: 'Web' };
@@ -35,13 +35,11 @@ export async function liveStatusCard() {
   // A live platform announcement replaces the global one on that platform.
   // Apps hide it while that platform is in maintenance, and treat malformed values as absent.
   const now = Date.now();
-  const text = v => typeof v === 'string' ? v.trim() : '';
-  const bound = (v, dflt) => { if (v == null || v === '') return dflt; const t = Date.parse(v); return Number.isNaN(t) ? NaN : t; };
-  const isLive = x => { if (!x || x.enabled !== true || !(text(x.title) || text(x.body))) return false;
-    const s = bound(x.starts_at, -Infinity), e = bound(x.ends_at, Infinity); return !Number.isNaN(s) && !Number.isNaN(e) && now >= s && now < e; };
+  const isLive = x => announcementLive(x, now);
   const inMaint = p => conf.maintenance?.enabled === true || overrides[p]?.maintenance?.enabled === true;
   const shown = [], hidden = [];
-  for (const [p, label] of Object.entries(PLATFORM)) {
+  // Android 1.0.0 reads no config yet (contract adoption table), so it is left out.
+  for (const [p, label] of Object.entries(PLATFORM).filter(([p]) => p !== 'android')) {
     const own = isLive(overrides[p]?.announcement), any = own || isLive(conf.announcement);
     if (any) (inMaint(p) ? hidden : shown).push(own ? `${label} (its own)` : label);
   }

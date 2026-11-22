@@ -55,6 +55,6 @@ export default async function admins(ctx) {
   })();
   api.digestRuns().then(runs => { const host = qs('[data-runs]', ctx.el); if (!host || !ctx.alive()) return;
     host.innerHTML = runs.length ? html`<dl class="kv">${runs.map(r => html`<dt>${rel(r.at)}</dt><dd>${({ sent: () => badge('Sent', 'ok'), skipped: () => badge('Skipped'), timed_out: () => badge('Timed out', 'danger'), not_sent: () => badge('Not sent', 'danger'), sending: () => badge('Sending…') }[r.outcome] || (() => badge(r.status_code ? `Failed · ${r.status_code}` : 'Failed', 'danger')))()} <span class="muted small">${r.detail || ''}</span></dd>`)}</dl>`.s : '<p class="muted small">No scheduled sends yet.</p>';
-  }).catch(e => { const host = qs('[data-runs]', ctx.el); if (host) host.innerHTML = html`<p class="muted small">${e.needsUpgrade ? 'Needs supabase/digest-cron.sql.' : e.message}</p>`.s; });
+  }).catch(e => { if (!ctx.alive()) return; const host = qs('[data-runs]', ctx.el); if (host) host.innerHTML = html`<p class="muted small">${e.needsUpgrade ? 'Needs supabase/digest-cron.sql.' : e.message}</p>`.s; });
   await load();
 }

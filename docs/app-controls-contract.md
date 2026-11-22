@@ -154,7 +154,7 @@ Tells Tower how well our map data covers real drives. Send once at the end of a 
 |---|---|---|---|---|---|---|
 | iOS 1.0.0 b5 | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
 | iOS 1.0.0 b6–b11 | ✅ | ✅ speed_limits, traffic_coloring, transit, voice_guidance; carplay from b7 | ✅ | ✅ | ❌ (please add) | ❌ |
-| iOS 1.0.0 b12–b17 | ✅ | ✅ as b11; car screen reads `carplay` (b7–14), `carplay_safe` (b15–16), `carplay_b17` (b17+); | ✅ | ✅ | ✅ | ❌ |
+| iOS 1.0.0 b12–b17 | ✅ | ✅ as b11; car screen reads `carplay` (b7–14), `carplay_safe` (b15–16), `carplay_b17` (b17+) | ✅ | ✅ | ✅ | ❌ |
 | iOS 1.0.0 b18–b73 (latest `ios-v1.0.0-b73`) | ✅ | ✅ as b17; `map_trees` from b19, `route_road_matching` from b53 | ✅ | ✅ | ✅ | ❌ |
 | iOS builds 3, 4 | read nothing | | | | | |
 | Web 1.0.3–1.0.8 | ✅ | ✅ as 1.0.2; `place_labels`, `rural_detail` from 1.0.3, `map_trees` from 1.0.7 | ✅ | ✅ | ✅ | ❌ |

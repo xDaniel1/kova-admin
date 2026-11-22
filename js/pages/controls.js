@@ -1,6 +1,6 @@
 // App controls: the remote switches the apps read at launch. Every save is audited.
 'use strict';
-import { html, raw, qs, qsa, fmtDate, rel, badge, upgradeCard, versionLess } from '../util.js';
+import { html, raw, qs, qsa, fmtDate, rel, badge, upgradeCard, versionLess, announcementLive } from '../util.js';
 import * as api from '../api.js';
 import { state } from '../app.js';
 import { annotations, auditList } from '../records.js';
@@ -84,7 +84,7 @@ const SECTIONS = {
         ${toggle(label + ' maintenance mode', p + '_maint', m.enabled, 'Pauses network features on ' + label + ' only.')}
         <label>Maintenance message<input name="${p}_maint_msg" maxlength="300" value="${m.message || ''}"></label>
         <details class="collapse"><summary>Features on ${label} (${FEATURES.filter(([k]) => f[k] === false).length} off)</summary><div class="switches" style="margin-top:8px">${FEATURES.map(([k, l]) => toggle(l, p + '_f_' + k, f[k] !== false))}</div></details>
-        <details class="collapse"><summary>${label} announcement ${a.enabled ? '(live)' : ''}</summary><div class="stack" style="margin-top:8px">
+        <details class="collapse"><summary>${label} announcement ${announcementLive(a) ? '(live)' : a.enabled ? '(on, not showing)' : ''}</summary><div class="stack" style="margin-top:8px">
           ${toggle('Show on ' + label, p + '_ann', a.enabled, 'Replaces the global announcement on ' + label + ' while live.')}
           <div class="form-grid"><label>Title<input name="${p}_ann_title" maxlength="80" value="${a.title || ''}"></label><label>Level<select name="${p}_ann_level">${['info', 'warning', 'critical'].map(l => html`<option ${raw(l === (a.level || 'info') ? 'selected' : '')}>${l}</option>`)}</select></label></div>
           <label>Body<textarea name="${p}_ann_body" maxlength="500">${a.body || ''}</textarea></label>
@@ -97,13 +97,13 @@ const SECTIONS = {
       maintenance: { enabled: f.get(p + '_maint') === 'on', message: f.get(p + '_maint_msg').trim() },
       announcement: { ...(prev.announcement || {}), enabled: f.get(p + '_ann') === 'on', title: f.get(p + '_ann_title').trim(), body: f.get(p + '_ann_body').trim(), level: f.get(p + '_ann_level'), url: f.get(p + '_ann_url').trim() || null },
     }]; })),
-    status: v => { const bits = PLATFORMS.flatMap(([p, l]) => { const o = v[p] || {}; return [o.maintenance?.enabled && l + ' paused', Object.values(o.features || {}).includes(false) && l + ' ' + Object.values(o.features).filter(x => x === false).length + ' off', o.announcement?.enabled && l + ' announcing'].filter(Boolean); }); return bits.length ? badge(bits.join(' · '), bits.some(b => b.includes('paused')) ? 'danger' : 'tone-seen') : badge('None', 'ok'); },
+    status: v => { const bits = PLATFORMS.flatMap(([p, l]) => { const o = v[p] || {}; return [o.maintenance?.enabled && l + ' paused', Object.values(o.features || {}).includes(false) && l + ' ' + Object.values(o.features).filter(x => x === false).length + ' off', announcementLive(o.announcement) && l + ' announcing'].filter(Boolean); }); return bits.length ? badge(bits.join(' · '), bits.some(b => b.includes('paused')) ? 'danger' : 'tone-seen') : badge('None', 'ok'); },
   },
   announcement: {
     title: 'Announcement banner', blurb: 'A banner in the apps. Leave the window empty to show it whenever it is enabled.',
-    form: v => html`${toggle('Show the announcement', 'enabled', v.enabled)}<div class="form-grid">${field('Title', 'title', v.title, { attrs: 'maxlength="80"' })}<label>Level<select name="level">${['info', 'warning', 'critical'].map(l => html`<option ${raw(l === (v.level || 'info') ? 'selected' : '')}>${l}</option>`)}</select></label></div><label>Body<textarea name="body" maxlength="500">${v.body || ''}</textarea></label><div class="form-grid">${field('Link (optional)', 'url', v.url, { type: 'url', placeholder: 'https://' })}${field('Starts', 'starts_at', local(v.starts_at), { type: 'datetime-local' })}${field('Ends', 'ends_at', local(v.ends_at), { type: 'datetime-local' })}</div>`,
+    form: v => html`${toggle('Show the announcement', 'enabled', v.enabled)}<div class="form-grid">${field('Title', 'title', v.title, { attrs: 'maxlength="80"' })}<label>Level<select name="level">${['info', 'warning', 'critical'].map(l => html`<option ${raw(l === (v.level || 'info') ? 'selected' : '')}>${l}</option>`)}</select></label></div><label>Body<textarea name="body" maxlength="500">${v.body || ''}</textarea></label><div class="form-grid">${field('Link (optional)', 'url', v.url, { type: 'url', placeholder: 'https://' })}${field('Starts (your local time)', 'starts_at', local(v.starts_at), { type: 'datetime-local' })}${field('Ends (your local time)', 'ends_at', local(v.ends_at), { type: 'datetime-local' })}</div>`,
     read: f => ({ enabled: f.get('enabled') === 'on', title: f.get('title').trim(), body: f.get('body').trim(), level: f.get('level'), url: f.get('url').trim() || null, starts_at: f.get('starts_at') ? new Date(f.get('starts_at')).toISOString() : null, ends_at: f.get('ends_at') ? new Date(f.get('ends_at')).toISOString() : null }),
-    status: v => v.enabled ? badge('Live', 'accent') : badge('Hidden'),
+    status: v => announcementLive(v) ? badge('Live', 'accent') : v.enabled ? badge('On · not showing (empty, scheduled or expired)', 'tone-seen') : badge('Hidden'),
   },
 };
 
