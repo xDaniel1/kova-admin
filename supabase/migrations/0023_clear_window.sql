@@ -2,7 +2,8 @@
 -- (by the exact report ids it showed), and the audited RPC becomes the only way editors delete reports.
 -- Replaces admin_clear_error_group(text, text, timestamptz) from 0022, and refines admin_client_errors:
 -- the total follows the app filter, and first_ever is looked up only for the returned groups. Also: live
--- builds report installs without config_keys, and check-ins stop carrying keys across builds. Rerunnable.
+-- builds report installs without config_keys, check-ins stop carrying keys across builds, and the registry
+-- guard skips platforms whose build did not change. Rerunnable.
 begin;
 
 -- Every Errors query filters by time.
@@ -168,13 +169,12 @@ begin
         if new_b is not null and new_b !~ '^[0-9]+$' then
             raise exception 'Build for % must be a whole number, got %', p, new_b using errcode = '22023';
         end if;
-        if old_b ~ '^[0-9]+$' and (new_b is null or new_b::bigint < old_b::bigint) then
+        if old_b ~ '^[0-9]+$' and (new_b is null or new_b::numeric < old_b::numeric) then
             raise exception 'Build numbers only go up: % is %', p, old_b using errcode = '22023';
         end if;
     end loop;
     return new;
 end $$;
-
 
 -- No direct deletes any more: Tower clears through the RPC above.
 drop policy if exists "Editors clear error reports" on public.client_errors;

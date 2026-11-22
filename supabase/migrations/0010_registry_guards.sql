@@ -19,7 +19,7 @@ begin
         if new_b is not null and new_b !~ '^[0-9]+$' then
             raise exception 'Build for % must be a whole number, got %', p, new_b using errcode = '22023';
         end if;
-        if old_b ~ '^[0-9]+$' and (new_b is null or new_b::bigint < old_b::bigint) then
+        if old_b ~ '^[0-9]+$' and (new_b is null or new_b::numeric < old_b::numeric) then
             raise exception 'Build numbers only go up: % is %', p, old_b using errcode = '22023';
         end if;
     end loop;
