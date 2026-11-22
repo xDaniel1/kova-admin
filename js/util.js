@@ -174,3 +174,12 @@ export function announcementReach(conf, builds, now = Date.now()) {
   }
   return out;
 }
+
+// Whether a live build row (admin_live_builds) is documented to honour a switch, given its adoption
+// thresholds `since` ({ ios, iosTo, web }). Only iOS and web rows can qualify.
+export function switchEligible(x, since) {
+  if (!since || !x) return false;
+  if (x.platform === 'ios') return since.ios != null && /^\d+$/.test(x.build || '') && +x.build >= since.ios && +x.build <= (since.iosTo ?? Infinity);
+  if (x.platform === 'web') return since.web != null && validVersion(x.version) && !versionLess(x.version, since.web);
+  return false;
+}

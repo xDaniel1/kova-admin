@@ -1,6 +1,6 @@
 // App controls: the remote switches the apps read at launch. Every save is audited.
 'use strict';
-import { html, raw, qs, qsa, rel, badge, upgradeCard, versionLess, announcementLive, announcementReach, parseInstant, validVersion } from '../util.js';
+import { html, raw, qs, qsa, rel, badge, upgradeCard, versionLess, announcementLive, announcementReach, parseInstant, validVersion, switchEligible } from '../util.js';
 import * as api from '../api.js';
 import { state } from '../app.js';
 import { annotations, auditList } from '../records.js';
@@ -164,9 +164,7 @@ export default async function controls(ctx) {
   const P = { ios: 'iOS', android: 'Android', web: 'Web' };
   // Reach: counted installs seen in the last 7 days on builds that honour a switch (admin_live_builds,
   // one row per actual build). Reported readers take priority; estimates only fill in where none reported.
-  // One rule for whether a live build row is documented to honour a switch (used by reach and by `partial`).
-  const eligible = (x, since) => x.platform === 'ios' ? since.ios != null && /^\d+$/.test(x.build || '') && +x.build >= since.ios && +x.build <= (since.iosTo ?? Infinity)
-    : x.platform === 'web' ? since.web != null && validVersion(x.version) && !versionLess(x.version, since.web) : false;
+  const eligible = switchEligible;
   const reachOf = (since, builds) => ['ios', 'web'].filter(p => since[p] != null).map(p => { const m = builds.filter(x => x.platform === p); const all = m.reduce((a, x) => a + +x.n, 0);
     const ok = m.filter(x => eligible(x, since)).reduce((a, x) => a + (x.no_keys != null ? +x.no_keys : x.reports_keys ? 0 : +x.n), 0); // only installs that send no config_keys are estimated
     return { label: p === 'ios' ? 'iOS' : 'web', ok, all }; });

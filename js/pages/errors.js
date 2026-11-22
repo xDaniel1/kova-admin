@@ -6,6 +6,10 @@ import * as api from '../api.js';
 import { state, clearBanner } from '../app.js';
 
 const RANGES = [[1, '24 hours'], [7, '7 days'], [30, '30 days']];
+// Clears in flight survive a re-render (for example a range change while one is pending): every render
+// locks those groups, and when one finishes the render that is current then refreshes.
+const inflight = new Set();
+let onClearSettled = null;
 const NEEDS_UPGRADE = html`<section class="card setup"><h2>Database update needed</h2><p>The Errors page needs <code>supabase/migrations/0022_error_filters.sql</code> (and <code>0023_clear_window.sql</code> for Clear).</p></section>`.s;
 
 export default async function errors(ctx) {
@@ -29,7 +33,7 @@ export default async function errors(ctx) {
   // Heading and list always come from the same accepted response and its filter snapshot.
   let rendered = { app: ctx.query.app || null, q: ctx.query.q || null };
   // Clear acts only on what is on screen: it is locked while the requested filters differ from the rendered ones.
-  const pending = new Set(); // groups with a clear in flight
+  const pending = inflight;   // groups with a clear in flight, shared across renders
   let clearErrKey = null;     // the group whose Clear last failed (its banner is cleared by its own later success)
   let stale = false;          // a refresh failed: the list on screen is out of date
   const done = new Set();    // groups cleared since the last render: never actionable again until fresh results arrive
@@ -67,8 +71,8 @@ export default async function errors(ctx) {
       if (!canWrite || !filtersMatch() || pending.has(b.dataset.key)) return; const g = groups[+b.dataset.clear], key = b.dataset.key;
       if (!confirm(`Delete ${g.n} ${(g.app || '').trim() || 'unknown app'} reports of "${(g.message || '').slice(0, 80)}"? Only these reports are deleted; any that arrived since are kept.`)) return;
       pending.add(key); syncClear();
-      try { const n = await api.clearErrorGroup(g.app, g.message, g.ids); pending.delete(key); done.add(key); if (!ctx.alive()) return; if (clearErrKey === key) { clearBanner(); clearErrKey = null; } const gen = ++seq; syncClear(); ctx.notice(n ? `Cleared ${n} reports.` : 'Nothing was cleared (already gone).'); refetch(gen); }
-      catch (e) { pending.delete(key); if (ctx.alive()) { clearErrKey = key; syncClear(); ctx.fail(e); } }
+      try { const n = await api.clearErrorGroup(g.app, g.message, g.ids); pending.delete(key); done.add(key); if (!ctx.alive()) { onClearSettled?.(); return; } if (clearErrKey === key) { clearBanner(); clearErrKey = null; } const gen = ++seq; syncClear(); ctx.notice(n ? `Cleared ${n} reports.` : 'Nothing was cleared (already gone).'); refetch(gen); }
+      catch (e) { pending.delete(key); if (ctx.alive()) { clearErrKey = key; syncClear(); ctx.fail(e); } else onClearSettled?.(); }
     });
   };
   let seq = 0;
@@ -87,6 +91,8 @@ export default async function errors(ctx) {
       stale = true; syncClear();
     } };
   const debounced = debounce(gen => refetch(gen), 250);
+  // This render is now the current one: a clear started by an earlier render refreshes it when it ends.
+  onClearSettled = () => { if (!ctx.alive()) return; const gen = ++seq; syncClear(); refetch(gen); };
   filter.oninput = () => { ctx.query.q = filter.value.trim(); const gen = ++seq; syncClear(); debounced(gen); };
   appSel.onchange = () => { ctx.query.app = appSel.value; const gen = ++seq; syncClear(); refetch(gen); };
   qsa('[data-days]', ctx.el).forEach(b => b.onclick = () => { location.hash = '/errors?' + new URLSearchParams({ days: b.dataset.days, ...(ctx.query.q ? { q: ctx.query.q } : {}), ...(ctx.query.app ? { app: ctx.query.app } : {}) }); });

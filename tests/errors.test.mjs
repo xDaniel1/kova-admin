@@ -95,3 +95,27 @@ let alive = true; ctx.alive = () => alive; let rel2; api.ctl.clearImpl = () => n
 btns()[0].click(); await tick(1); alive = false; rel2(); await tick(10);
 ok(errs.length === 0, 'dead ctx after clear: no error');
 console.log('unhandled/errs:', errs.map(e=>e.message));
+
+// 9. Range change while a Clear is pending: the new render keeps that group locked, and refreshes when it ends.
+{
+  let finish; api.ctl.clearImpl = () => new Promise(r => { finish = () => r(2); });
+  const old = mkctx(); let oldAlive = true; old.alive = () => oldAlive; await errors(old);
+  btns()[0].click(); await tick(5);
+  oldAlive = false;
+  const fresh = mkctx({ days: '30' }); await errors(fresh); await tick(5);
+  ok(btns()[0].disabled, 'range change: pending group stays locked in the new render');
+  const before = api.calls.list.length;
+  finish(); await tick(10);
+  ok(api.calls.list.length > before, 'range change: current render refreshes when the old Clear ends');
+  ok(btns().every(b => !b.disabled), 'range change: unlocked after fresh results');
+  api.ctl.clearImpl = null;
+}
+// 10. Big ids reach the RPC as strings, unchanged.
+{
+  api.ctl.listImpl = () => Promise.resolve({ ...api.mk('big'), groups: [{ ...api.mk('big').groups[0], ids: ['9007199254740993'], n: 1 }] });
+  const c = mkctx(); await errors(c); api.calls.clear.length = 0;
+  btns()[0].click(); await tick(10);
+  ok(api.calls.clear[0]?.ids[0] === '9007199254740993', 'bigint id sent as the exact string');
+  api.ctl.listImpl = null;
+}
+console.log('unhandled/errs (end):', errs.map(e => e.message));
