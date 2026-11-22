@@ -2,6 +2,7 @@
 'use strict';
 import { html, raw, qs, qsa, fmtDate, rel, badge, upgradeCard, versionLess } from '../util.js';
 import * as api from '../api.js';
+import { state } from '../app.js';
 import { annotations, auditList } from '../records.js';
 
 const field = (label, name, value, opts = {}) => html`<label>${label}<input name="${name}" type="${opts.type || 'text'}" value="${value ?? ''}" ${raw(opts.attrs || '')} placeholder="${opts.placeholder || ''}"></label>`;
@@ -34,7 +35,7 @@ export const FEATURES = [
 // apps send config_keys.
 const SINCE = {
   speed_limits: { ios: 6, web: '1.0.2' }, traffic_coloring: { ios: 6, web: '1.0.2' }, transit: { ios: 6, web: '1.0.2' },
-  voice_guidance: { ios: 6, web: '1.0.2' }, carplay: { ios: 7 }, carplay_safe: { ios: 15 }, carplay_b17: { ios: 17 },
+  voice_guidance: { ios: 6, web: '1.0.2' }, carplay: { ios: 7, iosTo: 14 }, carplay_safe: { ios: 15, iosTo: 16 }, carplay_b17: { ios: 17 },
   place_labels: { web: '1.0.3' }, rural_detail: { web: '1.0.3' }, map_trees: { ios: 19, web: '1.0.7' }, route_road_matching: { ios: 53 }, platform_overrides: { ios: 6, web: '1.0.2' },
   indoor_maps: { ios: 5, web: '1.0.0' }, traffic_reports: { ios: 5, web: '1.0.0' }, feedback: { ios: 5, web: '1.0.0' },
   incident_feeds: { ios: 5, web: '1.0.0' }, sync: { ios: 5, web: '1.0.0' },
@@ -122,30 +123,31 @@ export default async function controls(ctx) {
         <details class="collapse" style="margin-top:14px"><summary>Notes and history</summary><div class="stack" style="margin-top:12px"><div data-annotations></div><div><h3 class="eyebrow">History</h3><div data-audit></div></div></div></details>
       </section>`; })}</div>`.s;
   const P = { ios: 'iOS', android: 'Android', web: 'Web' };
-  // Reach: counted installs (30 days) on builds that honour a switch, from the version mix.
-  const reachOf = (since, mix) => ['ios', 'web'].filter(p => since[p] != null).map(p => { const m = mix[p] || []; const all = m.reduce((a, x) => a + +x.n, 0);
-    const ok = m.filter(x => p === 'ios' ? +x.build >= since.ios : !versionLess(x.version, since.web)).reduce((a, x) => a + +x.n, 0);
+  // Reach: counted installs seen in the last 7 days on builds that honour a switch (admin_live_builds,
+  // one row per actual build). Reported readers take priority; estimates only fill in where none reported.
+  const reachOf = (since, builds) => ['ios', 'web'].filter(p => since[p] != null).map(p => { const m = builds.filter(x => x.platform === p); const all = m.reduce((a, x) => a + +x.n, 0);
+    const ok = m.filter(x => p === 'ios' ? +x.build >= since.ios && +x.build <= (since.iosTo ?? Infinity) : !versionLess(x.version, since.web)).reduce((a, x) => a + +x.n, 0);
     return { label: p === 'ios' ? 'iOS' : 'web', ok, all }; });
-  Promise.allSettled([api.configReaders(), api.versions()]).then(([rd, vs]) => { if (!ctx.alive()) return;
-    const readers = rd.status === 'fulfilled' ? rd.value : null;
-    const mix = vs.status === 'fulfilled' ? Object.fromEntries(Object.entries(vs.value.platforms || {}).map(([p, x]) => [p, x.mix || []])) : null;
+  Promise.allSettled([api.configReaders(), api.liveBuilds()]).then(([rd, lb]) => { if (!ctx.alive()) return;
+    const readers = rd.status === 'fulfilled' ? rd.value : null, builds = lb.status === 'fulfilled' ? lb.value : null;
     qsa('[data-reader]', ctx.el).forEach(el => { const key = el.dataset.reader, r = readers?.[key];
-      const real = r && Object.values(r).some(x => !x.test);
-      const since = SINCE[key.replace(/^features\./, '')], reach = since && mix ? reachOf(since, mix) : null;
+      const real = r && Object.entries(r).some(([p, x]) => P[p] && !x.test && +x.installs_30d > 0);
+      const since = SINCE[key.replace(/^features\./, '')], reach = since && builds ? reachOf(since, builds) : null;
       const reached = reach?.some(x => x.ok > 0);
       if (r) el.textContent = 'Last seen reading this: ' + Object.entries(r).sort(([, a], [, b]) => a.test - b.test).map(([p, x]) => `${P[p] || (P[p.split(' ')[0]] + ' (test)')} ${x.version}${x.build ? ' (' + x.build + ')' : ''} ${rel(x.last_seen)}, ${x.installs_30d} installs`).join(' · ');
-      else if (reached) el.textContent = 'Estimated reach (builds that honour it, 30 days): ' + reach.map(x => `${x.label} ${x.ok} of ${x.all}`).join(' · ');
+      else if (reach) el.textContent = 'Estimated reach (counted installs on builds that honour it, 7 days): ' + reach.map(x => `${x.label} ${x.ok} of ${x.all}`).join(' · ');
       const u = el.parentElement?.querySelector('[data-unread]'); if (!u) return;
       u.classList.remove('pending');
       if (real || reached) u.remove();
-      else if (!readers && !mix) { u.textContent = 'Reader check unavailable'; u.title = 'Could not load config_keys reports or the version mix'; }
-      else if (r) { u.textContent = 'Only test builds read this'; u.title = 'No shipped build has reported reading it'; }
-      else { u.textContent = 'No app reads this yet'; u.title = 'No shipped build reads it; flipping it changes nothing today'; } });
+      else if (!readers || (since && !builds)) { u.textContent = 'Reader check unavailable'; u.title = 'Could not load reader reports or live builds, so this is unknown'; }
+      else if (r) { u.textContent = 'Only test or inactive builds read this'; u.title = 'No counted install read it in 30 days'; }
+      else { u.textContent = 'No app reads this yet'; u.title = 'No counted install reads it; flipping it changes nothing today'; } });
   });
+  if (state.role === 'viewer') qsa('[data-form] button[type=submit]', ctx.el).forEach(b => { b.disabled = true; b.title = 'Read-only access'; });
   qsa('.control', ctx.el).forEach(card => {
     const key = card.dataset.key, s = SECTIONS[key], form = qs('[data-form]', card);
     form.onsubmit = async e => {
-      e.preventDefault(); const b = form.querySelector('button[type=submit]'); b.disabled = true;
+      e.preventDefault(); if (state.role === 'viewer') return; const b = form.querySelector('button[type=submit]'); b.disabled = true;
       try {
         const f = new FormData(form);
         const value = s ? s.read(f, rows.find(r => r.key === key)?.value || {}) : JSON.parse(f.get('json'));

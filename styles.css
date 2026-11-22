@@ -177,7 +177,7 @@ label.switch:hover{border-color:var(--line-strong)}label.switch input{margin-top
 /* v5 */
 a.btn{display:inline-flex;align-items:center;justify-content:center;padding:8px 14px;border:1px solid var(--line-strong);border-radius:var(--radius-sm);color:var(--text);font-weight:500;background:var(--panel)}a.btn:hover{text-decoration:none;background:var(--panel-2);border-color:var(--muted)}
 #role-note{margin:16px 28px 0;padding:10px 14px;border-radius:var(--radius-sm);background:var(--warn-soft);color:var(--warn);font-weight:500}
-body.role-viewer main button.primary,body.role-viewer main button.danger,body.role-viewer main [data-act],body.role-viewer main [data-toggle],body.role-viewer main [data-enabled],body.role-viewer main details.collapse>summary,body.role-viewer main [data-tag-form],body.role-viewer main [data-note-form],body.role-viewer main .bulkbar,body.role-viewer main [data-pick],body.role-viewer main select[data-status]{pointer-events:none;opacity:.4}
+body.role-viewer main button.primary,body.role-viewer main button.danger,body.role-viewer main [data-act],body.role-viewer main [data-toggle],body.role-viewer main [data-enabled],body.role-viewer main details.collapse:not(.error-group)>summary,body.role-viewer main [data-tag-form],body.role-viewer main [data-note-form],body.role-viewer main .bulkbar,body.role-viewer main [data-pick],body.role-viewer main select[data-status]{pointer-events:none;opacity:.4}
 .bulkbar{position:sticky;top:64px;z-index:2;display:flex;align-items:center;gap:8px;padding:8px 12px;margin:0 0 8px;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius-sm)}.bulkbar .spacer{flex:1}
 .selectable{display:grid;grid-template-columns:22px 1fr;gap:8px;align-items:start}.selectable>input{margin-top:16px}.selectable .feedback-item{margin:0}
 
@@ -223,7 +223,7 @@ body.role-viewer main [data-block],body.role-viewer main [data-unblock],body.rol
 .todo{margin:6px 0 0;padding-left:18px;display:grid;gap:4px}
 
 /* ---- Design refresh (Tower build 10): calmer surfaces, clearer hierarchy, status at a glance ---- */
-:root{--radius:16px;--radius-sm:10px;--bg:#f4f6fa;--line:#e4e9f0;--shadow-1:0 1px 2px rgba(18,26,38,.04),0 0 0 1px rgba(18,26,38,.02)}
+:root{--radius:16px;--radius-sm:10px;--muted:#5d6a7f;--bg:#f4f6fa;--line:#e4e9f0;--shadow-1:0 1px 2px rgba(18,26,38,.04),0 0 0 1px rgba(18,26,38,.02)}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0b0f15;--panel:#131921;--panel-2:#19202a;--line:#222b37}}
 :root[data-theme=dark]{--bg:#0b0f15;--panel:#131921;--panel-2:#19202a;--line:#222b37}
 body{font-size:14.5px;letter-spacing:-.003em}
@@ -272,3 +272,6 @@ tbody tr{transition:background .1s}tbody tr:hover td{background:color-mix(in srg
 :root:not([data-theme=dark]) .badge.unread,:root:not([data-theme=dark]) .alert-warn{color:#7a5100}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]) .all-clear{color:var(--ok)}:root:not([data-theme=light]) .badge.unread,:root:not([data-theme=light]) .alert-warn{color:var(--warn)}}
 .badge.unread.pending{background:var(--panel-2);color:var(--muted)}
+:root:not([data-theme=dark]) .badge.ok,:root:not([data-theme=dark]) .badge.tone-done{color:#16683f}
+:root:not([data-theme=dark]) .alert-info{color:#1d4fae}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .badge.ok,:root:not([data-theme=light]) .badge.tone-done{color:var(--ok)}:root:not([data-theme=light]) .alert-info{color:var(--accent)}}

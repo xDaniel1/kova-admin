@@ -42,12 +42,13 @@ export async function liveStatusCard() {
     // Builds 7-11 predate config_keys (build 12), so their key follows from the build number. A later
     // build that reports no car key is shown as unconfirmed rather than guessed.
     const n = buildNum(g.build);
-    const reported = [...CAR_KEYS].reverse().find(k => g.keys.has('features.' + k.key));
-    const car = reported || (n >= 7 && n <= 11 ? CAR_KEYS[0] : null);
-    if (!car) return html`<span class="muted small">${n >= 12 ? 'reader unconfirmed' : 'no CarPlay'}</span>`;
-    const live = on('ios', car.key);
-    if (car.bad && live) risky.push(g);
-    return html`<code>${car.key}</code>${reported ? '' : html`<span class="muted small"> (by build)</span>`} ${live ? badge(car.bad ? 'On · crashes' : 'On', car.bad ? 'danger' : 'ok') : badge('Off', car.bad ? 'ok' : 'tone-seen')}`;
+    const reported = CAR_KEYS.filter(k => g.keys.has('features.' + k.key));
+    const cars = reported.length ? reported : n >= 7 && n <= 11 ? [CAR_KEYS[0]] : [];
+    if (!cars.length) return html`<span class="muted small">${n >= 12 ? 'reader unconfirmed' : 'no CarPlay'}</span>`;
+    // If installs of one build report different keys, warn when any crash-prone key among them is on.
+    if (cars.some(c => c.bad && on('ios', c.key))) risky.push(g);
+    return html`${cars.map((car, i) => { const live = on('ios', car.key);
+      return html`${i ? html`<br>` : ''}<code>${car.key}</code>${reported.length ? '' : html`<span class="muted small"> (by build)</span>`} ${live ? badge(car.bad ? 'On · crashes' : 'On', car.bad ? 'danger' : 'ok') : badge('Off', car.bad ? 'ok' : 'tone-seen')}`; })}${cars.length > 1 ? html`<br><span class="muted small">installs disagree</span>` : ''}`;
   };
   const body = rows.map(g => html`<tr>
       <td><span class="plat plat-${g.platform}">${PLATFORM[g.platform] || g.platform}</span></td>

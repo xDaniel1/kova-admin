@@ -155,12 +155,14 @@ Tells Tower how well our map data covers real drives. Send once at the end of a 
 |---|---|---|---|---|---|---|
 | iOS 1.0.0 b5 | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
 | iOS 1.0.0 b6–b11 (b11 latest upload `ios-v1.0.0-b11`; public beta b8) | ✅ | ✅ speed_limits, traffic_coloring, transit, voice_guidance; carplay from b7 | ✅ | ✅ | ❌ (please add) | ❌ |
-| iOS 1.0.0 b12–b17 (latest `ios-v1.0.0-b17`) | ✅ | ✅ as b11; car screen reads `carplay` (b7–14), `carplay_safe` (b15–16), `carplay_b17` (b17+); sends channel and config_keys from b12 | ✅ | ✅ | ❌ (please add) | ❌ |
+| iOS 1.0.0 b12–b17 | ✅ | ✅ as b11; car screen reads `carplay` (b7–14), `carplay_safe` (b15–16), `carplay_b17` (b17+); sends channel and config_keys from b12 | ✅ | ✅ | ❌ (please add) | ❌ |
+| iOS 1.0.0 b18–b73 (latest `ios-v1.0.0-b73`) | ✅ | ✅ as b17; `map_trees` from b19, `route_road_matching` from b53 | ✅ | ✅ (channel, config_keys) | ✅ | ❌ |
 | iOS builds 3, 4 | read nothing | | | | | |
+| Web 1.0.3–1.0.8 | ✅ | ✅ as 1.0.2; `place_labels`, `rural_detail` from 1.0.3, `map_trees` from 1.0.7 | ✅ | ✅ (channel, config_keys) | ✅ | ❌ |
 | Web 1.0.2 (deploy build 41) | ✅ | ✅ speed_limits, traffic_coloring, transit, voice_guidance | ✅ | ✅ (skips automated browsers) | ❌ (please add; CI runs are marked as test in Tower by hand until then) | ❌ |
 | Android 1.0.0 (1) | ❌ | ❌ (`android_auto` is its key) | ❌ | ❌ | ❌ | ❌ |
 
-`place_labels`, `flat_turns` and `rural_detail` (migration 0017) are not read by any build yet; they are on.
+`flat_turns` and `android_auto` are not read by any build yet; they are on. `place_labels` and `rural_detail` are read by web 1.0.3+ only. Tower marks a switch "No app reads this yet" from live reader reports.
 
 Tower controls every key above, including those no app reads yet; each control shows which builds were last seen reading it once apps send `config_keys`.
 

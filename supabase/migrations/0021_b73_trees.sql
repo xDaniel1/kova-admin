@@ -11,7 +11,8 @@ update public.app_config
 update public.app_config set value = jsonb_set(value, '{ios}', coalesce(value->'ios', '{}') || jsonb_build_object('version', '1.0.0', 'build', '73',
         'tag', 'ios-v1.0.0-b73', 'note', 'Builds 18-73: trees, routes on map roads, /collab review rounds'))
  where key = 'released_versions' and coalesce((value #>> '{ios,build}')::int, 0) <= 73;
-update public.app_config set value = jsonb_set(value, '{web}', coalesce(value->'web', '{}') || jsonb_build_object('version', '1.0.8'))
+-- The web deploy build for 1.0.8 is not known here; clear the 1.0.4 one rather than pair it with 1.0.8.
+update public.app_config set value = jsonb_set(value, '{web}', coalesce(value->'web', '{}') || jsonb_build_object('version', '1.0.8', 'build', null))
  where key = 'released_versions' and (value #>> '{web,version}') in ('1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.0.4', '1.0.5', '1.0.6', '1.0.7', '1.0.8');
 update public.app_config set value = jsonb_set(value, '{web}', '"1.0.8"')
  where key = 'latest_version' and value->>'web' in ('1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.0.4', '1.0.5', '1.0.6', '1.0.7');
@@ -27,7 +28,8 @@ as $$ begin
                max(c.last_seen) as last,
                coalesce((select array_agg(distinct k) from public.app_clients c2, unnest(c2.config_keys) k
                           where c2.platform = c.platform and c2.app_version = c.app_version and c2.build = c.build
-                            and c2.last_seen > now() - interval '7 days' and k like 'features.carplay%'), '{}') as car_keys,
+                            and c2.last_seen > now() - interval '7 days' and k like 'features.carplay%'
+                            and public.client_counted(c2.platform, c2.app_version, c2.build, c2.channel)), '{}') as car_keys,
                bool_or(c.config_keys is not null) as reports_keys
           from public.app_clients c
          where c.last_seen > now() - interval '7 days' and public.client_counted(c.platform, c.app_version, c.build, c.channel)
@@ -45,17 +47,19 @@ declare since timestamptz := now() - make_interval(days => greatest(least(days, 
 begin
     if not public.is_admin() then raise exception 'Not an admin' using errcode = '42501'; end if;
     return json_build_object(
+        'since', since,
         'total', (select count(*) from public.client_errors where created_at > since),
-        'groups', (select coalesce(json_agg(x order by x.last desc), '[]'::json) from (
-            select e.app, left(e.message, 300) as message, count(*) as n, count(distinct e.user_id) as users,
-                   min(e.created_at) as first, max(e.created_at) as last,
-                   (select min(a.created_at) from public.client_errors a where a.app = e.app and left(a.message, 300) = left(e.message, 300)) as first_ever,
-                   (array_agg(e.url order by e.created_at desc))[1] as url,
-                   (array_agg(e.user_agent order by e.created_at desc))[1] as user_agent,
-                   (array_agg(left(e.stack, 1500) order by e.created_at desc))[1] as stack,
-                   array_agg(e.id order by e.created_at desc) as ids
-              from public.client_errors e where e.created_at > since
-             group by e.app, left(e.message, 300) order by max(e.created_at) desc limit 500) x),
+        'groups', (select coalesce(json_agg(g order by g.last desc), '[]'::json) from (
+            select w.*, (select min(a.created_at) from public.client_errors a
+                          where a.app is not distinct from w.app and left(a.message, 300) is not distinct from w.message) as first_ever
+              from (select e.app, left(e.message, 300) as message, count(*) as n, count(distinct e.user_id) as users,
+                           min(e.created_at) as first, max(e.created_at) as last,
+                           (array_agg(e.url order by e.created_at desc))[1] as url,
+                           (array_agg(e.user_agent order by e.created_at desc))[1] as user_agent,
+                           (array_agg(left(e.stack, 1500) order by e.created_at desc))[1] as stack,
+                           array_agg(e.id order by e.created_at desc) as ids
+                      from public.client_errors e where e.created_at > since
+                     group by e.app, left(e.message, 300) order by max(e.created_at) desc limit 500) w) g),
         'daily', (select coalesce(json_agg(json_build_object('day', to_char(g.day, 'YYYY-MM-DD'), 'n', coalesce(x.n, 0)) order by g.day), '[]'::json)
                     from (select gs::date as day from generate_series(current_date - 29, current_date, interval '1 day') gs) g
                     left join (select created_at::date as day, count(*) as n from public.client_errors where created_at > current_date - 30 group by 1) x on x.day = g.day));

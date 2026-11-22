@@ -2,6 +2,7 @@
 'use strict';
 import { html, raw, qs, qsa, fmtDate, fmtNum, fmtBytes, rel, table, badge, upgradeCard } from '../util.js';
 import * as api from '../api.js';
+import { state } from '../app.js';
 import { versionsCard, loadSiteLive } from '../versions.js';
 import * as push from '../push.js';
 
@@ -79,6 +80,7 @@ async function renderSources(ctx) {
   const P = { ios: 'iOS', android: 'Android', web: 'Web' };
   const status = g => { const t = marked.get(`${g.platform}|${g.app_version}|${g.build}`);
     if (!g.build || g.build === 'dev') return [badge('Dev build'), ''];
+    if (state.role === 'viewer') return [t ? badge('Test build', 'tone-seen') : !['production', 'beta'].includes(g.channel) ? badge(g.channel + ' channel') : badge('Counted', 'ok'), ''];
     if (t) return [badge('Test build', 'tone-seen'), html`<button type="button" class="sm ghost" data-unmark="${g.platform}|${g.app_version}|${g.build}" title="${t.note || ''}">Count it</button>`];
     if (!['production', 'beta'].includes(g.channel)) return [badge(g.channel + ' channel'), ''];
     return [badge('Counted', 'ok'), html`<button type="button" class="sm ghost" data-mark="${g.platform}|${g.app_version}|${g.build}">Mark as test</button>`]; };
