@@ -10,6 +10,28 @@ update public.app_config
    set value = jsonb_build_object('carplay_safe', true, 'carplay_b17', true) || value
  where key = 'features';
 
+-- The registry guard from 0010, current version (skips platforms whose build did not change), installed
+-- before the seeds so an upgrade never fails on another platform's untouched build.
+create or replace function public.app_config_builds_only_up()
+returns trigger language plpgsql set search_path = ''
+as $$
+declare p text; old_b text; new_b text;
+begin
+    if new.key <> 'released_versions' then return new; end if;
+    foreach p in array array['ios', 'android', 'web', 'site'] loop
+        old_b := old.value #>> array[p, 'build'];
+        new_b := new.value #>> array[p, 'build'];
+        if new_b is not distinct from old_b then continue; end if; -- an untouched platform is never re-validated
+        if new_b is not null and new_b !~ '^[0-9]+$' then
+            raise exception 'Build for % must be a whole number, got %', p, new_b using errcode = '22023';
+        end if;
+        if old_b ~ '^[0-9]+$' and (new_b is null or new_b::numeric < old_b::numeric) then
+            raise exception 'Build numbers only go up: % is %', p, old_b using errcode = '22023';
+        end if;
+    end loop;
+    return new;
+end $$;
+
 -- Each platform under its own guard, merged into its existing object: keeps beta_build and any other
 -- fields, sets version/build (and tag/note where given), and drops pending_build only when it is a number at
 -- or below the seeded release (a non-numeric pending build is kept). A missing or JSON-null entry starts empty; any other non-object is left alone.

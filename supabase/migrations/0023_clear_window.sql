@@ -154,6 +154,16 @@ end $$;
 revoke all on function public.report_client(uuid, text, text, text, text, text, text[]) from public;
 grant execute on function public.report_client(uuid, text, text, text, text, text, text[]) to anon, authenticated;
 
+-- One-time reset of reported switch lists: before this migration a check-in without keys could keep the
+-- previous build's list. Current apps (iOS 12+, web 1.0.3+) send their list on every launch, so each install
+-- re-reports within its next check-in; until then it simply counts as not reporting.
+do $$ begin
+    if not exists (select 1 from kova_private.settings where key = 'config_keys_reset_v1') then
+        update public.app_clients set config_keys = null where config_keys is not null;
+        insert into kova_private.settings (key, value) values ('config_keys_reset_v1', now()::text);
+    end if;
+end $$;
+
 -- Registry guard (from 0010): a platform whose build did not change is not re-validated, so seeding one
 -- platform never fails on another platform's untouched (even malformed) build.
 create or replace function public.app_config_builds_only_up()

@@ -33,7 +33,8 @@ export default async function errors(ctx) {
   let clearErrKey = null;     // the group whose Clear last failed (its banner is cleared by its own later success)
   let stale = false;          // a refresh failed: the list on screen is out of date
   const done = new Set();    // groups cleared since the last render: never actionable again until fresh results arrive
-  const filtersMatch = () => (ctx.query.app || null) === rendered.app && (ctx.query.q || null) === rendered.q;
+  let renderedGen = 0;        // request generation of the results on screen; Clear needs it to be the latest
+  const filtersMatch = () => renderedGen === seq && (ctx.query.app || null) === rendered.app && (ctx.query.q || null) === rendered.q;
   const syncClear = () => { const same = filtersMatch();
     qsa('[data-clear]', ctx.el).forEach(b => { const k = b.dataset.key; b.disabled = stale || !same || pending.has(k) || done.has(k);
       b.textContent = done.has(k) ? 'Cleared · refresh pending' : b.dataset.label || b.textContent; b.title = !same ? 'Waiting for the new filter results' : pending.has(k) ? 'Clearing…' : ''; }); };
@@ -76,7 +77,7 @@ export default async function errors(ctx) {
   const filter = qs('[data-filter]', ctx.el), appSel = qs('[data-app]', ctx.el);
   // Each change bumps the generation at once, so a response for an older filter is never painted.
   const refetch = async gen => { const snap = { app: ctx.query.app || null, q: ctx.query.q || null };
-    try { const r = await api.clientErrors(days, snap.app, snap.q); if (!ctx.alive() || gen !== seq) return; render(r, snap);
+    try { const r = await api.clientErrors(days, snap.app, snap.q); if (!ctx.alive() || gen !== seq) return; renderedGen = gen; render(r, snap);
       try { history.replaceState(null, '', '#/errors?' + new URLSearchParams({ days, ...(snap.q ? { q: snap.q } : {}), ...(snap.app ? { app: snap.app } : {}) })); } catch {} }
     catch (e) { if (!ctx.alive() || gen !== seq) return; if (e.needsUpgrade) { ctx.el.innerHTML = NEEDS_UPGRADE; return; }
       // Keep the old list visible but inert, and offer to retry the read.
