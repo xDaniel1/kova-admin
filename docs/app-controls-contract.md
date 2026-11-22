@@ -59,10 +59,9 @@ Returns an array of `{ "key": string, "value": object }`. Decode each key on its
 | `carplay_b17` | Same, for iOS build 17 and later. A new key per fixed build lets Tower keep crashing builds off the car. |
 | `map_trees` | 3D trees planted from satellite tree cover (`tree_cover_tiles`). iOS build 19+, web 1.0.7+. Off: no trees drawn, no tiles fetched. |
 | `route_road_matching` | Driving routes matched to Mapbox roads (Map Matching). iOS build 53+. Off: Apple's route line is drawn as is. |
-| `flat_turns`, `android_auto` | No app reads these yet; flipping them changes nothing. Tower marks them. |
-| `android_auto` | Android: the car app shows the same unavailable screen. |
-| `place_labels` | Do not name shops, restaurants and attractions on the map (venues and streets). |
-| `flat_turns` | Keep the driving map's tilt through turns instead of dropping to 2D. |
+| `android_auto` | Android (once it reads the switch; no build does yet): the car app shows the same unavailable screen. |
+| `place_labels` | Web 1.0.3+: do not name shops, restaurants and attractions on the map (venues and streets). |
+| `flat_turns` | Once an app reads it (none does yet): keep the driving map's tilt through turns instead of dropping to 2D. |
 | `rural_detail` | Web: draw minor roads, small towns and unpaved surfaces with the standard style. |
 
 The last six keys were added in Tower migration 0012 (Nov 11 2026). They are on in the live config, so an app that starts honouring them changes nothing until someone switches one off. A missing key means **enabled**. Check the switch where the feature starts its network work, not only in the UI.

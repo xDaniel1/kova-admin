@@ -2,10 +2,6 @@
 
 Tower uses the shared Kova version (semantic version plus a build number that only goes up). Releases are tagged `tower-v<version>`. Database migrations in `supabase/migrations/` are numbered separately.
 
-## Unreleased
-
-- Database migration 0020 (already applied to production): `speed_limits_in_box` no longer times out for signed-out apps. Row-level security stopped Postgres from using the overlap index, so every call scanned 1.86 M rows (about 5.2 s, past the 3 s limit). It now takes 0.2–0.5 s, and the Speed limits region and source switches still apply. Fixes database speed limits on iPhone and web.
-
 ## 1.0.0 (build 11) · 2026-11-22
 
 - App controls: every switch shows whether an app actually reads it. Switches no shipped build reads are marked "No app reads this yet", and switches only test builds read are marked "Only test builds read this". The check uses `config_keys` reports and the version mix. New switches: `map_trees` (iOS 19+, web 1.0.7+) and `route_road_matching` (iOS 53+).
@@ -15,7 +11,9 @@ Tower uses the shared Kova version (semantic version plus a build number that on
 - Moderation: block by email (exact match, `admin_user_by_email`). Prompts name the account. Viewers no longer see block and unblock controls.
 - Map data: NYSDOT is labelled as state roads.
 - Daily digest: the schedule reads its secret from `kova_private.settings`, and the function checks it in constant time.
+- Viewer-role admins get no write controls on Controls, System, Errors, Moderation or record notes and tags (not only greyed out). The digest schedule logs each run (`admin_digest_runs`).
 - Light-theme contrast fixes. Migration 0021.
+- Database migration 0020 (already applied to production): `speed_limits_in_box` no longer times out for signed-out apps. Row-level security stopped Postgres from using the overlap index, so every call scanned 1.86 M rows (about 5.2 s, past the 3 s limit). It now takes 0.2–0.5 s, and the Speed limits region and source switches still apply. Fixes database speed limits on iPhone and web.
 
 ## 1.0.0 (build 10) · 2026-11-13
 

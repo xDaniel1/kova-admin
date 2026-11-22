@@ -3,6 +3,8 @@
 -- stored in kova_private.settings (key 'digest_secret'), so the secret is never written into cron.job:
 --   insert into kova_private.settings (key, value) values ('digest_secret', '<DIGEST_SECRET>')
 --   on conflict (key) do update set value = excluded.value;
+-- After switching from the old schedule (secret inline in the command): rotate DIGEST_SECRET and run
+--   delete from cron.job_run_details where command like '%x-digest-secret%';
 -- Rerunnable.
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
@@ -41,5 +43,5 @@ as $$ begin
           from kova_private.digest_runs r left join net._http_response h on h.id = r.request_id
          order by r.at desc limit 10) x);
 end $$;
-revoke all on function public.admin_digest_runs() from public;
+revoke all on function public.admin_digest_runs() from public, anon;
 grant execute on function public.admin_digest_runs() to authenticated;

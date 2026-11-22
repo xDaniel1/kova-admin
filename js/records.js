@@ -3,6 +3,7 @@
 'use strict';
 import { html, raw, qsa, qs, fmtDate, rel, href, upgradeCard, empty } from './util.js';
 import * as api from './api.js';
+import { state } from './app.js';
 import { icon } from './icons.js';
 
 export const typeLabel = { user: 'User', feedback: 'Feedback', report: 'Report', venue: 'Venue', feed: 'Feed', config: 'App control' };
@@ -36,14 +37,15 @@ export async function annotations(el, type, id, ctx) {
       </article>`) : empty('No notes yet.')}</div>`.s;
 
   const rerender = () => annotations(el, type, id, ctx);
-  qs('[data-tag-form]', el).onsubmit = async e => {
+  if (state.role === 'viewer') el.querySelectorAll('[data-tag-form],[data-note-form]').forEach(f => f.remove());
+  const tagForm = qs('[data-tag-form]', el); if (tagForm) tagForm.onsubmit = async e => {
     e.preventDefault(); const input = e.currentTarget.elements.namedItem('tag'); const tag = input.value.trim().toLowerCase(); if (!tag) return;
     e.currentTarget.querySelector('button').disabled = true;
     try { await api.addTag(type, id, tag, ctx.user.id); ctx.notice('Tag added.'); await rerender(); }
     catch (err) { if (/duplicate|unique/i.test(err.message)) ctx.notice('That tag is already on this record.'); else ctx.fail(err); e.currentTarget.querySelector('button').disabled = false; }
   };
   qsa('[data-untag]', el).forEach(b => b.onclick = async () => { b.disabled = true; try { await api.removeTag(type, id, b.dataset.untag); await rerender(); } catch (err) { ctx.fail(err); b.disabled = false; } });
-  qs('[data-note-form]', el).onsubmit = async e => {
+  const noteForm = qs('[data-note-form]', el); if (noteForm) noteForm.onsubmit = async e => {
     e.preventDefault(); const body = e.currentTarget.elements.namedItem('body').value.trim(); if (!body) return;
     e.currentTarget.querySelector('button').disabled = true;
     try { await api.addNote(type, id, body, ctx.user.id); ctx.notice('Note added.'); await rerender(); }
