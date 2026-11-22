@@ -17,7 +17,7 @@ export default async function errors(ctx) {
   ctx.el.innerHTML = html`
     <section class="card"><div class="card-head"><h2 data-total></h2>
       <div class="seg">${RANGES.map(([n, l]) => html`<button type="button" data-days="${n}" aria-pressed="${n === days ? 'true' : 'false'}">${l}</button>`)}</div></div>
-      ${barChart('Errors per day · 30 days', d.daily)}</section>
+      <div data-chart>${barChart('Errors per day · 30 days' + (ctx.query.app ? ' · ' + ctx.query.app : ''), d.daily)}</div></section>
     <section class="card" style="margin-top:18px"><div class="card-head"><h2>By message</h2><span class="muted small">Newest first. Clearing deletes those reports.</span></div>
       <div class="toolbar"><label>Filter<input type="search" data-filter placeholder="Message, page or browser" value="${ctx.query.q || ''}"></label>
         ${apps.length ? html`<label class="narrow">App<select data-app><option value="">All apps</option>${apps.map(a => html`<option ${raw(a === ctx.query.app ? 'selected' : '')}>${a}</option>`)}</select></label>` : ''}</div>
@@ -28,6 +28,7 @@ export default async function errors(ctx) {
   const render = (r, snap) => {
     const groups = r.groups || [], since = Date.parse(r.since);
     const filtered = !!(snap.q || snap.app);
+    qs('[data-chart]', ctx.el).innerHTML = barChart('Errors per day · 30 days' + (snap.app ? ' · ' + snap.app : ''), r.daily).s;
     qs('[data-total]', ctx.el).textContent = `${fmtNum(r.total)} errors${snap.app ? ' from ' + snap.app : ''}`;
     list.innerHTML = html`<p class="muted small" style="margin:0 0 8px">${fmtNum(r.matching)} ${filtered ? 'matching ' : ''}distinct ${r.matching === 1 ? 'message' : 'messages'}${r.capped ? ' · showing the newest 500' : ''}</p>
       ${groups.length ? html`<div class="stack">${groups.map((g, i) => html`<details class="collapse error-group">

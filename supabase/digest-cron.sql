@@ -69,14 +69,17 @@ as $$ begin
     delete from kova_private.digest_runs where at < now() - interval '60 days';
 end $$;
 revoke all on function kova_private.settle_digest_runs() from public, anon, authenticated;
--- Rows settled before outcomes existed: keep what is known, mark the rest unknown.
+-- Rows settled before outcomes existed, or marked unknown by an earlier backfill that misread the stored
+-- detail: the settle job wrote detail as 'sent to N' or 'skipped: reason', so classify from that text.
 update kova_private.digest_runs set outcome = case
         when request_id is null then 'not_sent'
         when detail ilike '%timed out%' then 'timed_out'
-        when status_code between 200 and 299 then coalesce((select x.outcome from kova_private.digest_result(status_code, false, detail, null) x), 'unknown')
+        when status_code between 200 and 299 and detail ~ '^sent to [1-9][0-9]*$' then 'sent'
+        when status_code between 200 and 299 and detail like 'skipped:%' then 'skipped'
+        when status_code between 200 and 299 then 'unknown'
         when status_code is not null then 'failed'
         else 'unknown' end
- where settled_at is not null and outcome is null;
+ where settled_at is not null and (outcome is null or (outcome = 'unknown' and status_code between 200 and 299));
 
 create or replace function kova_private.run_tower_digest()
 returns void language plpgsql security definer set search_path = ''

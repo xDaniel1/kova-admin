@@ -71,7 +71,7 @@ const SECTIONS = {
     title: 'Maintenance mode', blurb: 'Stops network features in the apps and shows a message. Use it during a bad deploy or a Supabase incident.',
     form: v => html`${toggle('Maintenance mode is on', 'enabled', v.enabled, 'Apps show the message and pause sync, reports and feedback.')}<label>Message<textarea name="message" maxlength="300">${v.message || ''}</textarea></label>`,
     read: f => ({ enabled: f.get('enabled') === 'on', message: f.get('message').trim() }),
-    status: v => v.enabled ? badge('ON · apps paused', 'danger') : badge('Off', 'ok'),
+    status: v => v.enabled === true ? badge('ON · apps paused', 'danger') : badge('Off', 'ok'),
   },
   released_versions: {
     title: 'Released versions', blurb: 'What has shipped. One shared version across products, plus a build number per platform that only goes up. Informational: the apps do not act on it.',
@@ -119,13 +119,13 @@ const SECTIONS = {
       maintenance: { enabled: f.get(p + '_maint') === 'on', message: f.get(p + '_maint_msg').trim() },
       announcement: { ...(prev.announcement || {}), enabled: f.get(p + '_ann') === 'on', title: f.get(p + '_ann_title').trim(), body: f.get(p + '_ann_body').trim(), level: f.get(p + '_ann_level'), url: f.get(p + '_ann_url').trim() || null },
     }]; })),
-    status: v => { const bits = PLATFORMS.flatMap(([p, l]) => { const o = v[p] || {}; return [o.maintenance?.enabled && l + ' paused', Object.values(o.features || {}).includes(false) && l + ' ' + Object.values(o.features).filter(x => x === false).length + ' off', platformAnnouncement({ ...CONF, platform_overrides: v }, p) === 'live' && announcementLive(o.announcement) && l + ' announcing'].filter(Boolean); }); return bits.length ? badge(bits.join(' · '), bits.some(b => b.includes('paused')) ? 'danger' : 'tone-seen') : badge('None', 'ok'); },
+    status: v => { const bits = PLATFORMS.flatMap(([p, l]) => { const o = v[p] || {}; return [p !== 'android' && o.maintenance?.enabled === true && l + ' paused', Object.values(o.features || {}).includes(false) && l + ' ' + Object.values(o.features).filter(x => x === false).length + ' off', platformAnnouncement({ ...CONF, platform_overrides: v }, p) === 'live' && announcementLive(o.announcement) && l + ' announcing'].filter(Boolean); }); return bits.length ? badge(bits.join(' · '), bits.some(b => b.includes('paused')) ? 'danger' : 'tone-seen') : badge('None', 'ok'); },
   },
   announcement: {
     title: 'Announcement banner', blurb: 'A banner in the apps. Leave the window empty to show it whenever it is enabled.',
     form: v => html`${toggle('Show the announcement', 'enabled', v.enabled)}<div class="form-grid">${field('Title', 'title', v.title, { attrs: 'maxlength="80"' })}<label>Level<select name="level">${['info', 'warning', 'critical'].map(l => html`<option ${raw(l === (v.level || 'info') ? 'selected' : '')}>${l}</option>`)}</select></label></div><label>Body<textarea name="body" maxlength="500">${v.body || ''}</textarea></label><div class="form-grid">${field('Link (optional)', 'url', v.url, { type: 'url', placeholder: 'https://' })}${field('Starts (your local time)', 'starts_at', local(v.starts_at), { type: 'datetime-local' })}${field('Ends (your local time)', 'ends_at', local(v.ends_at), { type: 'datetime-local' })}<input type="hidden" name="starts_at_orig" value="${v.starts_at || ''}"><input type="hidden" name="ends_at_orig" value="${v.ends_at || ''}"></div>`,
     read: f => ({ enabled: f.get('enabled') === 'on', title: f.get('title').trim(), body: f.get('body').trim(), level: f.get('level'), url: f.get('url').trim() || null, starts_at: fromLocal(f.get('starts_at'), f.get('starts_at_orig'), 'Starts'), ends_at: fromLocal(f.get('ends_at'), f.get('ends_at_orig'), 'Ends') }),
-    status: v => announcementLive(v) ? badge('Live', 'accent') : v.enabled ? badge('On · not showing (empty, scheduled or expired)', 'tone-seen') : badge('Hidden'),
+    status: v => announcementLive(v) ? (CONF.maintenance?.enabled === true ? badge('On · hidden by maintenance', 'tone-seen') : badge('Live', 'accent')) : v.enabled ? badge('On · not showing (empty, scheduled or expired)', 'tone-seen') : badge('Hidden'),
   },
 };
 
