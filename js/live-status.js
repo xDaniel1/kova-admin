@@ -2,7 +2,7 @@
 // that are off, and every counted build seen in the last 7 days with the car-screen switch it reads,
 // so a switch that reaches a known-bad build stands out before anyone has to go looking.
 'use strict';
-import { html, raw, fmtNum, rel, href, badge, versionLess, announcementLive, announcementReach } from './util.js';
+import { html, raw, fmtNum, rel, href, badge, versionLess, announcementLive, announcementReach, installCohort } from './util.js';
 import * as api from './api.js';
 
 const PLATFORM = { ios: 'iOS', android: 'Android', web: 'Web' };
@@ -43,18 +43,16 @@ export async function liveStatusCard() {
   if (shown.length) alerts.push(['info', `Announcement live on ${shown.join(', ')}`]);
   if (hidden.length) alerts.push(['warn', `Announcement set for ${hidden.join(', ')} but hidden by maintenance there`]);
   if (blocked.length) alerts.push(['warn', `Announcement not seen by ${blocked.join(', ')}: they get the required-update screen`]);
-  // Contract adoption table: platform_overrides are read from iOS build 6 and web 1.0.2. Older installs
-  // still in use follow only the global settings, so say so whenever an override is active for them.
-  const OVERRIDES_FROM = { ios: g => buildNum(g.build) >= 6, web: g => !versionLess(g.version, '1.0.2') };
+  // Older installs still in use (iOS build 5, web before 1.0.2) read only the global settings, so say so
+  // whenever a platform-only setting is active. Same adoption and update rules as announcementReach.
   for (const [p, label] of READS) {
     const o = overrides[p] || {};
     const active = (o.maintenance?.enabled === true && conf.maintenance?.enabled !== true) || Object.values(o.features || {}).includes(false) || announcementLive(o.announcement, now);
-    // iOS builds 3 and 4 read no config at all, and an unknown build can't be placed, so only b5 counts.
-    const minV = conf.min_version?.[p];
-    const legacy = (rows || []).filter(g => g.platform === p && (p === 'ios' ? buildNum(g.build) === 5 : !OVERRIDES_FROM[p](g)) && !(typeof minV === 'string' && minV && versionLess(g.version, minV))).reduce((a, g) => a + +g.n, 0);
-    if (active && legacy) alerts.push(['warn', `${fmtNum(legacy)} ${label} install${legacy === 1 ? '' : 's'} on ${p === 'ios' ? 'builds before 6' : 'versions before 1.0.2'} ignore${legacy === 1 ? 's' : ''} ${label}-only settings and follow the global ones`]);
+    const legacy = (rows || []).filter(g => g.platform === p).filter(g => { const c = installCohort(p, g, conf); return c.kind === 'global' && !c.blocked; }).reduce((a, g) => a + +g.n, 0);
+    if (active && legacy) alerts.push(['warn', `${fmtNum(legacy)} ${label} install${legacy === 1 ? '' : 's'} on ${p === 'ios' ? 'build 5' : 'versions before 1.0.2'} ignore${legacy === 1 ? 's' : ''} ${label}-only settings and follow the global ones`]);
   }
-  if (!reach.length && conf.announcement?.enabled === true) alerts.push(['info', 'Announcement is switched on but not showing (empty, scheduled or expired)']);
+  if (conf.announcement?.enabled === true && !announcementLive(conf.announcement, now)) alerts.push(['info', 'Announcement is switched on but not showing (empty, scheduled or expired)']);
+  else if (announcementLive(conf.announcement, now) && !reach.some(x => x.source === 'global')) alerts.push(['info', 'Announcement is live, but no active install shows it (none read it, or each platform shows its own)']);
 
   rows = (rows || []).map(g => ({ ...g, keys: new Set(g.car_keys || []) }))
     .sort((a, b) => a.platform.localeCompare(b.platform) || (versionLess(a.version, b.version) ? 1 : versionLess(b.version, a.version) ? -1 : 0) || buildNum(b.build) - buildNum(a.build));

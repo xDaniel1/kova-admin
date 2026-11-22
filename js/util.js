@@ -121,6 +121,20 @@ export function announcementLive(x, now = Date.now()) {
   return !Number.isNaN(s) && !Number.isNaN(e) && now >= s && now < e;
 }
 
+// How one live install (an admin_live_builds row) reads Tower's settings (contract adoption table):
+// 'override' = iOS 6+ / web 1.0.2+ (global + platform override), 'global' = iOS build 5 / valid web
+// before 1.0.2 (global only), null = reads nothing (iOS 3-4, unknown build, malformed web version).
+// `blocked` = a reader below a valid min_version, which sees the required-update screen instead.
+export const validVersion = v => typeof v === 'string' && /^\d+(\.\d+)*$/.test(v);
+export function installCohort(platform, g, conf) {
+  let kind = null;
+  if (platform === 'ios') { const n = /^\d+$/.test(g?.build || '') ? +g.build : -1; kind = n >= 6 ? 'override' : n === 5 ? 'global' : null; }
+  else if (platform === 'web') kind = !validVersion(g?.version) ? null : versionLess(g.version, '1.0.2') ? 'global' : 'override';
+  const min = conf?.min_version?.[platform];
+  const blocked = !!kind && validVersion(min) && validVersion(g?.version) && versionLess(g.version, min);
+  return { kind, blocked };
+}
+
 // Who actually sees the announcement, by install cohort (contract adoption table and §announcement).
 // Adoption first: iOS 6+ and web 1.0.2+ read their platform override as well as the global settings; iOS
 // build 5 and web before 1.0.2 read only the global settings; iOS 3-4, unknown builds and malformed web
@@ -135,31 +149,26 @@ export function announcementReach(conf, builds, now = Date.now()) {
   const minV = conf?.min_version || {};
   const globalLive = announcementLive(conf?.announcement, now);
   const gMaint = conf?.maintenance?.enabled === true;
-  const validVer = v => typeof v === 'string' && /^\d+(\.\d+)*$/.test(v);
   for (const p of ['ios', 'web']) {
     const o = conf?.platform_overrides?.[p] || {};
     const ownLive = announcementLive(o.announcement, now);
     const pMaint = o.maintenance?.enabled === true;
     const rows = builds.filter(g => g.platform === p);
-    const adoption = g => {
-      if (p === 'ios') { const n = /^\d+$/.test(g.build || '') ? +g.build : -1; return n >= 6 ? 'override' : n === 5 ? 'global' : null; }
-      return !validVer(g.version) ? null : versionLess(g.version, '1.0.2') ? 'global' : 'override';
-    };
     const source = kind => kind === 'override' ? (ownLive ? 'platform' : globalLive ? 'global' : null) : (globalLive ? 'global' : null);
     const hiddenFor = kind => gMaint || (kind === 'override' && pMaint);
     if (!rows.length) { const src = source('override'); if (src) out.push({ platform: p, label: L[p], n: null, state: hiddenFor('override') ? 'hidden' : 'live', source: src }); continue; }
     const acc = new Map(); // key: kind|state|source -> n
     for (const g of rows) {
-      const kind = adoption(g); if (!kind) continue;
+      const { kind, blocked } = installCohort(p, g, conf); if (!kind) continue;
       const src = source(kind); if (!src) continue;
-      const blocked = validVer(minV[p]) && validVer(g.version) && versionLess(g.version, minV[p]);
       const state = blocked ? 'blocked' : hiddenFor(kind) ? 'hidden' : 'live';
       const k = `${kind}|${state}|${src}`; acc.set(k, (acc.get(k) || 0) + (+g.n || 0));
     }
     const kinds = new Set([...acc.keys()].map(k => k.split('|')[0]));
     for (const [k, n] of acc) {
       const [kind, state, src] = k.split('|');
-      const base = kinds.size > 1 ? (kind === 'override' ? (p === 'ios' ? 'iOS 6+' : 'Web 1.0.2+') : (p === 'ios' ? 'iOS build 5' : 'Web before 1.0.2')) : L[p];
+      // Legacy readers always keep their own label; an override cohort shown alone uses the platform name.
+      const base = kind === 'global' ? (p === 'ios' ? 'iOS build 5' : 'Web before 1.0.2') : kinds.size > 1 ? (p === 'ios' ? 'iOS 6+' : 'Web 1.0.2+') : L[p];
       out.push({ platform: p, label: state === 'blocked' ? `${base} below ${minV[p]}` : base, n, state, source: src });
     }
   }
