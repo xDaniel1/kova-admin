@@ -3,7 +3,7 @@
 'use strict';
 import { html, raw, qs, qsa, fmtNum, fmtDate, rel, barChart, empty, badge, copy, debounce } from '../util.js';
 import * as api from '../api.js';
-import { state } from '../app.js';
+import { state, clearBanner } from '../app.js';
 
 const RANGES = [[1, '24 hours'], [7, '7 days'], [30, '30 days']];
 const NEEDS_UPGRADE = html`<section class="card setup"><h2>Database update needed</h2><p>The Errors page needs <code>supabase/migrations/0022_error_filters.sql</code> (and <code>0023_clear_window.sql</code> for Clear).</p></section>`.s;
@@ -36,7 +36,7 @@ export default async function errors(ctx) {
     qsa('[data-clear]', ctx.el).forEach(b => { const k = b.dataset.key; b.disabled = stale || !same || pending.has(k) || done.has(k);
       b.textContent = done.has(k) ? 'Cleared · refresh pending' : b.dataset.label || b.textContent; b.title = !same ? 'Waiting for the new filter results' : pending.has(k) ? 'Clearing…' : ''; }); };
   const render = (r, snap) => {
-    rendered = snap; done.clear(); stale = false;
+    rendered = snap; done.clear(); stale = false; if (seq > 0) clearBanner();
     const groups = r.groups || [], since = Date.parse(r.since);
     const filtered = !!(snap.q || snap.app);
     // Before 0023 the total and chart cover all apps even when the list is filtered; say so.
@@ -46,7 +46,7 @@ export default async function errors(ctx) {
     list.innerHTML = html`<p class="muted small" style="margin:0 0 8px">${fmtNum(r.matching)} ${filtered ? 'matching ' : ''}distinct ${r.matching === 1 ? 'message' : 'messages'}${r.capped ? ' · showing the newest 500' : ''}</p>
       ${groups.length ? html`<div class="stack">${groups.map((g, i) => html`<details class="collapse error-group">
         <summary><strong>${g.message || '(no message)'}</strong> ${g.first_ever && Date.parse(g.first_ever) >= since ? badge('New', 'tone-new') : ''}<br><span class="muted small">${g.app || 'unknown app'} · ${fmtNum(g.n)} times · ${fmtNum(g.users)} signed-in users · last ${rel(g.last)} · first in window ${rel(g.first)}</span></summary>
-        <dl class="kv" style="margin-top:10px"><dt>Page</dt><dd class="mono small">${g.url || '—'}</dd><dt>Browser</dt><dd class="small">${g.user_agent || '—'}</dd><dt>Last seen</dt><dd>${fmtDate(g.last)}</dd></dl>
+        ${snap.q && ![g.message, g.url, g.user_agent].some(x => (x || '').toLowerCase().includes(snap.q.toLowerCase())) ? html`<p class="muted small" style="margin:8px 0 0">Matched the page or browser of an earlier report in this group; the newest is shown below.</p>` : ''}<dl class="kv" style="margin-top:10px"><dt>Page</dt><dd class="mono small">${g.url || '—'}</dd><dt>Browser</dt><dd class="small">${g.user_agent || '—'}</dd><dt>Last seen</dt><dd>${fmtDate(g.last)}</dd></dl>
         ${g.stack ? html`<pre class="mono small stack-trace">${g.stack}</pre>` : ''}
         <div class="row" style="margin-top:8px"><button type="button" class="sm ghost" data-copy="${i}">Copy details</button>${canWrite && r.clear === 'ids' ? (Array.isArray(g.ids) ? html`<button type="button" class="sm danger" data-clear="${i}" data-key="${JSON.stringify([g.app, g.message])}" data-label="Clear ${fmtNum(g.n)} reports">Clear ${fmtNum(g.n)} reports</button>` : html`<span class="muted small">Too many reports to clear at once (${fmtNum(g.n)}). Pick a shorter range, or clear in the database if this is already the 24-hour view.</span>`) : ''}</div></details>`)}</div>`
         : empty(filtered ? 'No errors match.' : 'No errors in this window.')}`.s;
@@ -72,10 +72,11 @@ export default async function errors(ctx) {
       try { history.replaceState(null, '', '#/errors?' + new URLSearchParams({ days, ...(snap.q ? { q: snap.q } : {}), ...(snap.app ? { app: snap.app } : {}) })); } catch {} }
     catch (e) { if (!ctx.alive() || gen !== seq) return; if (e.needsUpgrade) { ctx.el.innerHTML = NEEDS_UPGRADE; return; }
       // Keep the old list visible but inert, and offer to retry the read.
-      if (!qs('[data-retry]', list)) list.insertAdjacentHTML('afterbegin', html`<p class="alert alert-warn" data-retry-row style="margin:0 0 10px">Couldn't refresh: ${e.message || e} <button type="button" class="sm" data-retry>Retry</button></p>`.s);
+      qs('[data-retry-row]', list)?.remove();
+      list.insertAdjacentHTML('afterbegin', html`<p class="alert alert-warn" data-retry-row style="margin:0 0 10px">Couldn't refresh: ${e.message || e} <button type="button" class="sm" data-retry>Retry</button></p>`.s);
       qs('[data-retry]', list).onclick = () => refetch(++seq);
       stale = true; syncClear();
-      ctx.fail(e); } };
+    } };
   const debounced = debounce(gen => refetch(gen), 250);
   filter.oninput = () => { ctx.query.q = filter.value.trim(); syncClear(); debounced(++seq); };
   if (appSel) appSel.onchange = () => { ctx.query.app = appSel.value; syncClear(); refetch(++seq); };
