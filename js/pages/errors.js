@@ -2,6 +2,7 @@
 'use strict';
 import { html, raw, qs, qsa, fmtNum, fmtDate, rel, table, barChart, upgradeCard, empty, badge, copy, debounce } from '../util.js';
 import * as api from '../api.js';
+import { state } from '../app.js';
 
 const RANGES = [[1, '24 hours'], [7, '7 days'], [30, '30 days']];
 
@@ -13,6 +14,7 @@ export default async function errors(ctx) {
   const groups = d.groups || [];
   const apps = [...new Set(groups.map(g => g.app).filter(Boolean))].sort();
   const since = Date.now() - days * 864e5;
+  const canWrite = state.role !== 'viewer';
   ctx.el.innerHTML = html`
     <section class="card"><div class="card-head"><h2>${fmtNum(d.total)} errors · ${fmtNum(groups.length)} distinct</h2>
       <div class="seg">${RANGES.map(([n, l]) => html`<button type="button" data-days="${n}" aria-pressed="${n === days ? 'true' : 'false'}">${l}</button>`)}</div></div>
@@ -20,10 +22,10 @@ export default async function errors(ctx) {
     <section class="card" style="margin-top:18px"><div class="card-head"><h2>By message</h2><span class="muted small">Newest first. Clearing deletes those reports.</span></div>
       ${groups.length ? html`<div class="toolbar"><label>Filter<input type="search" data-filter placeholder="Message, page or browser"></label>${apps.length > 1 ? html`<label class="narrow">App<select data-app><option value="">All apps</option>${apps.map(a => html`<option>${a}</option>`)}</select></label>` : ''}<span class="muted small" data-shown></span></div>
       <div class="stack">${groups.map((g, i) => html`<details class="collapse error-group" data-i="${i}">
-        <summary><strong>${g.message || '(no message)'}</strong> ${new Date(g.first) >= since ? badge('New', 'tone-new') : ''}<br><span class="muted small">${g.app} · ${fmtNum(g.n)} times · ${fmtNum(g.users)} signed-in users · last ${rel(g.last)} · first ${rel(g.first)}</span></summary>
+        <summary><strong>${g.message || '(no message)'}</strong> ${g.first_ever && new Date(g.first_ever) >= since ? badge('New', 'tone-new') : ''}<br><span class="muted small">${g.app} · ${fmtNum(g.n)} times · ${fmtNum(g.users)} signed-in users · last ${rel(g.last)} · first ${rel(g.first)}</span></summary>
         <dl class="kv" style="margin-top:10px"><dt>Page</dt><dd class="mono small">${g.url || '—'}</dd><dt>Browser</dt><dd class="small">${g.user_agent || '—'}</dd><dt>Last seen</dt><dd>${fmtDate(g.last)}</dd></dl>
         ${g.stack ? html`<pre class="mono small stack-trace">${g.stack}</pre>` : ''}
-        <div class="row" style="margin-top:8px">${g.stack ? html`<button type="button" class="sm ghost" data-copy="${i}">Copy details</button>` : ''}<button type="button" class="sm danger" data-clear="${i}">Clear ${fmtNum(g.n)} reports</button></div></details>`)}</div>` : empty('No errors in this window.')}</section>`.s;
+        <div class="row" style="margin-top:8px"><button type="button" class="sm ghost" data-copy="${i}">Copy details</button>${canWrite ? html`<button type="button" class="sm danger" data-clear="${i}">Clear ${fmtNum(g.n)} reports</button>` : ''}</div></details>`)}</div>` : empty('No errors in this window.')}</section>`.s;
   const filter = qs('[data-filter]', ctx.el), appSel = qs('[data-app]', ctx.el), shown = qs('[data-shown]', ctx.el);
   const apply = () => { const q = (filter?.value || '').toLowerCase(), a = appSel?.value || ''; let n = 0;
     qsa('[data-i]', ctx.el).forEach(el => { const g = groups[+el.dataset.i]; const ok = (!a || g.app === a) && (!q || [g.message, g.url, g.user_agent].some(x => (x || '').toLowerCase().includes(q))); el.hidden = !ok; n += ok; });
@@ -35,6 +37,6 @@ export default async function errors(ctx) {
   qsa('[data-clear]', ctx.el).forEach(b => b.onclick = async () => {
     const g = groups[+b.dataset.clear]; if (!confirm(`Delete ${g.n} reports of "${(g.message || '').slice(0, 80)}"?`)) return;
     b.disabled = true;
-    try { await api.clearErrors(g.ids); ctx.notice('Cleared.'); if (ctx.alive()) await errors(ctx); } catch (e) { ctx.fail(e); b.disabled = false; }
+    try { const gone = await api.clearErrors(g.ids); ctx.notice(gone?.length ? `Cleared ${gone.length} reports.` : 'Nothing was cleared (no permission, or already gone).'); if (ctx.alive()) await errors(ctx); } catch (e) { ctx.fail(e); b.disabled = false; }
   });
 }

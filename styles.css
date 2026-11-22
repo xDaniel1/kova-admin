@@ -267,3 +267,8 @@ tbody tr{transition:background .1s}tbody tr:hover td{background:color-mix(in srg
   #nav a[aria-current=page]::before{left:-14px}
 }
 .badge.unread{background:var(--warn-soft);color:var(--warn);border-color:transparent;margin:0 0 4px 30px}
+/* Light-theme contrast for status text (WCAG AA 4.5:1) */
+:root:not([data-theme=dark]) .all-clear{color:#16683f}
+:root:not([data-theme=dark]) .badge.unread,:root:not([data-theme=dark]) .alert-warn{color:#7a5100}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .all-clear{color:var(--ok)}:root:not([data-theme=light]) .badge.unread,:root:not([data-theme=light]) .alert-warn{color:var(--warn)}}
+.badge.unread.pending{background:var(--panel-2);color:var(--muted)}

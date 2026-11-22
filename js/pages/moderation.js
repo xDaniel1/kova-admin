@@ -3,6 +3,7 @@
 'use strict';
 import { html, raw, qsa, fmtNum, fmtDate, rel, href, table, badge, mapsLink, upgradeCard, empty } from '../util.js';
 import * as api from '../api.js';
+import { state } from '../app.js';
 
 export default async function moderation(ctx) {
   let d;
@@ -11,8 +12,9 @@ export default async function moderation(ctx) {
   const ids = [...(d.flagged || []).map(f => f.reporter), ...(d.flaggers || []).map(f => f.user_id), ...(d.blocked || []).map(b => b.user_id)];
   const label = await api.labels(ids); if (!ctx.alive()) return;
   const who = id => id ? html`<a href="${href('/users/' + id)}">${label(id)?.email || id.slice(0, 8)}</a>` : '—';
+  const canWrite = state.role !== 'viewer';
   const blocked = new Set((d.blocked || []).map(b => b.user_id));
-  const blockBtn = id => id && !blocked.has(id) ? html`<button type="button" class="sm ghost" data-block="${id}">Block</button>` : '';
+  const blockBtn = id => canWrite && id && !blocked.has(id) ? html`<button type="button" class="sm ghost" data-block="${id}">Block</button>` : '';
   ctx.el.innerHTML = html`
     <section class="card"><div class="card-head"><h2>Flagged reports</h2><span class="muted small">${fmtNum(d.flags_30d)} flags in 30 days · two flags remove a report</span></div>
       ${table(['Report', 'Flags', 'Last flag', 'Reporter', 'Status', ''], (d.flagged || []).map(f => [
@@ -23,17 +25,23 @@ export default async function moderation(ctx) {
       <section class="card"><div class="card-head"><h2>Most flags given · 30 days</h2></div>
         ${table(['User', 'Flags', 'Last'], (d.flaggers || []).map(f => [who(f.user_id), fmtNum(f.flags), rel(f.last)]), { emptyText: 'Nobody has flagged anything.' })}</section>
       <section class="card"><div class="card-head"><h2>Blocked reporters</h2><span class="muted small">Cannot file traffic reports</span></div>
-        ${table(['User', 'Reason', 'Since', ''], (d.blocked || []).map(b => [who(b.user_id), b.reason || '—', rel(b.created_at), html`<button type="button" class="sm ghost" data-unblock="${b.user_id}">Unblock</button>`]), { emptyText: 'No one is blocked.' })}
-        <form class="row" data-block-form style="margin-top:12px"><input name="id" placeholder="Email or user ID to block" required style="flex:1" autocomplete="off"><button class="danger sm">Block</button></form></section>
+        ${table(['User', 'Reason', 'Since', ''], (d.blocked || []).map(b => [who(b.user_id), b.reason || '—', rel(b.created_at), canWrite ? html`<button type="button" class="sm ghost" data-unblock="${b.user_id}">Unblock</button>` : '']), { emptyText: 'No one is blocked.' })}
+        ${canWrite ? html`<form class="row" data-block-form style="margin-top:12px;align-items:flex-end"><label style="flex:1">Block a reporter<input name="id" placeholder="Email or user ID" required autocomplete="off"></label><button class="danger sm">Block</button></form>` : ''}</section>
     </div>`.s;
   const act = async (b, fn, msg) => { b.disabled = true; try { await fn(); ctx.notice(msg); if (ctx.alive()) await moderation(ctx); } catch (e) { ctx.fail(e); b.disabled = false; } };
   qsa('[data-block]', ctx.el).forEach(b => b.onclick = () => { const reason = prompt('Reason (shown to admins only):', 'Repeated false reports'); if (reason !== null) act(b, () => api.blockReporter(b.dataset.block, reason), 'Reporter blocked.'); });
   qsa('[data-unblock]', ctx.el).forEach(b => b.onclick = () => confirm('Unblock this reporter? They can file traffic reports again.') && act(b, () => api.unblockReporter(b.dataset.unblock), 'Reporter unblocked.'));
   const form = ctx.el.querySelector('[data-block-form]');
-  form.onsubmit = async e => { e.preventDefault(); const q = new FormData(form).get('id').trim();
-    let id = q;
-    if (!/^[0-9a-f-]{36}$/i.test(q)) { // an email: find the account first
-      try { const hit = ((await api.search(q))?.users || []).find(u => (u.email || '').toLowerCase() === q.toLowerCase()); if (!hit) { ctx.fail(new Error(`No account with the email ${q}.`)); return; } id = hit.user_id; } catch (err) { ctx.fail(err); return; } }
-    if (blocked.has(id)) { ctx.notice('Already blocked.'); return; }
-    const reason = prompt('Reason (shown to admins only):', 'Repeated false reports'); if (reason !== null) act(form.querySelector('button'), () => api.blockReporter(id, reason), 'Reporter blocked.'); };
+  if (form)   form.onsubmit = async e => { e.preventDefault(); if (!canWrite) return;
+    const btn = form.querySelector('button'), q = new FormData(form).get('id').trim();
+    btn.disabled = true;
+    try {
+      let id = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(q) ? q.toLowerCase() : null;
+      if (!id) { if (!q.includes('@')) throw new Error('Enter an email address or a full user ID.'); id = await api.userByEmail(q); if (!id) throw new Error(`No account with the email ${q}.`); }
+      if (!ctx.alive()) return;
+      if (blocked.has(id)) { ctx.notice('Already blocked.'); return; }
+      const reason = prompt(`Block ${q}${q.toLowerCase() === id ? '' : ' (' + id.slice(0, 8) + '…)'} from filing traffic reports?\nReason (shown to admins only):`, 'Repeated false reports');
+      if (reason === null || !ctx.alive()) return;
+      await api.blockReporter(id, reason); ctx.notice('Reporter blocked.'); if (ctx.alive()) await moderation(ctx);
+    } catch (err) { ctx.fail(err); } finally { btn.disabled = false; } };
 }

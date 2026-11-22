@@ -156,12 +156,14 @@ export const versions = () => rpc('admin_versions');
 export const platformUsers = () => rpc('admin_platform_users');
 export const mapData = () => rpc('admin_map_data');
 export const clientErrors = (days = 7) => rpc('admin_client_errors', { days });
-export async function clearErrors(ids) { return unwrap(await db.from('client_errors').delete().in('id', ids)); }
+export async function clearErrors(ids) { return unwrap(await db.from('client_errors').delete().in('id', ids).select('id')); }
 export const moderation = () => rpc('admin_moderation');
 export const blockReporter = (target, reason) => rpc('admin_block_reporter', { target, reason });
 export const unblockReporter = target => rpc('admin_unblock_reporter', { target });
 export const speedAuthority = () => rpc('admin_speed_authority');
 export const configReaders = () => rpc('admin_config_readers');
+export const liveBuilds = () => rpc('admin_live_builds');
+export const userByEmail = email => rpc('admin_user_by_email', { email });
 export async function recentClients() { return unwrap(await db.from('app_clients').select('platform,app_version,build,channel,config_keys,last_seen').gte('last_seen', new Date(Date.now() - 30 * 864e5).toISOString()).order('last_seen', { ascending: false }).limit(5000)); }
 export async function testBuilds() { return unwrap(await db.from('test_builds').select('*').order('created_at', { ascending: false })); }
 export async function markTestBuild(platform, app_version, build, note) { return unwrap(await db.from('test_builds').insert({ platform, app_version, build, note })); }
