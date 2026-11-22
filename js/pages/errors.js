@@ -37,7 +37,7 @@ export default async function errors(ctx) {
   const filtersMatch = () => renderedGen === seq && (ctx.query.app || null) === rendered.app && (ctx.query.q || null) === rendered.q;
   const syncClear = () => { const same = filtersMatch();
     qsa('[data-clear]', ctx.el).forEach(b => { const k = b.dataset.key; b.disabled = stale || !same || pending.has(k) || done.has(k);
-      b.textContent = done.has(k) ? 'Cleared · refresh pending' : b.dataset.label || b.textContent; b.title = !same ? 'Waiting for the new filter results' : pending.has(k) ? 'Clearing…' : ''; }); };
+      b.textContent = done.has(k) ? 'Cleared · refresh pending' : b.dataset.label || b.textContent; b.title = !same ? 'Waiting for fresh results' : pending.has(k) ? 'Clearing…' : ''; }); };
   const render = (r, snap) => {
     rendered = snap; done.clear(); stale = false;
     // The app picker follows every accepted response (apps can appear after the page opened).
@@ -67,7 +67,7 @@ export default async function errors(ctx) {
       if (!canWrite || !filtersMatch() || pending.has(b.dataset.key)) return; const g = groups[+b.dataset.clear], key = b.dataset.key;
       if (!confirm(`Delete ${g.n} ${(g.app || '').trim() || 'unknown app'} reports of "${(g.message || '').slice(0, 80)}"? Only these reports are deleted; any that arrived since are kept.`)) return;
       pending.add(key); syncClear();
-      try { const n = await api.clearErrorGroup(g.app, g.message, g.ids); pending.delete(key); done.add(key); if (!ctx.alive()) return; if (clearErrKey === key) { clearBanner(); clearErrKey = null; } syncClear(); ctx.notice(n ? `Cleared ${n} reports.` : 'Nothing was cleared (already gone).'); refetch(++seq); }
+      try { const n = await api.clearErrorGroup(g.app, g.message, g.ids); pending.delete(key); done.add(key); if (!ctx.alive()) return; if (clearErrKey === key) { clearBanner(); clearErrKey = null; } const g = ++seq; syncClear(); ctx.notice(n ? `Cleared ${n} reports.` : 'Nothing was cleared (already gone).'); refetch(g); }
       catch (e) { pending.delete(key); if (ctx.alive()) { clearErrKey = key; syncClear(); ctx.fail(e); } }
     });
   };
@@ -87,7 +87,7 @@ export default async function errors(ctx) {
       stale = true; syncClear();
     } };
   const debounced = debounce(gen => refetch(gen), 250);
-  filter.oninput = () => { ctx.query.q = filter.value.trim(); syncClear(); debounced(++seq); };
-  appSel.onchange = () => { ctx.query.app = appSel.value; syncClear(); refetch(++seq); };
+  filter.oninput = () => { ctx.query.q = filter.value.trim(); const g = ++seq; syncClear(); debounced(g); };
+  appSel.onchange = () => { ctx.query.app = appSel.value; const g = ++seq; syncClear(); refetch(g); };
   qsa('[data-days]', ctx.el).forEach(b => b.onclick = () => { location.hash = '/errors?' + new URLSearchParams({ days: b.dataset.days, ...(ctx.query.q ? { q: ctx.query.q } : {}), ...(ctx.query.app ? { app: ctx.query.app } : {}) }); });
 }

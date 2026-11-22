@@ -166,6 +166,7 @@ end $$;
 
 -- Registry guard (from 0010): a platform whose build did not change is not re-validated, so seeding one
 -- platform never fails on another platform's untouched (even malformed) build.
+-- Keep in sync: identical copies in 0010, 0019, 0021 and 0023.
 create or replace function public.app_config_builds_only_up()
 returns trigger language plpgsql set search_path = ''
 as $$

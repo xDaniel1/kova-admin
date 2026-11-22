@@ -12,6 +12,7 @@ update public.app_config
 
 -- The registry guard from 0010, current version (skips platforms whose build did not change), installed
 -- before the seeds so an upgrade never fails on another platform's untouched build.
+-- Keep in sync: identical copies in 0010, 0019, 0021 and 0023.
 create or replace function public.app_config_builds_only_up()
 returns trigger language plpgsql set search_path = ''
 as $$

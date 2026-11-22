@@ -6,6 +6,7 @@
 -- Apply after 0009_version_registry.sql, as the database owner, in the Supabase SQL Editor. Rerunnable.
 begin;
 
+-- Keep in sync: identical copies in 0010, 0019, 0021 and 0023.
 create or replace function public.app_config_builds_only_up()
 returns trigger language plpgsql set search_path = ''
 as $$
