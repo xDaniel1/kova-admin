@@ -72,7 +72,7 @@ begin
                       on (a.app is null) = (t.app is null) and coalesce(a.app, '') = coalesce(t.app, '') and (a.message is null) = (t.message is null) and coalesce(left(a.message, 300), '') = coalesce(t.message, '')
                    group by t.app, t.message),
             -- Ids (one join, not one lookup per group) only for returned groups small enough for one clear.
-            ids as (select t.app, t.message, array_agg(c.id order by c.created_at desc) as ids
+            ids as (select t.app, t.message, array_agg(c.id::text order by c.created_at desc) as ids  -- text: bigint ids above 2^53 survive JSON
                       from top t join public.client_errors c
                         on (c.app is null) = (t.app is null) and coalesce(c.app, '') = coalesce(t.app, '') and (c.message is null) = (t.message is null) and coalesce(left(c.message, 300), '') = coalesce(t.message, '') and c.created_at > since
                      where t.n <= 20000 group by t.app, t.message)
