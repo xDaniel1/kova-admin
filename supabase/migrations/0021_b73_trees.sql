@@ -8,8 +8,8 @@ update public.app_config
  where key = 'features';
 
 -- Each platform under its own guard, merged into its existing object: keeps beta_build and any other
--- fields, sets version/build (and tag/note where given), and drops pending_build only when it is at or
--- below the seeded release. A missing or JSON-null entry starts empty; any other non-object is left alone.
+-- fields, sets version/build (and tag/note where given), and drops pending_build only when it is a number at
+-- or below the seeded release (a non-numeric pending build is kept). A missing or JSON-null entry starts empty; any other non-object is left alone.
 update public.app_config set value = jsonb_set(value, '{ios}', ((case when jsonb_typeof(value->'ios') = 'object' then value->'ios' else '{}'::jsonb end) - (case when (value #>> '{ios,pending_build}') ~ '^[0-9]+$' then case when (value #>> '{ios,pending_build}')::numeric <= 73 then 'pending_build' else '' end else '' end)) || jsonb_build_object('version', '1.0.0', 'build', '73',
         'tag', 'ios-v1.0.0-b73', 'note', 'Builds 18-73: trees, routes on map roads, /collab review rounds'))
  where key = 'released_versions' and coalesce(jsonb_typeof(value->'ios'), 'null') in ('object', 'null')
