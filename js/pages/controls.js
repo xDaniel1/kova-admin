@@ -31,7 +31,9 @@ const fromLocal = (value, orig, label, drop = false) => {
   return (confirm(`${label}: ${pretty} happens twice when the clocks go back. OK for the first one (${early.toISOString().slice(11, 16)} UTC), Cancel for the second (${late.toISOString().slice(11, 16)} UTC).`) ? early : late).toISOString();
 };
 // The full config, set before each render so platform badges can apply global maintenance and fallback.
-let CONF = {}, BUILDS = null, RENDER = 0; // RENDER: id of the newest Controls render; older async work stands down // BUILDS: admin_live_builds rows, so badges count who actually sees an announcement
+// BUILDS: admin_live_builds rows, so badges count who actually sees an announcement.
+// RENDER: id of the newest Controls render; older async work stands down.
+let CONF = {}, BUILDS = null, RENDER = 0;
 const local = iso => { if (Number.isNaN(parseInstant(iso))) return ''; const d = new Date(iso); return isNaN(d) ? '' : new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
 
 // Every switch the apps can read. Who reads it today is in the hint; a switch an app does not read yet is harmless.

@@ -31,7 +31,9 @@ await tick(5);
 ok(!badge('map_trees'), 'newer render: map_trees badge removed (real reader)');
 ok(badge('flat_turns')?.textContent === 'No app reads this yet', 'newer render: flat_turns marked unread');
 // Older render answers last with nothing reported: it must not touch the newer cards.
-api.ctl.readers[0]({});
+// It reports a real reader for flat_turns, which the newer render must not apply.
+api.ctl.readers[0]({ 'features.flat_turns': { web: { version: '1.0.8', build: '57', installs_30d: 3, last_seen: '2026-11-21T00:00:00Z', test: false } } });
 await tick(5);
 ok(!badge('map_trees'), 'older render did not bring back a badge');
+ok(badge('flat_turns')?.textContent === 'No app reads this yet', 'older render did not remove the newer flat_turns badge');
 ok(document.querySelector('[data-reader="features.map_trees"]')?.textContent.startsWith('Last seen reading this'), 'newer reader text kept');

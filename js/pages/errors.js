@@ -73,8 +73,8 @@ export default async function errors(ctx) {
       if (!canWrite || !filtersMatch() || pending.has(b.dataset.key)) return; const g = groups[+b.dataset.clear], key = b.dataset.key;
       if (!confirm(`Delete ${g.n} ${(g.app || '').trim() || 'unknown app'} reports of "${(g.message || '').slice(0, 80)}"? Only these reports are deleted; any that arrived since are kept.`)) return;
       pending.add(key); syncClear();
-      try { const n = await api.clearErrorGroup(g.app, g.message, g.ids); pending.delete(key); done.add(key); if (!ctx.alive()) { settled({ n }); return; } clearRev++; if (clearErrKey === key) { clearBanner(); clearErrKey = null; } const gen = ++seq; syncClear(); ctx.notice(n ? `Cleared ${n} reports.` : 'Nothing was cleared (already gone).'); refetch(gen); }
-      catch (e) { pending.delete(key); if (ctx.alive()) { clearErrKey = key; syncClear(); ctx.fail(e); clearRev++; } else settled({ error: e }); }
+      try { const n = await api.clearErrorGroup(g.app, g.message, g.ids); pending.delete(key); done.add(key); if (!ctx.alive()) { settled({ n }); return; } if (clearErrKey === key) { clearBanner(); clearErrKey = null; } const gen = ++seq; syncClear(); ctx.notice(n ? `Cleared ${n} reports.` : 'Nothing was cleared (already gone).'); refetch(gen); }
+      catch (e) { pending.delete(key); if (ctx.alive()) { clearErrKey = key; syncClear(); ctx.fail(e); } else settled({ error: e }); }
     });
   };
   let seq = 0;
