@@ -12,8 +12,9 @@ const VER = 'pattern="[0-9]+(\\.[0-9]+)*" title="Numbers separated by dots, e.g.
 // Back from a datetime-local value to an instant. An untouched field keeps its stored instant (seconds and
 // the repeated DST hour included). A time that doesn't exist (spring-forward gap) is refused; a time that
 // happens twice (fall-back) asks which one is meant.
-const fromLocal = (value, orig, label) => {
-  if (!value) return null;
+const fromLocal = (value, orig, label, drop = false) => {
+  // A stored bound that isn't a valid date is never silently opened up: it must be replaced or removed on purpose.
+  if (!value) { if (orig && !local(orig) && !drop) throw new Error(`${label}: the stored date (${orig}) is invalid. Enter a new one or tick the box to remove it.`); return null; }
   if (orig && local(orig) === value) return orig;
   const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
   if (!m) throw new Error(`${label}: enter a date and time.`);
@@ -123,8 +124,8 @@ const SECTIONS = {
   },
   announcement: {
     title: 'Announcement banner', blurb: 'A banner in the apps. Leave the window empty to show it whenever it is enabled.',
-    form: v => html`${toggle('Show the announcement', 'enabled', v.enabled === true)}<div class="form-grid">${field('Title', 'title', v.title, { attrs: 'maxlength="80"' })}<label>Level<select name="level">${['info', 'warning', 'critical'].map(l => html`<option ${raw(l === (v.level || 'info') ? 'selected' : '')}>${l}</option>`)}</select></label></div><label>Body<textarea name="body" maxlength="500">${v.body || ''}</textarea></label><div class="form-grid">${field('Link (optional)', 'url', v.url, { type: 'url', placeholder: 'https://' })}${field('Starts (your local time)', 'starts_at', local(v.starts_at), { type: 'datetime-local' })}${field('Ends (your local time)', 'ends_at', local(v.ends_at), { type: 'datetime-local' })}<input type="hidden" name="starts_at_orig" value="${v.starts_at || ''}"><input type="hidden" name="ends_at_orig" value="${v.ends_at || ''}"></div>`,
-    read: f => ({ enabled: f.get('enabled') === 'on', title: f.get('title').trim(), body: f.get('body').trim(), level: f.get('level'), url: f.get('url').trim() || null, starts_at: fromLocal(f.get('starts_at'), f.get('starts_at_orig'), 'Starts'), ends_at: fromLocal(f.get('ends_at'), f.get('ends_at_orig'), 'Ends') }),
+    form: v => html`${toggle('Show the announcement', 'enabled', v.enabled === true)}<div class="form-grid">${field('Title', 'title', v.title, { attrs: 'maxlength="80"' })}<label>Level<select name="level">${['info', 'warning', 'critical'].map(l => html`<option ${raw(l === (v.level || 'info') ? 'selected' : '')}>${l}</option>`)}</select></label></div><label>Body<textarea name="body" maxlength="500">${v.body || ''}</textarea></label><div class="form-grid">${field('Link (optional)', 'url', v.url, { type: 'url', placeholder: 'https://' })}${field('Starts (your local time)', 'starts_at', local(v.starts_at), { type: 'datetime-local' })}${field('Ends (your local time)', 'ends_at', local(v.ends_at), { type: 'datetime-local' })}${['starts_at', 'ends_at'].filter(k => v[k] && !local(v[k])).map(k => html`<label class="inline" style="color:var(--danger)"><input type="checkbox" name="${k}_drop"> The stored ${k === 'starts_at' ? 'start' : 'end'} (${String(v[k])}) is not a valid date. Tick to remove it, or enter a new one.</label>`)}<input type="hidden" name="starts_at_orig" value="${v.starts_at || ''}"><input type="hidden" name="ends_at_orig" value="${v.ends_at || ''}"></div>`,
+    read: f => ({ enabled: f.get('enabled') === 'on', title: f.get('title').trim(), body: f.get('body').trim(), level: f.get('level'), url: f.get('url').trim() || null, starts_at: fromLocal(f.get('starts_at'), f.get('starts_at_orig'), 'Starts', f.get('starts_at_drop') === 'on'), ends_at: fromLocal(f.get('ends_at'), f.get('ends_at_orig'), 'Ends', f.get('ends_at_drop') === 'on') }),
     status: v => {
       if (!announcementLive(v)) return v.enabled === true ? badge('On · not showing (empty, scheduled or expired)', 'tone-seen') : badge('Hidden');
       // Only platforms that read config and have no live announcement of their own show the global one.
@@ -138,7 +139,7 @@ const SECTIONS = {
 
 export default async function controls(ctx) {
   let rows;
-  try { rows = await api.config(); } catch (e) { if (e.needsUpgrade) { ctx.el.innerHTML = upgradeCard(); return; } throw e; }
+  try { rows = await api.config(); } catch (e) { if (!ctx.alive()) return; if (e.needsUpgrade) { ctx.el.innerHTML = upgradeCard(); return; } throw e; }
   if (!ctx.alive()) return;
   CONF = Object.fromEntries(rows.map(r => [r.key, r.value]));
   const label = await api.labels(rows.map(r => r.updated_by)); if (!ctx.alive()) return;
@@ -151,7 +152,7 @@ export default async function controls(ctx) {
         <div class="card-head"><div><h2>${s?.title || r.key}</h2><p class="muted small" style="margin:2px 0 0">${s?.blurb || r.description || ''}</p><p class="reader small muted" data-reader="${r.key}" style="margin:4px 0 0"></p></div>${s ? s.status(v) : ''}</div>
         <form class="stack" data-form>${s ? s.form(v) : html`<label>JSON<textarea name="json" class="mono">${JSON.stringify(v, null, 2)}</textarea></label>`}
           <div class="row"><button class="primary" type="submit">Save</button><span class="muted small">Updated ${rel(r.updated_at)}${r.updated_by ? ' by ' + (label(r.updated_by)?.email || 'an admin') : ''}</span></div></form>
-        <details class="collapse" style="margin-top:14px"><summary>Notes and history</summary><div class="stack" style="margin-top:12px"><div data-annotations></div><div><h3 class="eyebrow">History</h3><div data-audit></div></div></div></details>
+        <details class="collapse" data-history style="margin-top:14px"><summary>Notes and history</summary><div class="stack" style="margin-top:12px"><div data-annotations></div><div><h3 class="eyebrow">History</h3><div data-audit></div></div></div></details>
       </section>`; })}</div>`.s;
   const P = { ios: 'iOS', android: 'Android', web: 'Web' };
   // Reach: counted installs seen in the last 7 days on builds that honour a switch (admin_live_builds,
@@ -188,10 +189,10 @@ export default async function controls(ctx) {
         if (key === 'released_versions') { const cur = rows.find(r => r.key === key)?.value || {}; const down = ['ios', 'android', 'web'].filter(p => cur[p]?.build && value[p].build && Number(value[p].build) < Number(cur[p].build)); if (down.length) throw new Error(`Build numbers only go up: ${down.map(p => `${p} is ${cur[p].build}`).join(', ')}.`); }
         if (key === 'platform_overrides') { const on = PLATFORMS.filter(([p]) => value[p].maintenance.enabled && rows.find(r => r.key === key)?.value?.[p]?.maintenance?.enabled !== true).map(([, l]) => l); if (on.length && !confirm(`Turn on maintenance for ${on.join(', ')}? Those users lose network features until you turn it off.`)) return; }
         if (key === 'maintenance' && value.enabled && !confirm('Turn on maintenance mode? Every app user will see the message and lose network features until you turn it off.')) return;
-        await api.saveConfig(key, value); ctx.notice(`${s?.title || key} saved.`); if (ctx.alive()) await controls(ctx);
-      } catch (err) { ctx.fail(err); } finally { b.disabled = false; }
+        await api.saveConfig(key, value); if (!ctx.alive()) return; ctx.notice(`${s?.title || key} saved.`); await controls(ctx);
+      } catch (err) { if (ctx.alive()) ctx.fail(err); } finally { b.disabled = false; }
     };
-    const details = qs('details', card);
+    const details = qs('details[data-history]', card);
     details.ontoggle = () => { if (details.open && !details.dataset.loaded) { details.dataset.loaded = '1'; annotations(qs('[data-annotations]', card), 'config', key, ctx); auditList(qs('[data-audit]', card), 'config', key, ctx); } };
   });
 }

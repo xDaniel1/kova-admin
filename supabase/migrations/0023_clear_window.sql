@@ -42,8 +42,7 @@ begin
                        min(e.created_at) as first, max(e.created_at) as last,
                        (array_agg(e.url order by e.created_at desc))[1] as url,
                        (array_agg(e.user_agent order by e.created_at desc))[1] as user_agent,
-                       (array_agg(left(e.stack, 1500) order by e.created_at desc))[1] as stack,
-                       array_agg(e.id order by e.created_at desc) as ids
+                       (array_agg(left(e.stack, 1500) order by e.created_at desc))[1] as stack
                   from public.client_errors e
                  where e.created_at > since and (admin_client_errors.app is null or e.app = admin_client_errors.app)
                  group by e.app, left(e.message, 300)),
@@ -62,7 +61,11 @@ begin
             'capped', (select count(*) from m) > 500,
             'clear', 'ids',  -- this read pairs with admin_clear_error_group(app, message, ids)
             'groups', (select coalesce(json_agg(g order by g.last desc), '[]'::json) from (
-                select top.*, f.first_ever from top left join f on f.app is not distinct from top.app and f.message is not distinct from top.message) g),
+                select top.*, f.first_ever,
+                       -- Ids only for returned groups small enough for one clear (the clear RPC's limit).
+                       case when top.n <= 20000 then (select array_agg(c.id order by c.created_at desc) from public.client_errors c
+                              where c.created_at > since and c.app is not distinct from top.app and left(c.message, 300) is not distinct from top.message) end as ids
+                  from top left join f on f.app is not distinct from top.app and f.message is not distinct from top.message) g),
             'daily', (select coalesce(json_agg(json_build_object('day', to_char(g.day, 'YYYY-MM-DD'), 'n', coalesce(x.n, 0)) order by g.day), '[]'::json)
                         from (select gs::date as day from generate_series(current_date - 29, current_date, interval '1 day') gs) g
                         left join (select c.created_at::date as day, count(*) as n from public.client_errors c
