@@ -11,7 +11,7 @@ export default async function errors(ctx) {
   const days = +ctx.query.days || 7;
   const canWrite = state.role !== 'viewer';
   let d;
-  try { d = await api.clientErrors(days, ctx.query.app || null, ctx.query.q || null); } catch (e) { if (!ctx.alive()) return; if (e.needsUpgrade) { ctx.el.innerHTML = upgradeCard(); return; } throw e; }
+  try { d = await api.clientErrors(days, ctx.query.app || null, ctx.query.q || null); } catch (e) { if (!ctx.alive()) return; if (e.needsUpgrade) { ctx.el.innerHTML = html`<section class="card setup"><h2>Database update needed</h2><p>The Errors page needs <code>supabase/migrations/0022_error_filters.sql</code> (and <code>0023_clear_window.sql</code> for Clear).</p></section>`.s; return; } throw e; }
   if (!ctx.alive()) return;
   const apps = [...new Set([...(d.apps || []), ...(ctx.query.app ? [ctx.query.app] : [])])].sort();
   ctx.el.innerHTML = html`
@@ -35,15 +35,15 @@ export default async function errors(ctx) {
         <summary><strong>${g.message || '(no message)'}</strong> ${g.first_ever && Date.parse(g.first_ever) >= since ? badge('New', 'tone-new') : ''}<br><span class="muted small">${g.app || 'unknown app'} · ${fmtNum(g.n)} times · ${fmtNum(g.users)} signed-in users · last ${rel(g.last)} · first in window ${rel(g.first)}</span></summary>
         <dl class="kv" style="margin-top:10px"><dt>Page</dt><dd class="mono small">${g.url || '—'}</dd><dt>Browser</dt><dd class="small">${g.user_agent || '—'}</dd><dt>Last seen</dt><dd>${fmtDate(g.last)}</dd></dl>
         ${g.stack ? html`<pre class="mono small stack-trace">${g.stack}</pre>` : ''}
-        <div class="row" style="margin-top:8px"><button type="button" class="sm ghost" data-copy="${i}">Copy details</button>${canWrite ? html`<button type="button" class="sm danger" data-clear="${i}">Clear ${fmtNum(g.n)} reports</button>` : ''}</div></details>`)}</div>`
+        <div class="row" style="margin-top:8px"><button type="button" class="sm ghost" data-copy="${i}">Copy details</button>${canWrite && r.clear === 'ids' && Array.isArray(g.ids) ? html`<button type="button" class="sm danger" data-clear="${i}">Clear ${fmtNum(g.n)} reports</button>` : ''}</div></details>`)}</div>`
         : empty(filtered ? 'No errors match.' : 'No errors in this window.')}`.s;
     qsa('[data-copy]', list).forEach(b => b.onclick = async () => { const g = groups[+b.dataset.copy];
       ctx.notice(await copy(`${g.message || '(no message)'}\n${g.app || 'unknown app'} · ${g.n} times · last ${g.last}\nPage: ${g.url || '-'}\nBrowser: ${g.user_agent || '-'}\n\n${g.stack || ''}`) ? 'Copied.' : 'Copy failed.'); });
     qsa('[data-clear]', list).forEach(b => b.onclick = async () => {
       if (!canWrite) return; const g = groups[+b.dataset.clear];
-      if (!confirm(`Delete ${g.n} reports of "${(g.message || '').slice(0, 80)}"? Reports that arrive after ${fmtDate(g.last)} are kept.`)) return;
+      if (!confirm(`Delete ${g.n} reports of "${(g.message || '').slice(0, 80)}"? Only these reports are deleted; any that arrived since are kept.`)) return;
       b.disabled = true;
-      try { const n = await api.clearErrorGroup(g.app, g.message, r.since, g.last); ctx.notice(n ? `Cleared ${n} reports.` : 'Nothing was cleared (already gone).'); if (ctx.alive()) refetch(++seq); }
+      try { const n = await api.clearErrorGroup(g.app, g.message, g.ids); ctx.notice(n ? `Cleared ${n} reports.` : 'Nothing was cleared (already gone).'); if (ctx.alive()) refetch(++seq); }
       catch (e) { if (ctx.alive()) { ctx.fail(e); b.disabled = false; } }
     });
   };
@@ -55,7 +55,7 @@ export default async function errors(ctx) {
   const refetch = async gen => { const snap = { app: ctx.query.app || null, q: ctx.query.q || null };
     try { const r = await api.clientErrors(days, snap.app, snap.q); if (!ctx.alive() || gen !== seq) return; render(r, snap);
       try { history.replaceState(null, '', '#/errors?' + new URLSearchParams({ days, ...(snap.q ? { q: snap.q } : {}), ...(snap.app ? { app: snap.app } : {}) })); } catch {} }
-    catch (e) { if (!ctx.alive() || gen !== seq) return; if (e.needsUpgrade) ctx.el.innerHTML = upgradeCard(); else ctx.fail(e); } };
+    catch (e) { if (!ctx.alive() || gen !== seq) return; if (e.needsUpgrade) ctx.el.innerHTML = html`<section class="card setup"><h2>Database update needed</h2><p>The Errors page needs <code>supabase/migrations/0022_error_filters.sql</code> (and <code>0023_clear_window.sql</code> for Clear).</p></section>`.s; else ctx.fail(e); } };
   const debounced = debounce(gen => refetch(gen), 250);
   filter.oninput = () => { ctx.query.q = filter.value.trim(); debounced(++seq); };
   if (appSel) appSel.onchange = () => { ctx.query.app = appSel.value; refetch(++seq); };

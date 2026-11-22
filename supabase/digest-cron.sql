@@ -69,17 +69,23 @@ as $$ begin
     delete from kova_private.digest_runs where at < now() - interval '60 days';
 end $$;
 revoke all on function kova_private.settle_digest_runs() from public, anon, authenticated;
--- Rows settled before outcomes existed, or marked unknown by an earlier backfill that misread the stored
--- detail: the settle job wrote detail as 'sent to N' or 'skipped: reason', so classify from that text.
-update kova_private.digest_runs set outcome = case
-        when request_id is null then 'not_sent'
-        when detail ilike '%timed out%' then 'timed_out'
-        when status_code between 200 and 299 and detail ~ '^sent to [1-9][0-9]*$' then 'sent'
-        when status_code between 200 and 299 and detail like 'skipped:%' then 'skipped'
-        when status_code between 200 and 299 then 'unknown'
-        when status_code is not null then 'failed'
-        else 'unknown' end
- where settled_at is not null and (outcome is null or (outcome = 'unknown' and status_code between 200 and 299));
+-- One-time repair of rows settled before the parser existed (outcome null, or 'unknown' from an earlier
+-- backfill that misread the stored detail). Recorded in kova_private.settings so a rerun never touches
+-- rows the parser has classified since. The stored timed_out flag wins; exact legacy texts are next;
+-- anything else stays 'unknown'.
+do $$ begin
+    if not exists (select 1 from kova_private.settings where key = 'digest_backfill_v1') then
+        update kova_private.digest_runs set outcome = case
+                when request_id is null then 'not_sent'
+                when timed_out is true or detail = 'timed out' or detail = 'timed out after 20 s' then 'timed_out'
+                when status_code between 200 and 299 and detail ~ '^sent to [1-9][0-9]*$' then 'sent'
+                when status_code between 200 and 299 and detail like 'skipped: %' then 'skipped'
+                when status_code is not null and status_code not between 200 and 299 then 'failed'
+                else 'unknown' end
+         where settled_at is not null and (outcome is null or outcome = 'unknown') and settled_at < now();
+        insert into kova_private.settings (key, value) values ('digest_backfill_v1', now()::text);
+    end if;
+end $$;
 
 create or replace function kova_private.run_tower_digest()
 returns void language plpgsql security definer set search_path = ''

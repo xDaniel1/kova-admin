@@ -69,7 +69,7 @@ const ORDER = ['maintenance', 'released_versions', 'min_version', 'latest_versio
 const SECTIONS = {
   maintenance: {
     title: 'Maintenance mode', blurb: 'Stops network features in the apps and shows a message. Use it during a bad deploy or a Supabase incident.',
-    form: v => html`${toggle('Maintenance mode is on', 'enabled', v.enabled, 'Apps show the message and pause sync, reports and feedback.')}<label>Message<textarea name="message" maxlength="300">${v.message || ''}</textarea></label>`,
+    form: v => html`${toggle('Maintenance mode is on', 'enabled', v.enabled === true, 'Apps show the message and pause sync, reports and feedback.')}<label>Message<textarea name="message" maxlength="300">${v.message || ''}</textarea></label>`,
     read: f => ({ enabled: f.get('enabled') === 'on', message: f.get('message').trim() }),
     status: v => v.enabled === true ? badge('ON · apps paused', 'danger') : badge('Off', 'ok'),
   },
@@ -103,11 +103,11 @@ const SECTIONS = {
     title: 'Platform overrides', blurb: 'Switch a feature off, pause, or announce on one platform only. A feature runs only if it is on in Feature switches and not off here. Read by iOS build 6+ and web 1.0.2+; Android not yet.',
     form: v => html`${PLATFORMS.map(([p, label]) => { const o = v[p] || {}, f = o.features || {}, m = o.maintenance || {}, a = o.announcement || {}; return html`
       <fieldset class="stack platform-override"><legend>${label}</legend>
-        ${toggle(label + ' maintenance mode', p + '_maint', m.enabled, 'Pauses network features on ' + label + ' only.')}
+        ${toggle(label + ' maintenance mode', p + '_maint', m.enabled === true, 'Pauses network features on ' + label + ' only.')}
         <label>Maintenance message<input name="${p}_maint_msg" maxlength="300" value="${m.message || ''}"></label>
         <details class="collapse"><summary>Features on ${label} (${FEATURES.filter(([k]) => f[k] === false).length} off)</summary><div class="switches" style="margin-top:8px">${FEATURES.map(([k, l]) => toggle(l, p + '_f_' + k, f[k] !== false))}</div></details>
-        <details class="collapse"><summary>${label} announcement ${!announcementLive(a) ? (a.enabled ? '(on, not showing)' : '') : platformAnnouncement({ ...CONF, platform_overrides: v }, p) === 'live' ? '(live)' : p === 'android' ? '(set, Android does not read it yet)' : '(set, hidden by maintenance)'}</summary><div class="stack" style="margin-top:8px">
-          ${toggle('Show on ' + label, p + '_ann', a.enabled, 'Replaces the global announcement on ' + label + ' while live.')}
+        <details class="collapse"><summary>${label} announcement ${!announcementLive(a) ? (a.enabled === true ? '(on, not showing)' : '') : platformAnnouncement({ ...CONF, platform_overrides: v }, p) === 'live' ? '(live)' : p === 'android' ? '(set, Android does not read it yet)' : '(set, hidden by maintenance)'}</summary><div class="stack" style="margin-top:8px">
+          ${toggle('Show on ' + label, p + '_ann', a.enabled === true, 'Replaces the global announcement on ' + label + ' while live.')}
           <div class="form-grid"><label>Title<input name="${p}_ann_title" maxlength="80" value="${a.title || ''}"></label><label>Level<select name="${p}_ann_level">${['info', 'warning', 'critical'].map(l => html`<option ${raw(l === (a.level || 'info') ? 'selected' : '')}>${l}</option>`)}</select></label></div>
           <label>Body<textarea name="${p}_ann_body" maxlength="500">${a.body || ''}</textarea></label>
           <label>Link (optional)<input name="${p}_ann_url" type="url" value="${a.url || ''}" placeholder="https://"></label></div></details>
@@ -123,10 +123,10 @@ const SECTIONS = {
   },
   announcement: {
     title: 'Announcement banner', blurb: 'A banner in the apps. Leave the window empty to show it whenever it is enabled.',
-    form: v => html`${toggle('Show the announcement', 'enabled', v.enabled)}<div class="form-grid">${field('Title', 'title', v.title, { attrs: 'maxlength="80"' })}<label>Level<select name="level">${['info', 'warning', 'critical'].map(l => html`<option ${raw(l === (v.level || 'info') ? 'selected' : '')}>${l}</option>`)}</select></label></div><label>Body<textarea name="body" maxlength="500">${v.body || ''}</textarea></label><div class="form-grid">${field('Link (optional)', 'url', v.url, { type: 'url', placeholder: 'https://' })}${field('Starts (your local time)', 'starts_at', local(v.starts_at), { type: 'datetime-local' })}${field('Ends (your local time)', 'ends_at', local(v.ends_at), { type: 'datetime-local' })}<input type="hidden" name="starts_at_orig" value="${v.starts_at || ''}"><input type="hidden" name="ends_at_orig" value="${v.ends_at || ''}"></div>`,
+    form: v => html`${toggle('Show the announcement', 'enabled', v.enabled === true)}<div class="form-grid">${field('Title', 'title', v.title, { attrs: 'maxlength="80"' })}<label>Level<select name="level">${['info', 'warning', 'critical'].map(l => html`<option ${raw(l === (v.level || 'info') ? 'selected' : '')}>${l}</option>`)}</select></label></div><label>Body<textarea name="body" maxlength="500">${v.body || ''}</textarea></label><div class="form-grid">${field('Link (optional)', 'url', v.url, { type: 'url', placeholder: 'https://' })}${field('Starts (your local time)', 'starts_at', local(v.starts_at), { type: 'datetime-local' })}${field('Ends (your local time)', 'ends_at', local(v.ends_at), { type: 'datetime-local' })}<input type="hidden" name="starts_at_orig" value="${v.starts_at || ''}"><input type="hidden" name="ends_at_orig" value="${v.ends_at || ''}"></div>`,
     read: f => ({ enabled: f.get('enabled') === 'on', title: f.get('title').trim(), body: f.get('body').trim(), level: f.get('level'), url: f.get('url').trim() || null, starts_at: fromLocal(f.get('starts_at'), f.get('starts_at_orig'), 'Starts'), ends_at: fromLocal(f.get('ends_at'), f.get('ends_at_orig'), 'Ends') }),
     status: v => {
-      if (!announcementLive(v)) return v.enabled ? badge('On · not showing (empty, scheduled or expired)', 'tone-seen') : badge('Hidden');
+      if (!announcementLive(v)) return v.enabled === true ? badge('On · not showing (empty, scheduled or expired)', 'tone-seen') : badge('Hidden');
       // Only platforms that read config and have no live announcement of their own show the global one.
       const conf = { ...CONF, announcement: v };
       const reads = ['ios', 'web'].filter(p => !announcementLive(CONF.platform_overrides?.[p]?.announcement));
@@ -186,7 +186,7 @@ export default async function controls(ctx) {
         const value = s ? s.read(f, rows.find(r => r.key === key)?.value || {}) : JSON.parse(f.get('json'));
         if (key === 'min_version') { const cur = rows.find(r => r.key === 'latest_version')?.value || {}; const bad = ['ios', 'android', 'web'].filter(p => value[p] && cur[p] && versionLess(cur[p], value[p])); if (bad.length && !confirm(`The minimum for ${bad.join(', ')} is above the latest released version. Every user on that platform would be blocked. Save anyway?`)) return; }
         if (key === 'released_versions') { const cur = rows.find(r => r.key === key)?.value || {}; const down = ['ios', 'android', 'web'].filter(p => cur[p]?.build && value[p].build && Number(value[p].build) < Number(cur[p].build)); if (down.length) throw new Error(`Build numbers only go up: ${down.map(p => `${p} is ${cur[p].build}`).join(', ')}.`); }
-        if (key === 'platform_overrides') { const on = PLATFORMS.filter(([p]) => value[p].maintenance.enabled && !(rows.find(r => r.key === key)?.value?.[p]?.maintenance?.enabled)).map(([, l]) => l); if (on.length && !confirm(`Turn on maintenance for ${on.join(', ')}? Those users lose network features until you turn it off.`)) return; }
+        if (key === 'platform_overrides') { const on = PLATFORMS.filter(([p]) => value[p].maintenance.enabled && rows.find(r => r.key === key)?.value?.[p]?.maintenance?.enabled !== true).map(([, l]) => l); if (on.length && !confirm(`Turn on maintenance for ${on.join(', ')}? Those users lose network features until you turn it off.`)) return; }
         if (key === 'maintenance' && value.enabled && !confirm('Turn on maintenance mode? Every app user will see the message and lose network features until you turn it off.')) return;
         await api.saveConfig(key, value); ctx.notice(`${s?.title || key} saved.`); if (ctx.alive()) await controls(ctx);
       } catch (err) { ctx.fail(err); } finally { b.disabled = false; }

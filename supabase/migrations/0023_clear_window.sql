@@ -1,29 +1,33 @@
 -- Migration 0023: clearing an error group deletes only the reports in the window Tower showed
--- (since < created_at <= until), and the audited RPC becomes the only way editors delete reports.
+-- (by the exact report ids it showed), and the audited RPC becomes the only way editors delete reports.
 -- Replaces admin_clear_error_group(text, text, timestamptz) from 0022, and refines admin_client_errors:
 -- the total follows the app filter, and first_ever is looked up only for the returned groups. Rerunnable.
 begin;
 
 drop function if exists public.admin_clear_error_group(text, text, timestamptz);
-create or replace function public.admin_clear_error_group(app text, message text, since timestamptz, until timestamptz)
+drop function if exists public.admin_clear_error_group(text, text, timestamptz, timestamptz);
+-- Editors only. Deletes exactly the report ids Tower showed for one group (ids that belong to another
+-- group are ignored), so a report that arrives after the page was read is never touched.
+create or replace function public.admin_clear_error_group(app text, message text, ids bigint[])
 returns integer language plpgsql security definer set search_path = ''
 as $$
 declare n integer;
 begin
     if not public.admin_can_write() then raise exception 'Editors only' using errcode = '42501'; end if;
-    if since is null or until is null or since >= until then raise exception 'A window (since < until) is required' using errcode = '22023'; end if;
+    if ids is null or cardinality(ids) = 0 then return 0; end if;
+    if cardinality(ids) > 20000 then raise exception 'Too many reports in one clear (%); narrow the window', cardinality(ids) using errcode = '22023'; end if;
     delete from public.client_errors e
-     where e.app is not distinct from admin_clear_error_group.app
-       and left(e.message, 300) is not distinct from admin_clear_error_group.message
-       and e.created_at > admin_clear_error_group.since and e.created_at <= admin_clear_error_group.until;
+     where e.id = any(admin_clear_error_group.ids)
+       and e.app is not distinct from admin_clear_error_group.app
+       and left(e.message, 300) is not distinct from admin_clear_error_group.message;
     get diagnostics n = row_count;
     insert into public.admin_audit_log (actor, action, target_type, target_id, details)
     values (auth.uid(), 'client_errors_cleared', 'client_error', left(coalesce(admin_clear_error_group.app, '?') || ':' || coalesce(admin_clear_error_group.message, ''), 200),
-            jsonb_build_object('count', n, 'since', admin_clear_error_group.since, 'until', admin_clear_error_group.until));
+            jsonb_build_object('count', n, 'requested', cardinality(admin_clear_error_group.ids)));
     return n;
 end $$;
-revoke all on function public.admin_clear_error_group(text, text, timestamptz, timestamptz) from public, anon;
-grant execute on function public.admin_clear_error_group(text, text, timestamptz, timestamptz) to authenticated;
+revoke all on function public.admin_clear_error_group(text, text, bigint[]) from public, anon;
+grant execute on function public.admin_clear_error_group(text, text, bigint[]) to authenticated;
 
 create or replace function public.admin_client_errors(days integer default 7, app text default null, q text default null)
 returns json language plpgsql stable security definer set search_path = ''
@@ -38,7 +42,8 @@ begin
                        min(e.created_at) as first, max(e.created_at) as last,
                        (array_agg(e.url order by e.created_at desc))[1] as url,
                        (array_agg(e.user_agent order by e.created_at desc))[1] as user_agent,
-                       (array_agg(left(e.stack, 1500) order by e.created_at desc))[1] as stack
+                       (array_agg(left(e.stack, 1500) order by e.created_at desc))[1] as stack,
+                       array_agg(e.id order by e.created_at desc) as ids
                   from public.client_errors e
                  where e.created_at > since and (admin_client_errors.app is null or e.app = admin_client_errors.app)
                  group by e.app, left(e.message, 300)),
@@ -55,6 +60,7 @@ begin
             'apps', (select coalesce(json_agg(distinct x.app), '[]'::json) from public.client_errors x where x.created_at > since and x.app is not null),
             'matching', (select count(*) from m),
             'capped', (select count(*) from m) > 500,
+            'clear', 'ids',  -- this read pairs with admin_clear_error_group(app, message, ids)
             'groups', (select coalesce(json_agg(g order by g.last desc), '[]'::json) from (
                 select top.*, f.first_ever from top left join f on f.app is not distinct from top.app and f.message is not distinct from top.message) g),
             'daily', (select coalesce(json_agg(json_build_object('day', to_char(g.day, 'YYYY-MM-DD'), 'n', coalesce(x.n, 0)) order by g.day), '[]'::json)
