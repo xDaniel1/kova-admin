@@ -24,7 +24,7 @@ Returns an array of `{ "key": string, "value": object }`. Decode each key on its
 | `min_version` | `{ "ios": "1.0", "android": "1.0", "web": "0.1", "message": string }` |
 | `latest_version` | `{ "ios": "1.0.0", "android": "1.0.0", "web": "0.1.0", "message": string, "store_urls": { "ios": url, "android": url, "web": url } }` |
 | `released_versions` | `{ "ios": { "version": "1.0.0", "build": "4" }, "android": { "version": "1.0.0", "build": "1" }, "web": { "version": "1.0.0", "build": null }, "site": {…} }`. Informational record of what shipped; apps may ignore it. |
-| `features` | `{ "indoor_maps": bool, "traffic_reports": bool, "feedback": bool, "incident_feeds": bool, "sync": bool, "speed_limits": bool, "traffic_coloring": bool, "transit": bool, "voice_guidance": bool, "carplay": bool, "carplay_safe": bool, "carplay_b17": bool, "android_auto": bool, "place_labels": bool, "flat_turns": bool, "rural_detail": bool, "map_trees": bool, "route_road_matching": bool }` |
+| `features` | `{ "indoor_maps": bool, "traffic_reports": bool, "feedback": bool, "incident_feeds": bool, "sync": bool, "speed_limits": bool, "traffic_coloring": bool, "transit": bool, "voice_guidance": bool, "carplay": bool, "carplay_safe": bool, "carplay_b17": bool, "android_auto": bool, "place_labels": bool, "flat_turns": bool, "rural_detail": bool, "map_trees": bool, "route_road_matching": bool, "toll_traffic_cameras": bool }` |
 | `platform_overrides` | `{ "ios" \| "android" \| "web": { "features": { <feature key>: false, … }, "maintenance": { "enabled": bool, "message": string }, "announcement": { same shape as announcement } } }` (added in migration 0012; optional to adopt) |
 | `announcement` | `{ "enabled": bool, "title": string, "body": string, "level": "info" \| "warning" \| "critical", "url": url \| null, "starts_at": ISO-8601 \| null, "ends_at": ISO-8601 \| null }` |
 
@@ -59,12 +59,13 @@ Returns an array of `{ "key": string, "value": object }`. Decode each key on its
 | `carplay_b17` | Same, for iOS build 17 and later. A new key per fixed build lets Tower keep crashing builds off the car. |
 | `map_trees` | 3D trees planted from satellite tree cover (`tree_cover_tiles`). iOS build 19+, web 1.0.7+. Off: no trees drawn, no tiles fetched. |
 | `route_road_matching` | Driving routes matched to Mapbox roads (Map Matching). iOS build 53+. Off: Apple's route line is drawn as is. |
+| `toll_traffic_cameras` | The toll-point layer and NYC DOT traffic cameras on the driving map. Default on; only an explicit false turns it off. Not paused by maintenance (it calls OpenStreetMap and NYC DOT, not Kova servers). Android reads it (branch `android/cameras-tolls`, next release) and lists `features.toll_traffic_cameras` in `config_keys`; iOS has no key for it yet and may read the same one. Added by Tower migration 0025. |
 | `android_auto` | Android's counterpart of iOS `carplay_b17` (Android build 3+). Default on. When false, a new Android Auto session shows "Kova is unavailable in the car right now"; a car trip already running is never interrupted. Not paused by maintenance. Tower's toggle: App controls → Feature switches → Android Auto, and per platform under Platform overrides → Android. |
 | `place_labels` | Web 1.0.3+: do not name shops, restaurants and attractions on the map (venues and streets). |
 | `flat_turns` | Once an app reads it (none does yet): keep the driving map's tilt through turns instead of dropping to 2D. |
 | `rural_detail` | Web: draw minor roads, small towns and unpaved surfaces with the standard style. |
 
-Switches after the first five were added by Tower migrations 0012, 0017, 0019 and 0021. Every switch is added as on in the live config, so an app that starts honouring them changes nothing until someone switches one off. A missing key means **enabled**. Check the switch where the feature starts its network work, not only in the UI.
+Switches after the first five were added by Tower migrations 0012, 0017, 0019, 0021 and 0025. Every switch is added as on in the live config, so an app that starts honouring them changes nothing until someone switches one off. A missing key means **enabled**. Check the switch where the feature starts its network work, not only in the UI.
 
 ### Platform overrides (`platform_overrides`)
 
