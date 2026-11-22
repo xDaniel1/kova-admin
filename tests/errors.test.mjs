@@ -118,4 +118,19 @@ console.log('unhandled/errs:', errs.map(e=>e.message));
   ok(api.calls.clear[0]?.ids[0] === '9007199254740993', 'bigint id sent as the exact string');
   api.ctl.listImpl = null;
 }
+// 11. Clear settles DURING the new render's first read: that stale snapshot is re-read, never painted actionable.
+{
+  let finish; api.ctl.clearImpl = () => new Promise(r => { finish = () => r(2); });
+  const old = mkctx(); let oldAlive = true; old.alive = () => oldAlive; api.ctl.listImpl = null; await errors(old);
+  btns()[0].click(); await tick(5); oldAlive = false;
+  let releaseFirst, reads = 0;
+  api.ctl.listImpl = () => { reads++; if (reads === 1) return new Promise(r => { releaseFirst = () => r(api.mk('stale')); }); return Promise.resolve(api.mk('fresh')); };
+  const fresh = mkctx({ days: '30' }); const p = errors(fresh); await tick(5);
+  finish(); await tick(5);          // Clear settles while the first read is still in flight
+  releaseFirst(); await p; await tick(10);
+  ok(reads >= 2, 'first read repeated after an overlapping Clear (reads=' + reads + ')');
+  ok(document.querySelector('[data-list]')?.textContent.includes('fresh') && !document.querySelector('[data-list]')?.textContent.includes('stale'), 'only the replacement response is painted');
+  ok(btns().every(b => !b.disabled), 'replacement response enables Clear');
+  api.ctl.listImpl = null; api.ctl.clearImpl = null;
+}
 console.log('unhandled/errs (end):', errs.map(e => e.message));

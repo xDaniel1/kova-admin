@@ -31,7 +31,7 @@ const fromLocal = (value, orig, label, drop = false) => {
   return (confirm(`${label}: ${pretty} happens twice when the clocks go back. OK for the first one (${early.toISOString().slice(11, 16)} UTC), Cancel for the second (${late.toISOString().slice(11, 16)} UTC).`) ? early : late).toISOString();
 };
 // The full config, set before each render so platform badges can apply global maintenance and fallback.
-let CONF = {}, BUILDS = null; // BUILDS: admin_live_builds rows, so badges count who actually sees an announcement
+let CONF = {}, BUILDS = null, RENDER = 0; // RENDER: id of the newest Controls render; older async work stands down // BUILDS: admin_live_builds rows, so badges count who actually sees an announcement
 const local = iso => { if (Number.isNaN(parseInstant(iso))) return ''; const d = new Date(iso); return isNaN(d) ? '' : new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
 
 // Every switch the apps can read. Who reads it today is in the hint; a switch an app does not read yet is harmless.
@@ -150,6 +150,7 @@ export default async function controls(ctx) {
   // Snapshot for this render only, set after the last await so a stale render can never overwrite it
   // between here and the synchronous render below.
   CONF = Object.fromEntries(rows.map(r => [r.key, r.value])); BUILDS = builds;
+  const myRender = ++RENDER;
   const endpoint = `${api.client().supabaseUrl || window.KOVA_SUPABASE.url}/rest/v1/app_config?select=key,value`;
   ctx.el.innerHTML = html`
     <section class="card" style="margin-bottom:18px"><div class="card-head"><h2>How the apps read these</h2></div>
@@ -168,9 +169,10 @@ export default async function controls(ctx) {
   const reachOf = (since, builds) => ['ios', 'web'].filter(p => since[p] != null).map(p => { const m = builds.filter(x => x.platform === p); const all = m.reduce((a, x) => a + +x.n, 0);
     const ok = m.filter(x => eligible(x, since)).reduce((a, x) => a + (x.no_keys != null ? +x.no_keys : x.reports_keys ? 0 : +x.n), 0); // only installs that send no config_keys are estimated
     return { label: p === 'ios' ? 'iOS' : 'web', ok, all }; });
-  Promise.allSettled([api.configReaders(), builds ? Promise.resolve(builds) : Promise.reject(new Error('live builds unavailable'))]).then(([rd, lb]) => { if (!ctx.alive()) return;
+  const readerEls = qsa('[data-reader]', ctx.el); // this render's cards only
+  Promise.allSettled([api.configReaders(), builds ? Promise.resolve(builds) : Promise.reject(new Error('live builds unavailable'))]).then(([rd, lb]) => { if (!ctx.alive() || myRender !== RENDER) return;
     const readers = rd.status === 'fulfilled' ? rd.value : null, builds = lb.status === 'fulfilled' ? lb.value : null;
-    qsa('[data-reader]', ctx.el).forEach(el => { const key = el.dataset.reader, r = readers?.[key];
+    readerEls.forEach(el => { if (!el.isConnected) return; const key = el.dataset.reader, r = readers?.[key];
       const real = r && Object.entries(r).some(([p, x]) => P[p] && !x.test && +x.installs_30d > 0);
       const since = SINCE[key.replace(/^features\./, '')], reach = since && builds ? reachOf(since, builds) : null;
       // Before 0023, admin_live_builds has no per-install no_keys count; a build where some installs report

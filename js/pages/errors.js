@@ -10,6 +10,8 @@ const RANGES = [[1, '24 hours'], [7, '7 days'], [30, '30 days']];
 // locks those groups, and when one finishes the render that is current then refreshes.
 const inflight = new Set();
 let onClearSettled = null;
+let clearRev = 0;            // bumped whenever a Clear settles; a first read that overlaps one is repeated
+const settled = () => { clearRev++; onClearSettled?.(); };
 const NEEDS_UPGRADE = html`<section class="card setup"><h2>Database update needed</h2><p>The Errors page needs <code>supabase/migrations/0022_error_filters.sql</code> (and <code>0023_clear_window.sql</code> for Clear).</p></section>`.s;
 
 export default async function errors(ctx) {
@@ -18,7 +20,7 @@ export default async function errors(ctx) {
   if (typeof ctx.query.app === 'string' && !ctx.query.app.trim()) ctx.query.app = undefined; // non-blank values stay verbatim
   const canWrite = state.role !== 'viewer';
   let d;
-  try { d = await api.clientErrors(days, ctx.query.app || null, ctx.query.q || null); } catch (e) { if (!ctx.alive()) return; if (e.needsUpgrade) { ctx.el.innerHTML = NEEDS_UPGRADE; return; } throw e; }
+  try { let rev; do { rev = clearRev; d = await api.clientErrors(days, ctx.query.app || null, ctx.query.q || null); } while (rev !== clearRev && ctx.alive()); } catch (e) { if (!ctx.alive()) return; if (e.needsUpgrade) { ctx.el.innerHTML = NEEDS_UPGRADE; return; } throw e; }
   if (!ctx.alive()) return;
   ctx.el.innerHTML = html`
     <section class="card"><div class="card-head"><h2 data-total></h2>
@@ -71,8 +73,8 @@ export default async function errors(ctx) {
       if (!canWrite || !filtersMatch() || pending.has(b.dataset.key)) return; const g = groups[+b.dataset.clear], key = b.dataset.key;
       if (!confirm(`Delete ${g.n} ${(g.app || '').trim() || 'unknown app'} reports of "${(g.message || '').slice(0, 80)}"? Only these reports are deleted; any that arrived since are kept.`)) return;
       pending.add(key); syncClear();
-      try { const n = await api.clearErrorGroup(g.app, g.message, g.ids); pending.delete(key); done.add(key); if (!ctx.alive()) { onClearSettled?.(); return; } if (clearErrKey === key) { clearBanner(); clearErrKey = null; } const gen = ++seq; syncClear(); ctx.notice(n ? `Cleared ${n} reports.` : 'Nothing was cleared (already gone).'); refetch(gen); }
-      catch (e) { pending.delete(key); if (ctx.alive()) { clearErrKey = key; syncClear(); ctx.fail(e); } else onClearSettled?.(); }
+      try { const n = await api.clearErrorGroup(g.app, g.message, g.ids); pending.delete(key); done.add(key); if (!ctx.alive()) { settled(); return; } clearRev++; if (clearErrKey === key) { clearBanner(); clearErrKey = null; } const gen = ++seq; syncClear(); ctx.notice(n ? `Cleared ${n} reports.` : 'Nothing was cleared (already gone).'); refetch(gen); }
+      catch (e) { pending.delete(key); if (ctx.alive()) { clearErrKey = key; syncClear(); ctx.fail(e); clearRev++; } else settled(); }
     });
   };
   let seq = 0;

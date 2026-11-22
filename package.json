@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node tests/util.test.mjs && node tests/errors.test.mjs"
+    "test": "node tests/util.test.mjs && node tests/errors.test.mjs && node tests/controls.test.mjs"
   },
   "devDependencies": {
     "jsdom": "^25.0.1"
