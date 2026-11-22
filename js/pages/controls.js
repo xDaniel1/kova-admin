@@ -38,19 +38,19 @@ const local = iso => { if (Number.isNaN(parseInstant(iso))) return ''; const d =
 
 // Every switch the apps can read. Who reads it today is in the hint; a switch an app does not read yet is harmless.
 export const FEATURES = [
-  ['indoor_maps', 'Indoor maps', 'Floor plans inside airports, stations and malls · iOS, web, Android 3+'],
+  ['indoor_maps', 'Indoor maps', 'Floor plans inside airports, stations and malls · iOS, web, Android 3+ (on Android, off stops downloads only; bundled and already-downloaded plans keep drawing)'],
   ['traffic_reports', 'Traffic reports', 'Submitting and showing community reports · iOS, web, Android 3+'],
-  ['feedback', 'Feedback form', 'Send feedback and shake-to-report · iOS, web, Android 3+'],
-  ['incident_feeds', 'Incident feeds', 'State DOT work zones (FDOT and others) · iOS, web, Android 3+'],
+  ['feedback', 'Feedback form', 'Send feedback and shake-to-report · iOS, web (Android has no feedback form)'],
+  ['incident_feeds', 'Incident feeds', 'State DOT work zones (FDOT and others) · iOS, web (not on Android)'],
   ['sync', 'Cloud sync', 'Favorites and recents across devices · iOS, web, Android 3+'],
   ['speed_limits', 'Speed limits', 'Posted limits from our database (Florida, New York State) and OpenStreetMap · iOS build 6+, web 1.0.2+, Android 3+'],
   ['traffic_coloring', 'Traffic colouring', 'Live traffic colours on routes and the map · iOS build 6+, web 1.0.2+, Android 3+'],
-  ['transit', 'Transit', 'Transit stops and rail lines outside New York · iOS build 6+, web 1.0.2+, Android 3+'],
+  ['transit', 'Transit', 'Transit stops and rail lines outside New York · iOS build 6+, web 1.0.2+, Android 3+ (on Android, off stops requests only; the bundled New York subway map and downloaded data keep drawing)'],
   ['voice_guidance', 'Voice guidance', 'Spoken turn-by-turn directions · iOS build 6+, web 1.0.2+, Android 3+'],
   ['carplay_b17', 'CarPlay (build 17+)', 'Kova on the car screen for the build with the trip-crash fix · iOS build 17+'],
   ['carplay_safe', 'CarPlay (builds 15–16)', 'Car screen on builds 15 and 16, which can still crash when a trip starts · switch off to keep them off the car'],
   ['carplay', 'CarPlay (builds 7–14)', 'Car screen on builds 7–14, which crash when a trip starts · switch off to keep them off the car'],
-  ['android_auto', 'Android Auto', 'Kova on the Android Auto car screen · Android build 3+'],
+  ['android_auto', 'Android Auto', 'Kova on the Android Auto car screen · Android build 3+. Off: new car sessions show “Kova is unavailable in the car right now”; a running car trip is never interrupted. Not paused by maintenance.'],
   ['place_labels', 'Place labels', 'Shops, restaurants and attractions named on the map at venues and on streets · web 1.0.3+ (iOS shows them but ignores the switch)'],
   ['flat_turns', 'Flat map for turns', 'Driving map drops to 2D before each turn · iOS build 9+ draws it, ignores the switch'],
   ['rural_detail', 'Rural map detail', 'Minor roads, small towns and unpaved surfaces drawn clearer · web 1.0.3+'],
@@ -63,8 +63,8 @@ const SINCE = {
   speed_limits: { ios: 6, web: '1.0.2', android: 3 }, traffic_coloring: { ios: 6, web: '1.0.2', android: 3 }, transit: { ios: 6, web: '1.0.2', android: 3 },
   voice_guidance: { ios: 6, web: '1.0.2', android: 3 }, android_auto: { android: 3 }, carplay: { ios: 7, iosTo: 14 }, carplay_safe: { ios: 15, iosTo: 16 }, carplay_b17: { ios: 17 },
   place_labels: { web: '1.0.3' }, rural_detail: { web: '1.0.3' }, map_trees: { ios: 19, web: '1.0.7' }, route_road_matching: { ios: 53 }, platform_overrides: { ios: 6, web: '1.0.2', android: 3 },
-  indoor_maps: { ios: 5, web: '1.0.0', android: 3 }, traffic_reports: { ios: 5, web: '1.0.0', android: 3 }, feedback: { ios: 5, web: '1.0.0', android: 3 },
-  incident_feeds: { ios: 5, web: '1.0.0', android: 3 }, sync: { ios: 5, web: '1.0.0', android: 3 },
+  indoor_maps: { ios: 5, web: '1.0.0', android: 3 }, traffic_reports: { ios: 5, web: '1.0.0', android: 3 }, feedback: { ios: 5, web: '1.0.0' },
+  incident_feeds: { ios: 5, web: '1.0.0' }, sync: { ios: 5, web: '1.0.0', android: 3 },
 };
 const PLATFORMS = [['ios', 'iOS'], ['android', 'Android'], ['web', 'Web']];
 const REL = [['ios', 'iOS', 'build'], ['android', 'Android', 'versionCode'], ['web', 'Web app', 'build'], ['site', 'Site']];
@@ -72,7 +72,7 @@ const ORDER = ['maintenance', 'released_versions', 'min_version', 'latest_versio
 const SECTIONS = {
   maintenance: {
     title: 'Maintenance mode', blurb: 'Stops network features in the apps and shows a message. Use it during a bad deploy or a Supabase incident.',
-    form: v => html`${toggle('Maintenance mode is on', 'enabled', v.enabled === true, 'Apps show the message and pause sync, reports and feedback.')}<label>Message<textarea name="message" maxlength="300">${v.message || ''}</textarea></label>`,
+    form: v => html`${toggle('Maintenance mode is on', 'enabled', v.enabled === true, 'Apps show the message and pause sync, reports and feedback. On Android it needs Tower’s answer in the current launch, never gates during navigation, and stops network requests only.')}<label>Message<textarea name="message" maxlength="300">${v.message || ''}</textarea></label>`,
     read: f => ({ enabled: f.get('enabled') === 'on', message: f.get('message').trim() }),
     status: v => v.enabled === true ? badge('ON · apps paused', 'danger') : badge('Off', 'ok'),
   },
@@ -106,7 +106,7 @@ const SECTIONS = {
     title: 'Platform overrides', blurb: 'Switch a feature off, pause, or announce on one platform only. A feature runs only if it is on in Feature switches and not off here. Read by iOS build 6+, web 1.0.2+ and Android build 3+.',
     form: v => html`${PLATFORMS.map(([p, label]) => { const o = v[p] || {}, f = o.features || {}, m = o.maintenance || {}, a = o.announcement || {}; return html`
       <fieldset class="stack platform-override"><legend>${label}</legend>
-        ${toggle(label + ' maintenance mode', p + '_maint', m.enabled === true, p === 'android' ? 'Shows the maintenance screen on Android only (not during navigation) and pauses sync, reports, feedback, indoor maps, incidents and transit; speed limits, traffic colours, voice and Android Auto keep running.' : 'Pauses network features on ' + label + ' only.')}
+        ${toggle(label + ' maintenance mode', p + '_maint', m.enabled === true, p === 'android' ? 'Shows the maintenance screen on Android only (not during navigation, and only once Tower has answered in this launch; a cached value alone never gates) and stops network requests for sync, reports, indoor maps and transit; bundled and downloaded maps keep drawing, and speed limits, traffic colours, voice and Android Auto keep running.' : 'Pauses network features on ' + label + ' only.')}
         <label>Maintenance message<input name="${p}_maint_msg" maxlength="300" value="${m.message || ''}"></label>
         <details class="collapse"><summary>Features on ${label} (${FEATURES.filter(([k]) => f[k] === false).length} off)</summary><div class="switches" style="margin-top:8px">${FEATURES.map(([k, l]) => toggle(l, p + '_f_' + k, f[k] !== false))}</div></details>
         <details class="collapse"><summary>${label} announcement ${!announcementLive(a) ? (a.enabled === true ? '(on, not showing)' : '') : (() => { const all = announcementReach({ ...CONF, platform_overrides: v }, BUILDS); if (!all) return '(install reach unavailable)'; const r = all.filter(x => x.n > 0 && x.platform === p && x.source === 'platform'); return r.some(x => x.state === 'live') ? '(live)' : r.some(x => x.state === 'hidden') ? '(set, hidden by maintenance)' : r.some(x => x.state === 'blocked') ? '(set, installs need the required update)' : '(set, not reaching anyone)'; })()}</summary><div class="stack" style="margin-top:8px">

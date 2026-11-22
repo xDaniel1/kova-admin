@@ -59,7 +59,7 @@ Returns an array of `{ "key": string, "value": object }`. Decode each key on its
 | `carplay_b17` | Same, for iOS build 17 and later. A new key per fixed build lets Tower keep crashing builds off the car. |
 | `map_trees` | 3D trees planted from satellite tree cover (`tree_cover_tiles`). iOS build 19+, web 1.0.7+. Off: no trees drawn, no tiles fetched. |
 | `route_road_matching` | Driving routes matched to Mapbox roads (Map Matching). iOS build 53+. Off: Apple's route line is drawn as is. |
-| `android_auto` | Android build 3+: the Android Auto car screen shows an unavailable screen instead of the map, read as the car session starts. |
+| `android_auto` | Android's counterpart of iOS `carplay_b17` (Android build 3+). Default on. When false, a new Android Auto session shows "Kova is unavailable in the car right now"; a car trip already running is never interrupted. Not paused by maintenance. Tower's toggle: App controls → Feature switches → Android Auto, and per platform under Platform overrides → Android. |
 | `place_labels` | Web 1.0.3+: do not name shops, restaurants and attractions on the map (venues and streets). |
 | `flat_turns` | Once an app reads it (none does yet): keep the driving map's tilt through turns instead of dropping to 2D. |
 | `rural_detail` | Web: draw minor roads, small towns and unpaved surfaces with the standard style. |
@@ -160,9 +160,14 @@ Tells Tower how well our map data covers real drives. Send once at the end of a 
 | Web 1.0.3–1.0.8 | ✅ | ✅ as 1.0.2; `place_labels`, `rural_detail` from 1.0.3, `map_trees` from 1.0.7 | ✅ | ✅ | ✅ | ❌ |
 | Web 1.0.2 (deploy build 41) | ✅ | ✅ speed_limits, traffic_coloring, transit, voice_guidance | ✅ | ✅ (skips automated browsers) | ❌ (please add; CI runs are marked as test in Tower by hand until then) | ❌ |
 | Android 1.0.0 (1–2) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Android 1.0.0 build 3+ (next release; branch `android/kova-android`) | ✅ | ✅ indoor_maps, traffic_reports, feedback, incident_feeds, sync, transit, speed_limits, traffic_coloring, voice_guidance, `android_auto` | ✅ | ✅ (channel, config_keys) | ✅ | ❌ |
+| Android 1.0.0 build 3+ (next release; branch `android/kova-android`) | ✅ | ✅ indoor_maps, traffic_reports, sync, transit, speed_limits, traffic_coloring, voice_guidance, `android_auto` (no `feedback` or `incident_feeds`: Android has neither) | ✅ | ✅ (channel, config_keys) | ✅ | ❌ |
 
-Android differs from the iOS rules in two places: maintenance pauses sync, reports, feedback, indoor maps, incident feeds and transit but keeps speed limits, traffic colouring, voice guidance and Android Auto running; and no maintenance or update screen is shown during active navigation or before Tower's first answer in a launch.
+Android differs from the iOS rules:
+- **Requests, not drawing.** Turning off `transit` or `indoor_maps`, or a maintenance window, stops network requests only. The bundled New York subway map, bundled floor plans and anything already downloaded keep drawing.
+- **Maintenance needs a fresh answer.** Android pauses or gates anything for maintenance only after it has read Tower's own `maintenance` row in the current launch; a cached value alone never does. It never shows the maintenance or update screen during active navigation.
+- **What maintenance pauses.** Sync, reports, indoor maps and transit requests pause; speed limits, traffic colouring, voice guidance and Android Auto keep running.
+- **Check-in.** `report_client` gets `install_id`, `platform: "android"`, `app_version` (versionName, e.g. "1.0.0"), `build` (versionCode, e.g. "2"), `os_version` ("Android 15"), plus `channel` ("production" or "dev") and `config_keys` (migration 0016). On a 404 it retries with the five original fields. `config_keys` lists only the eight switches above, never `feedback` or `incident_feeds`.
+- **Messages.** `app_messages` are fetched with `order=created_at.asc,id.asc` and paged by `offset`.
 
 `flat_turns` is not read by any build yet; it is on. `android_auto` is read by Android build 3+. `place_labels` and `rural_detail` are read by web 1.0.3+ only. Tower marks a switch "No app reads this yet" only when no build is documented to read it; a documented switch with no recent reports shows "No recent readers confirmed".
 
