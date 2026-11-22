@@ -11,10 +11,10 @@ update public.app_config
 -- fields, sets version/build (and tag/note where given), and drops pending_build now that it is released.
 update public.app_config set value = jsonb_set(value, '{ios}', (coalesce(value->'ios', '{}') - 'pending_build') || jsonb_build_object('version', '1.0.0', 'build', '73',
         'tag', 'ios-v1.0.0-b73', 'note', 'Builds 18-73: trees, routes on map roads, /collab review rounds'))
- where key = 'released_versions' and ((value #>> '{ios,build}') is null or ((value #>> '{ios,build}') ~ '^[0-9]+$' and (value #>> '{ios,build}')::numeric < 73));
+ where key = 'released_versions' and ((value #>> '{ios,build}') is null or case when (value #>> '{ios,build}') ~ '^[0-9]+$' then (value #>> '{ios,build}')::numeric < 73 else false end);
 -- Web 1.0.8 is deploy build 57 (seen checking in from production).
 update public.app_config set value = jsonb_set(value, '{web}', (coalesce(value->'web', '{}') - 'pending_build') || jsonb_build_object('version', '1.0.8', 'build', '57'))
- where key = 'released_versions' and ((value #>> '{web,build}') is null or ((value #>> '{web,build}') ~ '^[0-9]+$' and (value #>> '{web,build}')::numeric < 57));
+ where key = 'released_versions' and ((value #>> '{web,build}') is null or case when (value #>> '{web,build}') ~ '^[0-9]+$' then (value #>> '{web,build}')::numeric < 57 else false end);
 update public.app_config set value = jsonb_set(value, '{web}', '"1.0.8"')
  where key = 'latest_version' and value->>'web' in ('1.0.0', '1.0.1', '1.0.2', '1.0.3', '1.0.4', '1.0.5', '1.0.6', '1.0.7');
 

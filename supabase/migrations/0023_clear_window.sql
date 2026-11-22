@@ -129,6 +129,7 @@ begin
     if report_client.platform not in ('ios', 'android', 'web') then raise exception 'Unknown platform' using errcode = '22023'; end if;
     if report_client.config_keys is not null then
         select array_agg(distinct left(k, 64)) into keys from (select unnest(report_client.config_keys[1:64]) k) x where k ~ '^[a-z0-9_.]+$';
+        keys := coalesce(keys, '{}'); -- a list was sent: store it, even empty, so the install never counts as 'sends no keys'
     end if;
     insert into public.app_clients (install_id, platform, app_version, build, os_version, user_id, channel, config_keys)
     values (report_client.install_id, report_client.platform, left(report_client.app_version, 32), left(report_client.build, 32),
@@ -137,7 +138,7 @@ begin
         build = excluded.build, os_version = excluded.os_version, channel = excluded.channel,
         -- Keys a check-in omits are kept only while the install stays on the same platform, version and
         -- build; an upgrade without keys clears them, so one build's readers never carry into the next.
-        config_keys = case when report_client.config_keys is not null then coalesce(excluded.config_keys, '{}')
+        config_keys = case when report_client.config_keys is not null then excluded.config_keys
                            when public.app_clients.platform = excluded.platform and public.app_clients.app_version is not distinct from excluded.app_version
                                 and public.app_clients.build is not distinct from excluded.build then public.app_clients.config_keys
                            else null end,
