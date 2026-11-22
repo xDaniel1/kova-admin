@@ -1,7 +1,8 @@
 -- Migration 0023: clearing an error group deletes only the reports in the window Tower showed
 -- (by the exact report ids it showed), and the audited RPC becomes the only way editors delete reports.
 -- Replaces admin_clear_error_group(text, text, timestamptz) from 0022, and refines admin_client_errors:
--- the total follows the app filter, and first_ever is looked up only for the returned groups. Rerunnable.
+-- the total follows the app filter, and first_ever is looked up only for the returned groups. Also: live
+-- builds report installs without config_keys, and check-ins stop carrying keys across builds. Rerunnable.
 begin;
 
 -- Every Errors query filters by time.
@@ -93,6 +94,63 @@ begin
 end $$;
 revoke all on function public.admin_client_errors(integer, text, text) from public, anon;
 grant execute on function public.admin_client_errors(integer, text, text) to authenticated;
+
+-- Live builds: also how many installs of each build send no config_keys, so reader estimates count those
+-- installs rather than dropping a whole build when one install reports keys.
+create or replace function public.admin_live_builds()
+returns json language plpgsql stable security definer set search_path = ''
+as $$ begin
+    if not public.is_admin() then raise exception 'Not an admin' using errcode = '42501'; end if;
+    return (select coalesce(json_agg(x), '[]'::json) from (
+        select c.platform, c.app_version as version, c.build, count(*) as n, count(*) filter (where c.channel = 'beta') as beta,
+               max(c.last_seen) as last,
+               coalesce((select array_agg(distinct k) from public.app_clients c2, unnest(c2.config_keys) k
+                          where c2.platform = c.platform and c2.app_version = c.app_version and c2.build = c.build
+                            and c2.last_seen > now() - interval '7 days' and k like 'features.carplay%'
+                            and public.client_counted(c2.platform, c2.app_version, c2.build, c2.channel)), '{}') as car_keys,
+               bool_or(c.config_keys is not null) as reports_keys,
+               count(*) filter (where c.config_keys is null) as no_keys
+          from public.app_clients c
+         where c.last_seen > now() - interval '7 days' and public.client_counted(c.platform, c.app_version, c.build, c.channel)
+         group by c.platform, c.app_version, c.build) x);
+end $$;
+revoke all on function public.admin_live_builds() from public, anon;
+grant execute on function public.admin_live_builds() to authenticated;
+
+-- Check-ins (report_client, from 0016): keys a check-in omits are no longer carried across a build change.
+create or replace function public.report_client(install_id uuid, platform text, app_version text, build text default null,
+                                                os_version text default null, channel text default null, config_keys text[] default null)
+returns void language plpgsql security definer set search_path = ''
+as $$
+#variable_conflict use_column
+declare ch text := case when lower(report_client.channel) in ('production', 'beta', 'test', 'dev') then lower(report_client.channel) else 'production' end;
+        keys text[];
+begin
+    if report_client.platform not in ('ios', 'android', 'web') then raise exception 'Unknown platform' using errcode = '22023'; end if;
+    if report_client.config_keys is not null then
+        select array_agg(distinct left(k, 64)) into keys from (select unnest(report_client.config_keys[1:64]) k) x where k ~ '^[a-z0-9_.]+$';
+    end if;
+    insert into public.app_clients (install_id, platform, app_version, build, os_version, user_id, channel, config_keys)
+    values (report_client.install_id, report_client.platform, left(report_client.app_version, 32), left(report_client.build, 32),
+            left(report_client.os_version, 64), auth.uid(), ch, keys)
+    on conflict (install_id) do update set platform = excluded.platform, app_version = excluded.app_version,
+        build = excluded.build, os_version = excluded.os_version, channel = excluded.channel,
+        -- Keys a check-in omits are kept only while the install stays on the same platform, version and
+        -- build; an upgrade without keys clears them, so one build's readers never carry into the next.
+        config_keys = case when report_client.config_keys is not null then coalesce(excluded.config_keys, '{}')
+                           when public.app_clients.platform = excluded.platform and public.app_clients.app_version is not distinct from excluded.app_version
+                                and public.app_clients.build is not distinct from excluded.build then public.app_clients.config_keys
+                           else null end,
+        user_id = coalesce(excluded.user_id, public.app_clients.user_id), last_seen = now();
+    if public.client_counted(report_client.platform, left(report_client.app_version, 32), left(report_client.build, 32), ch) then
+        insert into public.app_client_days (day, platform, install_id, user_id)
+        values ((now() at time zone 'utc')::date, report_client.platform, report_client.install_id, auth.uid())
+        on conflict (day, platform, install_id) do update
+            set user_id = coalesce(excluded.user_id, public.app_client_days.user_id);
+    end if;
+end $$;
+revoke all on function public.report_client(uuid, text, text, text, text, text, text[]) from public;
+grant execute on function public.report_client(uuid, text, text, text, text, text, text[]) to anon, authenticated;
 
 -- No direct deletes any more: Tower clears through the RPC above.
 drop policy if exists "Editors clear error reports" on public.client_errors;

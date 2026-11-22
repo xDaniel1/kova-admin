@@ -14,9 +14,9 @@ update public.app_config
 -- fields, sets version/build (and tag/note where given), and drops pending_build now that it is released.
 update public.app_config set value = jsonb_set(value, '{ios}', (coalesce(value->'ios', '{}') - 'pending_build') || jsonb_build_object('version', '1.0.0', 'build', '17', 'tag', 'ios-v1.0.0-b17',
         'note', 'Build 17 fixes the CarPlay trip crash (builds 7-16)'))
- where key = 'released_versions' and coalesce((value #>> '{ios,build}')::int, 0) < 17;
+ where key = 'released_versions' and ((value #>> '{ios,build}') is null or ((value #>> '{ios,build}') ~ '^[0-9]+$' and (value #>> '{ios,build}')::numeric < 17));
 update public.app_config set value = jsonb_set(value, '{web}', (coalesce(value->'web', '{}') - 'pending_build') || jsonb_build_object('version', '1.0.4', 'build', '47'))
- where key = 'released_versions' and coalesce((value #>> '{web,build}')::int, 0) < 47;
+ where key = 'released_versions' and ((value #>> '{web,build}') is null or ((value #>> '{web,build}') ~ '^[0-9]+$' and (value #>> '{web,build}')::numeric < 47));
 update public.app_config set value = jsonb_set(value, '{web}', '"1.0.4"') where key = 'latest_version' and value->>'web' in ('1.0.0', '1.0.1', '1.0.2', '1.0.3');
 
 -- The NY import registered its source but not its region.

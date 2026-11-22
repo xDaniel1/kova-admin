@@ -135,7 +135,7 @@ const SECTIONS = {
       const counted = all.filter(x => x.n > 0), r = counted.filter(x => x.source === 'global');
       return r.some(x => x.state === 'live') ? badge('Live', 'accent') : r.some(x => x.state === 'hidden') ? badge('On · hidden by maintenance', 'tone-seen')
         : r.some(x => x.state === 'blocked') ? badge('On · installs need the required update', 'tone-seen')
-        : counted.some(x => x.source === 'platform') ? badge(counted.some(x => x.source === 'platform' && x.state === 'live') ? 'On · replaced by platform announcements' : 'On · replaced by platform announcements (not shown: maintenance or required update)', 'tone-seen') : badge('On · reaches no counted installs', 'tone-seen');
+        : counted.some(x => x.source === 'platform' && x.state === 'live') ? badge('On · replaced by platform announcements', 'tone-seen') : badge('On · reaches no counted installs', 'tone-seen');
     },
   },
 };
@@ -165,7 +165,7 @@ export default async function controls(ctx) {
   // Reach: counted installs seen in the last 7 days on builds that honour a switch (admin_live_builds,
   // one row per actual build). Reported readers take priority; estimates only fill in where none reported.
   const reachOf = (since, builds) => ['ios', 'web'].filter(p => since[p] != null).map(p => { const m = builds.filter(x => x.platform === p); const all = m.reduce((a, x) => a + +x.n, 0);
-    const ok = m.filter(x => !x.reports_keys).filter(x => p === 'ios' ? /^\d+$/.test(x.build || '') && +x.build >= since.ios && +x.build <= (since.iosTo ?? Infinity) : validVersion(x.version) && !versionLess(x.version, since.web)).reduce((a, x) => a + +x.n, 0);
+    const ok = m.filter(x => p === 'ios' ? /^\d+$/.test(x.build || '') && +x.build >= since.ios && +x.build <= (since.iosTo ?? Infinity) : validVersion(x.version) && !versionLess(x.version, since.web)).reduce((a, x) => a + (x.no_keys != null ? +x.no_keys : x.reports_keys ? 0 : +x.n), 0); // only installs that send no config_keys are estimated
     return { label: p === 'ios' ? 'iOS' : 'web', ok, all }; });
   Promise.allSettled([api.configReaders(), builds ? Promise.resolve(builds) : Promise.reject(new Error('live builds unavailable'))]).then(([rd, lb]) => { if (!ctx.alive()) return;
     const readers = rd.status === 'fulfilled' ? rd.value : null, builds = lb.status === 'fulfilled' ? lb.value : null;
