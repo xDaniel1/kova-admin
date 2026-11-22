@@ -155,12 +155,14 @@ Tells Tower how well our map data covers real drives. Send once at the end of a 
 | iOS 1.0.0 b5 | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
 | iOS 1.0.0 b6–b11 | ✅ | ✅ speed_limits, traffic_coloring, transit, voice_guidance; carplay from b7 | ✅ | ✅ | ❌ (please add) | ❌ |
 | iOS 1.0.0 b12–b17 | ✅ | ✅ as b11; car screen reads `carplay` (b7–14), `carplay_safe` (b15–16), `carplay_b17` (b17+) | ✅ | ✅ | ✅ | ❌ |
-| iOS 1.0.0 b18–b73 (latest `ios-v1.0.0-b73`) | ✅ | ✅ as b17; `map_trees` from b19, `route_road_matching` from b53 | ✅ | ✅ | ✅ | ❌ |
+| iOS 1.0.0 b18–b75 (latest `ios-v1.0.0-b75`) | ✅ | ✅ as b17; `map_trees` from b19, `route_road_matching` from b53 | ✅ | ✅ | ✅ | ❌ |
 | iOS builds 3, 4 | read nothing | | | | | |
 | Web 1.0.3–1.0.8 | ✅ | ✅ as 1.0.2; `place_labels`, `rural_detail` from 1.0.3, `map_trees` from 1.0.7 | ✅ | ✅ | ✅ | ❌ |
 | Web 1.0.2 (deploy build 41) | ✅ | ✅ speed_limits, traffic_coloring, transit, voice_guidance | ✅ | ✅ (skips automated browsers) | ❌ (please add; CI runs are marked as test in Tower by hand until then) | ❌ |
 | Android 1.0.0 (1–2) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Android 1.0.0 build 3+ (next release; branch `android/kova-android`) | ✅ | ✅ indoor_maps, traffic_reports, feedback, incident_feeds, sync, transit, speed_limits, traffic_coloring, voice_guidance, `android_auto` | ✅ | ✅ (channel, config_keys) | ✅ | ❌ |
+
+Android differs from the iOS rules in two places: maintenance pauses sync, reports, feedback, indoor maps, incident feeds and transit but keeps speed limits, traffic colouring, voice guidance and Android Auto running; and no maintenance or update screen is shown during active navigation or before Tower's first answer in a launch.
 
 `flat_turns` is not read by any build yet; it is on. `android_auto` is read by Android build 3+. `place_labels` and `rural_detail` are read by web 1.0.3+ only. Tower marks a switch "No app reads this yet" only when no build is documented to read it; a documented switch with no recent reports shows "No recent readers confirmed".
 

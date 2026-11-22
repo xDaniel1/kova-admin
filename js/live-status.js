@@ -2,7 +2,7 @@
 // that are off, and every counted build seen in the last 7 days with the car-screen switch it reads,
 // so a switch that reaches a known-bad build stands out before anyone has to go looking.
 'use strict';
-import { html, raw, fmtNum, rel, href, badge, versionLess, announcementLive, announcementReach, installCohort } from './util.js';
+import { html, raw, fmtNum, rel, href, badge, versionLess, announcementLive, announcementReach, installCohort, readersOf } from './util.js';
 import * as api from './api.js';
 
 const PLATFORM = { ios: 'iOS', android: 'Android', web: 'Web' };
@@ -23,10 +23,10 @@ export async function liveStatusCard() {
   const on = (platform, key) => features[key] !== false && overrides[platform]?.features?.[key] !== false;
 
   const alerts = [];
-  // Apps honour only a real true (contract fail-safe rules); Android reads no config yet, so it is left out.
+  // Apps honour only a real true (contract fail-safe rules).
   // Platforms whose apps read Tower (Android from build 3, contract adoption table).
   const READS = Object.entries(PLATFORM);
-  if (conf.maintenance?.enabled === true) alerts.push(['danger', 'Maintenance is on for every app']);
+  if (conf.maintenance?.enabled === true) alerts.push(['danger', 'Maintenance is on for every app that reads Tower']);
   for (const [p, label] of READS) {
     if (overrides[p]?.maintenance?.enabled === true) alerts.push(['danger', `${label} is in maintenance`]);
     const off = Object.entries(overrides[p]?.features || {}).filter(([, v]) => v === false).map(([k]) => k);
@@ -64,8 +64,9 @@ export async function liveStatusCard() {
   const carCell = g => {
     if (g.platform === 'android') { // Android Auto answers to android_auto from build 3 (or any install that reports keys)
       if (installCohort('android', g, conf).kind !== 'override') return html`<span class="muted small">doesn't read Tower</span>`;
-      const liveA = on('android', 'android_auto');
-      return html`<code>android_auto</code> ${liveA ? badge('On', 'ok') : badge('Off', 'tone-seen')}`;
+      const liveA = on('android', 'android_auto'), readers = readersOf('android', g);
+      const part = readers === +g.n ? '' : readers == null ? html`<br><span class="muted small">some installs read Tower; count needs migration 0023</span>` : html`<br><span class="muted small">${fmtNum(readers)} of ${fmtNum(g.n)} read Tower</span>`;
+      return html`<code>android_auto</code> ${liveA ? badge('On', 'ok') : badge('Off', 'tone-seen')}${part}`;
     }
     if (g.platform !== 'ios') return html`<span class="muted">—</span>`;
     // The car-screen key of every known iOS build is documented (contract adoption table): 7-14 read

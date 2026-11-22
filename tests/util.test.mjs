@@ -22,3 +22,9 @@ ok(e({ platform: 'android', build: '3' }, { android: 3 }) && !e({ platform: 'and
 const ra = r({ announcement: { enabled: true, title: 'Hi' }, platform_overrides: { android: { maintenance: { enabled: true } } } }, [{ platform: 'android', version: '1.0.0', build: '3', n: 2 }]);
 ok(ra.some(x => x.platform === 'android' && x.state === 'hidden' && x.n === 2), 'Android maintenance hides the announcement for Android installs');
 ok(!r({ announcement: { enabled: true, title: 'Hi' } }, []).some(x => x.platform === 'android'), 'no Android rows: no Android claim');
+import { readersOf } from '../js/util.js';
+const mixed = { platform: 'android', version: '1.0.0', build: '2', n: 40, reports_keys: true, no_keys: 39 };
+const ann2 = { announcement: { enabled: true, title: 'Hi' } };
+ok(r(ann2, [mixed]).find(x => x.platform === 'android')?.n === 1, 'mixed Android build-2 row: reach 1 of 40');
+ok(!r(ann2, [{ ...mixed, no_keys: null }]).some(x => x.platform === 'android'), 'mixed row without no_keys: no Android claim (unknown)');
+ok(readersOf('android', { build: '3', n: 5 }) === 5 && readersOf('ios', { n: 4 }) === 4, 'readersOf full rows');

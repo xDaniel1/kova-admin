@@ -127,6 +127,17 @@ export function announcementLive(x, now = Date.now()) {
 // `blocked` = a reader below a valid min_version, which sees the required-update screen instead.
 export const validVersion = v => typeof v === 'string' && /^\d+(\.\d+)*$/.test(v);
 export const ANDROID_READS_FROM = 3; // first Android release that reads Tower (contract adoption table)
+// How many installs in a live build row read Tower. Android before build 3 only reads it in pre-release
+// installs that report config_keys, so a mixed row counts just those (n - no_keys); without a no_keys
+// count (before migration 0023) the number is unknown (null). Every other row counts in full.
+export function readersOf(platform, g) {
+  const n = +g?.n || 0;
+  if (platform !== 'android') return n;
+  const b = /^\d+$/.test(g?.build || '') ? +g.build : -1;
+  if (b >= ANDROID_READS_FROM) return n;
+  if (g?.reports_keys !== true) return 0;
+  return g.no_keys == null ? null : Math.max(0, n - (+g.no_keys || 0));
+}
 export function installCohort(platform, g, conf) {
   let kind = null;
   // Android reads global settings and its own override from build 3; an install that reports config_keys
@@ -166,7 +177,8 @@ export function announcementReach(conf, builds, now = Date.now()) {
       const { kind, blocked } = installCohort(p, g, conf); if (!kind) continue;
       const src = source(kind); if (!src) continue;
       const state = blocked ? 'blocked' : hiddenFor(kind) ? 'hidden' : 'live';
-      const k = `${kind}|${state}|${src}`; acc.set(k, (acc.get(k) || 0) + (+g.n || 0));
+      const cnt = readersOf(p, g); if (!cnt) continue; // unknown or zero readers are never claimed
+      const k = `${kind}|${state}|${src}`; acc.set(k, (acc.get(k) || 0) + cnt);
     }
     const kinds = new Set([...acc.keys()].map(k => k.split('|')[0]));
     for (const [k, n] of acc) {
@@ -180,7 +192,7 @@ export function announcementReach(conf, builds, now = Date.now()) {
 }
 
 // Whether a live build row (admin_live_builds) is documented to honour a switch, given its adoption
-// thresholds `since` ({ ios, iosTo, web }). Only iOS and web rows can qualify.
+// thresholds `since` ({ ios, iosTo, web, android }). iOS, web and Android rows can qualify.
 export function switchEligible(x, since) {
   if (!since || !x) return false;
   if (x.platform === 'ios') return since.ios != null && /^\d+$/.test(x.build || '') && +x.build >= since.ios && +x.build <= (since.iosTo ?? Infinity);
