@@ -48,7 +48,7 @@ begin
     begin j := content::jsonb; exception when others then j := null; end;
     if j is not null and jsonb_typeof(j) = 'object' then
         if jsonb_typeof(j->'skipped') = 'string' then outcome := 'skipped'; detail := left('skipped: ' || (j->>'skipped'), 300); return next; return; end if;
-        if jsonb_typeof(j->'sent') = 'number' and (j->>'sent')::numeric > 0 then outcome := 'sent'; detail := 'sent to ' || (j->>'sent'); return next; return; end if;
+        if jsonb_typeof(j->'sent') = 'number' and (j->>'sent')::numeric > 0 then outcome := 'sent'; detail := left('sent to ' || (j->>'sent'), 60); return next; return; end if;
     end if;
     outcome := 'unknown'; detail := left(coalesce(content, ''), 300); return next;
 end $$;
