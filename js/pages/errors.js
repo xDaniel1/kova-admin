@@ -83,7 +83,7 @@ export default async function errors(ctx) {
       // Keep the old list visible but inert, and offer to retry the read.
       qs('[data-retry-row]', list)?.remove();
       list.insertAdjacentHTML('afterbegin', html`<p class="alert alert-warn" data-retry-row style="margin:0 0 10px">Couldn't refresh: ${e.message || e} <button type="button" class="sm" data-retry>Retry</button></p>`.s);
-      qs('[data-retry]', list).onclick = () => { const gen = ++seq; syncClear(); refetch(gen); };
+      qs('[data-retry]', list).onclick = () => { const next = ++seq; syncClear(); refetch(next); };
       stale = true; syncClear();
     } };
   const debounced = debounce(gen => refetch(gen), 250);

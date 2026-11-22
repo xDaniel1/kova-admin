@@ -1,6 +1,6 @@
 // The landing page: greeting, headline numbers, what needs attention, latest activity, trends.
 'use strict';
-import { html, raw, qs, fmtNum, rel, fmtDate, href, barChart, badge, kindLabel, statusTone, upgradeCard, empty } from '../util.js';
+import { html, qs, fmtNum, rel, href, barChart, badge, kindLabel, upgradeCard, empty } from '../util.js';
 import * as api from '../api.js';
 import { eventList } from './activity.js';
 import { recordHref, typeLabel } from '../records.js';
@@ -16,7 +16,6 @@ export default async function home(ctx) {
   const first = (meta.full_name || meta.name || (ctx.user.email || '').split('@')[0] || 'there').split(/[\s._]+/)[0];
   const name = first.charAt(0).toUpperCase() + first.slice(1);
   const today = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
-  const v3 = api.capabilities.v3;
   const lineBits = [today];
   if (s.feedback_new != null) lineBits.push(`${fmtNum(s.feedback_new)} new feedback`);
   if (s.reports_24h != null) lineBits.push(`${fmtNum(s.reports_24h)} reports today`);

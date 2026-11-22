@@ -1,6 +1,6 @@
 // App controls: the remote switches the apps read at launch. Every save is audited.
 'use strict';
-import { html, raw, qs, qsa, fmtDate, rel, badge, upgradeCard, versionLess, announcementLive, announcementReach, parseInstant, validVersion } from '../util.js';
+import { html, raw, qs, qsa, rel, badge, upgradeCard, versionLess, announcementLive, announcementReach, parseInstant, validVersion } from '../util.js';
 import * as api from '../api.js';
 import { state } from '../app.js';
 import { annotations, auditList } from '../records.js';

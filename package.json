@@ -1,0 +1,11 @@
+{
+  "name": "kova-tower",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tests/errors.test.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1"
+  }
+}

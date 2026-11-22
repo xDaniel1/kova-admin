@@ -1,7 +1,7 @@
 // Moderation: community traffic reports others flagged, who flags the most, and reporters blocked from posting.
 // Two flags on a report remove it automatically (database trigger); blocking stops a user from filing reports.
 'use strict';
-import { html, raw, qsa, fmtNum, fmtDate, rel, href, table, badge, mapsLink, upgradeCard, empty } from '../util.js';
+import { html, qsa, fmtNum, rel, href, table, badge, mapsLink, upgradeCard } from '../util.js';
 import * as api from '../api.js';
 import { state } from '../app.js';
 
