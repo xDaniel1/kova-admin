@@ -59,7 +59,9 @@ begin
                 select top.*, f.first_ever from top left join f on f.app is not distinct from top.app and f.message is not distinct from top.message) g),
             'daily', (select coalesce(json_agg(json_build_object('day', to_char(g.day, 'YYYY-MM-DD'), 'n', coalesce(x.n, 0)) order by g.day), '[]'::json)
                         from (select gs::date as day from generate_series(current_date - 29, current_date, interval '1 day') gs) g
-                        left join (select created_at::date as day, count(*) as n from public.client_errors where created_at > current_date - 30 and (admin_client_errors.app is null or app = admin_client_errors.app) group by 1) x on x.day = g.day)));
+                        left join (select c.created_at::date as day, count(*) as n from public.client_errors c
+                                   where c.created_at > current_date - 30 and (admin_client_errors.app is null or c.app = admin_client_errors.app)
+                                   group by 1) x on x.day = g.day)));
 end $$;
 revoke all on function public.admin_client_errors(integer, text, text) from public, anon;
 grant execute on function public.admin_client_errors(integer, text, text) to authenticated;

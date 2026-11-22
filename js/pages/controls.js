@@ -125,15 +125,22 @@ const SECTIONS = {
     title: 'Announcement banner', blurb: 'A banner in the apps. Leave the window empty to show it whenever it is enabled.',
     form: v => html`${toggle('Show the announcement', 'enabled', v.enabled)}<div class="form-grid">${field('Title', 'title', v.title, { attrs: 'maxlength="80"' })}<label>Level<select name="level">${['info', 'warning', 'critical'].map(l => html`<option ${raw(l === (v.level || 'info') ? 'selected' : '')}>${l}</option>`)}</select></label></div><label>Body<textarea name="body" maxlength="500">${v.body || ''}</textarea></label><div class="form-grid">${field('Link (optional)', 'url', v.url, { type: 'url', placeholder: 'https://' })}${field('Starts (your local time)', 'starts_at', local(v.starts_at), { type: 'datetime-local' })}${field('Ends (your local time)', 'ends_at', local(v.ends_at), { type: 'datetime-local' })}<input type="hidden" name="starts_at_orig" value="${v.starts_at || ''}"><input type="hidden" name="ends_at_orig" value="${v.ends_at || ''}"></div>`,
     read: f => ({ enabled: f.get('enabled') === 'on', title: f.get('title').trim(), body: f.get('body').trim(), level: f.get('level'), url: f.get('url').trim() || null, starts_at: fromLocal(f.get('starts_at'), f.get('starts_at_orig'), 'Starts'), ends_at: fromLocal(f.get('ends_at'), f.get('ends_at_orig'), 'Ends') }),
-    status: v => announcementLive(v) ? (CONF.maintenance?.enabled === true ? badge('On · hidden by maintenance', 'tone-seen') : badge('Live', 'accent')) : v.enabled ? badge('On · not showing (empty, scheduled or expired)', 'tone-seen') : badge('Hidden'),
+    status: v => {
+      if (!announcementLive(v)) return v.enabled ? badge('On · not showing (empty, scheduled or expired)', 'tone-seen') : badge('Hidden');
+      // Only platforms that read config and have no live announcement of their own show the global one.
+      const conf = { ...CONF, announcement: v };
+      const reads = ['ios', 'web'].filter(p => !announcementLive(CONF.platform_overrides?.[p]?.announcement));
+      const live = reads.filter(p => platformAnnouncement(conf, p) === 'live');
+      return live.length ? badge('Live', 'accent') : reads.length ? badge('On · hidden by maintenance', 'tone-seen') : badge('On · replaced by platform announcements', 'tone-seen');
+    },
   },
 };
 
 export default async function controls(ctx) {
   let rows;
   try { rows = await api.config(); } catch (e) { if (e.needsUpgrade) { ctx.el.innerHTML = upgradeCard(); return; } throw e; }
-  CONF = Object.fromEntries(rows.map(r => [r.key, r.value]));
   if (!ctx.alive()) return;
+  CONF = Object.fromEntries(rows.map(r => [r.key, r.value]));
   const label = await api.labels(rows.map(r => r.updated_by)); if (!ctx.alive()) return;
   const endpoint = `${api.client().supabaseUrl || window.KOVA_SUPABASE.url}/rest/v1/app_config?select=key,value`;
   ctx.el.innerHTML = html`

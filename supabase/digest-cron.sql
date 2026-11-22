@@ -41,7 +41,7 @@ declare j jsonb;
 begin
     if coalesce(timed_out, false) then outcome := 'timed_out'; detail := 'timed out after 20 s'; return next; return; end if;
     if status is null then
-        if error_msg is not null then outcome := 'failed'; detail := left(error_msg, 300); else outcome := null; detail := null; end if;
+        outcome := 'failed'; detail := coalesce(left(error_msg, 300), 'no HTTP status');
         return next; return;
     end if;
     if status not between 200 and 299 then outcome := 'failed'; detail := left('HTTP ' || status || ': ' || coalesce(error_msg, content, ''), 300); return next; return; end if;

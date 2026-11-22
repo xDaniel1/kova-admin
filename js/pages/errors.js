@@ -44,7 +44,7 @@ export default async function errors(ctx) {
       if (!confirm(`Delete ${g.n} reports of "${(g.message || '').slice(0, 80)}"? Reports that arrive after ${fmtDate(g.last)} are kept.`)) return;
       b.disabled = true;
       try { const n = await api.clearErrorGroup(g.app, g.message, r.since, g.last); ctx.notice(n ? `Cleared ${n} reports.` : 'Nothing was cleared (already gone).'); if (ctx.alive()) refetch(++seq); }
-      catch (e) { ctx.fail(e); b.disabled = false; }
+      catch (e) { if (ctx.alive()) { ctx.fail(e); b.disabled = false; } }
     });
   };
   let seq = 0;
@@ -55,7 +55,7 @@ export default async function errors(ctx) {
   const refetch = async gen => { const snap = { app: ctx.query.app || null, q: ctx.query.q || null };
     try { const r = await api.clientErrors(days, snap.app, snap.q); if (!ctx.alive() || gen !== seq) return; render(r, snap);
       try { history.replaceState(null, '', '#/errors?' + new URLSearchParams({ days, ...(snap.q ? { q: snap.q } : {}), ...(snap.app ? { app: snap.app } : {}) })); } catch {} }
-    catch (e) { if (ctx.alive() && gen === seq) ctx.fail(e); } };
+    catch (e) { if (!ctx.alive() || gen !== seq) return; if (e.needsUpgrade) ctx.el.innerHTML = upgradeCard(); else ctx.fail(e); } };
   const debounced = debounce(gen => refetch(gen), 250);
   filter.oninput = () => { ctx.query.q = filter.value.trim(); debounced(++seq); };
   if (appSel) appSel.onchange = () => { ctx.query.app = appSel.value; refetch(++seq); };
