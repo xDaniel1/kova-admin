@@ -2,7 +2,7 @@
 // that are off, and every counted build seen in the last 7 days with the car-screen switch it reads,
 // so a switch that reaches a known-bad build stands out before anyone has to go looking.
 'use strict';
-import { html, raw, fmtNum, rel, href, badge, versionLess, announcementLive, platformAnnouncement } from './util.js';
+import { html, raw, fmtNum, rel, href, badge, versionLess, announcementLive, announcementReach } from './util.js';
 import * as api from './api.js';
 
 const PLATFORM = { ios: 'iOS', android: 'Android', web: 'Web' };
@@ -25,7 +25,6 @@ export async function liveStatusCard() {
   const alerts = [];
   // Apps honour only a real true (contract fail-safe rules); Android reads no config yet, so it is left out.
   const READS = Object.entries(PLATFORM).filter(([p]) => p !== 'android');
-  const inMaint = p => conf.maintenance?.enabled === true || overrides[p]?.maintenance?.enabled === true;
   if (conf.maintenance?.enabled === true) alerts.push(['danger', 'Maintenance is on for iOS and web']);
   for (const [p, label] of READS) {
     if (overrides[p]?.maintenance?.enabled === true) alerts.push(['danger', `${label} is in maintenance`]);
@@ -38,16 +37,12 @@ export async function liveStatusCard() {
   // A live platform announcement replaces the global one on that platform.
   // Apps hide it while that platform is in maintenance, and treat malformed values as absent.
   const now = Date.now();
-  const isLive = x => announcementLive(x, now);
-  const shown = [], hidden = [];
-  // Android 1.0.0 reads no config yet (contract adoption table), so it is left out.
-  for (const [p, label] of READS) {
-    const st = platformAnnouncement(conf, p, now); if (st === 'none') continue;
-    const tag = announcementLive(overrides[p]?.announcement, now) ? `${label} (its own)` : label;
-    (st === 'live' ? shown : hidden).push(tag);
-  }
+  const reach = announcementReach(conf, rows, now);
+  const tag = x => `${x.label}${x.source === 'platform' ? ' (its own)' : ''}${x.n != null ? ` · ${fmtNum(x.n)}` : ''}`;
+  const shown = reach.filter(x => x.state === 'live').map(tag), hidden = reach.filter(x => x.state === 'hidden').map(tag), blocked = reach.filter(x => x.state === 'blocked').map(tag);
   if (shown.length) alerts.push(['info', `Announcement live on ${shown.join(', ')}`]);
   if (hidden.length) alerts.push(['warn', `Announcement set for ${hidden.join(', ')} but hidden by maintenance there`]);
+  if (blocked.length) alerts.push(['warn', `Announcement not seen by ${blocked.join(', ')}: they get the required-update screen`]);
   // Contract adoption table: platform_overrides are read from iOS build 6 and web 1.0.2. Older installs
   // still in use follow only the global settings, so say so whenever an override is active for them.
   const OVERRIDES_FROM = { ios: g => buildNum(g.build) >= 6, web: g => !versionLess(g.version, '1.0.2') };
@@ -58,7 +53,7 @@ export async function liveStatusCard() {
     const legacy = (rows || []).filter(g => g.platform === p && (p === 'ios' ? buildNum(g.build) === 5 : !OVERRIDES_FROM[p](g))).reduce((a, g) => a + +g.n, 0);
     if (active && legacy) alerts.push(['warn', `${fmtNum(legacy)} ${label} install${legacy === 1 ? '' : 's'} on ${p === 'ios' ? 'builds before 6' : 'versions before 1.0.2'} ignore${legacy === 1 ? 's' : ''} ${label}-only settings and follow the global ones`]);
   }
-  if (!shown.length && !hidden.length && conf.announcement?.enabled === true) alerts.push(['info', 'Announcement is switched on but not showing (empty, scheduled or expired)']);
+  if (!reach.length && conf.announcement?.enabled === true) alerts.push(['info', 'Announcement is switched on but not showing (empty, scheduled or expired)']);
 
   rows = (rows || []).map(g => ({ ...g, keys: new Set(g.car_keys || []) }))
     .sort((a, b) => a.platform.localeCompare(b.platform) || (versionLess(a.version, b.version) ? 1 : versionLess(b.version, a.version) ? -1 : 0) || buildNum(b.build) - buildNum(a.build));

@@ -121,12 +121,36 @@ export function announcementLive(x, now = Date.now()) {
   return !Number.isNaN(s) && !Number.isNaN(e) && now >= s && now < e;
 }
 
-// What a platform's installs see for the announcement (contract §platform_overrides and §announcement):
-// 'live', 'hidden' (live but that platform is in maintenance), or 'none'. Android reads no config yet.
-export function platformAnnouncement(conf, platform, now = Date.now()) {
-  if (platform === 'android') return 'none';
-  const o = conf?.platform_overrides?.[platform] || {};
-  const live = announcementLive(o.announcement, now) || announcementLive(conf?.announcement, now);
-  if (!live) return 'none';
-  return conf?.maintenance?.enabled === true || o.maintenance?.enabled === true ? 'hidden' : 'live';
+// Who actually sees the announcement, by install cohort (contract adoption table and §announcement):
+// installs below min_version see the required-update screen instead; iOS build 5 reads only the global
+// settings; iOS 6+ and web 1.0.2+ also read their platform override; iOS 3-4, unknown builds and
+// Android read nothing. `builds` are admin_live_builds rows. Platforms with no live installs fall back to
+// the platform-level rule. Returns [{ platform, label, state: 'live'|'hidden'|'blocked', source, n }].
+export function announcementReach(conf, builds, now = Date.now()) {
+  const out = [], L = { ios: 'iOS', web: 'Web' };
+  const minV = conf?.min_version || {};
+  const globalLive = announcementLive(conf?.announcement, now);
+  const gMaint = conf?.maintenance?.enabled === true;
+  for (const p of ['ios', 'web']) {
+    const o = conf?.platform_overrides?.[p] || {};
+    const ownLive = announcementLive(o.announcement, now);
+    const rows = (builds || []).filter(g => g.platform === p);
+    const num = b => /^\d+$/.test(b || '') ? +b : -1;
+    const cohort = g => {
+      if (typeof minV[p] === 'string' && minV[p] && versionLess(g.version, minV[p])) return 'blocked';
+      if (p === 'ios') { const n = num(g.build); return n >= 6 ? 'override' : n === 5 ? 'global' : null; }
+      return versionLess(g.version, '1.0.2') ? 'global' : 'override';
+    };
+    const sum = { blocked: 0, override: 0, global: 0 };
+    for (const g of rows) { const c = cohort(g); if (c) sum[c] += +g.n || 0; }
+    const known = sum.blocked + sum.override + sum.global;
+    const evalOverride = () => !(ownLive || globalLive) ? null : { state: gMaint || o.maintenance?.enabled === true ? 'hidden' : 'live', source: ownLive ? 'platform' : 'global' };
+    const evalGlobal = () => !globalLive ? null : { state: gMaint ? 'hidden' : 'live', source: 'global' };
+    if (!known) { const r = evalOverride(); if (r) out.push({ platform: p, label: L[p], n: null, ...r }); continue; }
+    const legacyLabel = p === 'ios' ? 'iOS build 5' : 'Web before 1.0.2';
+    if (sum.override) { const r = evalOverride(); if (r) out.push({ platform: p, label: sum.global ? (p === 'ios' ? 'iOS 6+' : 'Web 1.0.2+') : L[p], n: sum.override, ...r }); }
+    if (sum.global) { const r = evalGlobal(); if (r) out.push({ platform: p, label: legacyLabel, n: sum.global, ...r }); }
+    if (sum.blocked && (ownLive || globalLive)) out.push({ platform: p, label: `${L[p]} below ${minV[p]}`, n: sum.blocked, state: 'blocked', source: ownLive ? 'platform' : 'global' });
+  }
+  return out;
 }

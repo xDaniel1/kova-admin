@@ -1,6 +1,6 @@
 // App controls: the remote switches the apps read at launch. Every save is audited.
 'use strict';
-import { html, raw, qs, qsa, fmtDate, rel, badge, upgradeCard, versionLess, announcementLive, platformAnnouncement, parseInstant } from '../util.js';
+import { html, raw, qs, qsa, fmtDate, rel, badge, upgradeCard, versionLess, announcementLive, announcementReach, parseInstant } from '../util.js';
 import * as api from '../api.js';
 import { state } from '../app.js';
 import { annotations, auditList } from '../records.js';
@@ -31,7 +31,7 @@ const fromLocal = (value, orig, label, drop = false) => {
   return (confirm(`${label}: ${pretty} happens twice when the clocks go back. OK for the first one (${early.toISOString().slice(11, 16)} UTC), Cancel for the second (${late.toISOString().slice(11, 16)} UTC).`) ? early : late).toISOString();
 };
 // The full config, set before each render so platform badges can apply global maintenance and fallback.
-let CONF = {};
+let CONF = {}, BUILDS = null; // BUILDS: admin_live_builds rows, so badges count who actually sees an announcement
 const local = iso => { if (Number.isNaN(parseInstant(iso))) return ''; const d = new Date(iso); return isNaN(d) ? '' : new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
 
 // Every switch the apps can read. Who reads it today is in the hint; a switch an app does not read yet is harmless.
@@ -107,7 +107,7 @@ const SECTIONS = {
         ${toggle(label + ' maintenance mode', p + '_maint', m.enabled === true, 'Pauses network features on ' + label + ' only.')}
         <label>Maintenance message<input name="${p}_maint_msg" maxlength="300" value="${m.message || ''}"></label>
         <details class="collapse"><summary>Features on ${label} (${FEATURES.filter(([k]) => f[k] === false).length} off)</summary><div class="switches" style="margin-top:8px">${FEATURES.map(([k, l]) => toggle(l, p + '_f_' + k, f[k] !== false))}</div></details>
-        <details class="collapse"><summary>${label} announcement ${!announcementLive(a) ? (a.enabled === true ? '(on, not showing)' : '') : platformAnnouncement({ ...CONF, platform_overrides: v }, p) === 'live' ? '(live)' : p === 'android' ? '(set, Android does not read it yet)' : '(set, hidden by maintenance)'}</summary><div class="stack" style="margin-top:8px">
+        <details class="collapse"><summary>${label} announcement ${!announcementLive(a) ? (a.enabled === true ? '(on, not showing)' : '') : (() => { if (p === 'android') return '(set, Android does not read it yet)'; const r = announcementReach({ ...CONF, platform_overrides: v }, BUILDS).filter(x => x.platform === p && x.source === 'platform'); return r.some(x => x.state === 'live') ? '(live)' : r.some(x => x.state === 'hidden') ? '(set, hidden by maintenance)' : r.some(x => x.state === 'blocked') ? '(set, installs need the required update)' : '(set, not reaching anyone)'; })()}</summary><div class="stack" style="margin-top:8px">
           ${toggle('Show on ' + label, p + '_ann', a.enabled === true, 'Replaces the global announcement on ' + label + ' while live.')}
           <div class="form-grid"><label>Title<input name="${p}_ann_title" maxlength="80" value="${a.title || ''}"></label><label>Level<select name="${p}_ann_level">${['info', 'warning', 'critical'].map(l => html`<option ${raw(l === (a.level || 'info') ? 'selected' : '')}>${l}</option>`)}</select></label></div>
           <label>Body<textarea name="${p}_ann_body" maxlength="500">${a.body || ''}</textarea></label>
@@ -120,7 +120,7 @@ const SECTIONS = {
       maintenance: { enabled: f.get(p + '_maint') === 'on', message: f.get(p + '_maint_msg').trim() },
       announcement: { ...(prev.announcement || {}), enabled: f.get(p + '_ann') === 'on', title: f.get(p + '_ann_title').trim(), body: f.get(p + '_ann_body').trim(), level: f.get(p + '_ann_level'), url: f.get(p + '_ann_url').trim() || null },
     }]; })),
-    status: v => { const bits = PLATFORMS.flatMap(([p, l]) => { const o = v[p] || {}; return [p !== 'android' && o.maintenance?.enabled === true && l + ' paused', Object.values(o.features || {}).includes(false) && l + ' ' + Object.values(o.features).filter(x => x === false).length + ' off', platformAnnouncement({ ...CONF, platform_overrides: v }, p) === 'live' && announcementLive(o.announcement) && l + ' announcing'].filter(Boolean); }); return bits.length ? badge(bits.join(' · '), bits.some(b => b.includes('paused')) ? 'danger' : 'tone-seen') : badge('None', 'ok'); },
+    status: v => { const bits = PLATFORMS.flatMap(([p, l]) => { const o = v[p] || {}; return [p !== 'android' && o.maintenance?.enabled === true && l + ' paused', Object.values(o.features || {}).includes(false) && l + ' ' + Object.values(o.features).filter(x => x === false).length + ' off', announcementReach({ ...CONF, platform_overrides: v }, BUILDS).some(x => x.platform === p && x.source === 'platform' && x.state === 'live') && l + ' announcing'].filter(Boolean); }); return bits.length ? badge(bits.join(' · '), bits.some(b => b.includes('paused')) ? 'danger' : 'tone-seen') : badge('None', 'ok'); },
   },
   announcement: {
     title: 'Announcement banner', blurb: 'A banner in the apps. Leave the window empty to show it whenever it is enabled.',
@@ -128,18 +128,17 @@ const SECTIONS = {
     read: f => ({ enabled: f.get('enabled') === 'on', title: f.get('title').trim(), body: f.get('body').trim(), level: f.get('level'), url: f.get('url').trim() || null, starts_at: fromLocal(f.get('starts_at'), f.get('starts_at_orig'), 'Starts', f.get('starts_at_drop') === 'on'), ends_at: fromLocal(f.get('ends_at'), f.get('ends_at_orig'), 'Ends', f.get('ends_at_drop') === 'on') }),
     status: v => {
       if (!announcementLive(v)) return v.enabled === true ? badge('On · not showing (empty, scheduled or expired)', 'tone-seen') : badge('Hidden');
-      // Only platforms that read config and have no live announcement of their own show the global one.
-      const conf = { ...CONF, announcement: v };
-      const reads = ['ios', 'web'].filter(p => !announcementLive(CONF.platform_overrides?.[p]?.announcement));
-      const live = reads.filter(p => platformAnnouncement(conf, p) === 'live');
-      return live.length ? badge('Live', 'accent') : reads.length ? badge('On · hidden by maintenance', 'tone-seen') : badge('On · replaced by platform announcements', 'tone-seen');
+      // Counted by install cohort: older builds that read only global settings can still see it.
+      const r = announcementReach({ ...CONF, announcement: v }, BUILDS).filter(x => x.source === 'global');
+      return r.some(x => x.state === 'live') ? badge('Live', 'accent') : r.some(x => x.state === 'hidden') ? badge('On · hidden by maintenance', 'tone-seen')
+        : r.some(x => x.state === 'blocked') ? badge('On · installs need the required update', 'tone-seen') : badge('On · replaced by platform announcements', 'tone-seen');
     },
   },
 };
 
 export default async function controls(ctx) {
   let rows;
-  try { rows = await api.config(); } catch (e) { if (!ctx.alive()) return; if (e.needsUpgrade) { ctx.el.innerHTML = upgradeCard(); return; } throw e; }
+  try { [rows, BUILDS] = await Promise.all([api.config(), api.liveBuilds().catch(() => null)]); } catch (e) { if (!ctx.alive()) return; if (e.needsUpgrade) { ctx.el.innerHTML = upgradeCard(); return; } throw e; }
   if (!ctx.alive()) return;
   CONF = Object.fromEntries(rows.map(r => [r.key, r.value]));
   const label = await api.labels(rows.map(r => r.updated_by)); if (!ctx.alive()) return;
