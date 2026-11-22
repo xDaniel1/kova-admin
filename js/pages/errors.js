@@ -1,17 +1,18 @@
 // Client errors: what went wrong in the apps (the web app reports into client_errors today), grouped by
 // message. Filtering by app and text happens in the database, before the 500-group cap.
 'use strict';
-import { html, raw, qs, qsa, fmtNum, fmtDate, rel, barChart, upgradeCard, empty, badge, copy, debounce } from '../util.js';
+import { html, raw, qs, qsa, fmtNum, fmtDate, rel, barChart, empty, badge, copy, debounce } from '../util.js';
 import * as api from '../api.js';
 import { state } from '../app.js';
 
 const RANGES = [[1, '24 hours'], [7, '7 days'], [30, '30 days']];
+const NEEDS_UPGRADE = html`<section class="card setup"><h2>Database update needed</h2><p>The Errors page needs <code>supabase/migrations/0022_error_filters.sql</code> (and <code>0023_clear_window.sql</code> for Clear).</p></section>`.s;
 
 export default async function errors(ctx) {
   const days = +ctx.query.days || 7;
   const canWrite = state.role !== 'viewer';
   let d;
-  try { d = await api.clientErrors(days, ctx.query.app || null, ctx.query.q || null); } catch (e) { if (!ctx.alive()) return; if (e.needsUpgrade) { ctx.el.innerHTML = html`<section class="card setup"><h2>Database update needed</h2><p>The Errors page needs <code>supabase/migrations/0022_error_filters.sql</code> (and <code>0023_clear_window.sql</code> for Clear).</p></section>`.s; return; } throw e; }
+  try { d = await api.clientErrors(days, ctx.query.app || null, ctx.query.q || null); } catch (e) { if (!ctx.alive()) return; if (e.needsUpgrade) { ctx.el.innerHTML = NEEDS_UPGRADE; return; } throw e; }
   if (!ctx.alive()) return;
   const apps = [...new Set([...(d.apps || []), ...(ctx.query.app ? [ctx.query.app] : [])])].sort();
   ctx.el.innerHTML = html`
@@ -58,7 +59,7 @@ export default async function errors(ctx) {
   const refetch = async gen => { const snap = { app: ctx.query.app || null, q: ctx.query.q || null };
     try { const r = await api.clientErrors(days, snap.app, snap.q); if (!ctx.alive() || gen !== seq) return; render(r, snap);
       try { history.replaceState(null, '', '#/errors?' + new URLSearchParams({ days, ...(snap.q ? { q: snap.q } : {}), ...(snap.app ? { app: snap.app } : {}) })); } catch {} }
-    catch (e) { if (!ctx.alive() || gen !== seq) return; if (e.needsUpgrade) ctx.el.innerHTML = html`<section class="card setup"><h2>Database update needed</h2><p>The Errors page needs <code>supabase/migrations/0022_error_filters.sql</code> (and <code>0023_clear_window.sql</code> for Clear).</p></section>`.s; else ctx.fail(e); } };
+    catch (e) { if (!ctx.alive() || gen !== seq) return; if (e.needsUpgrade) ctx.el.innerHTML = NEEDS_UPGRADE; else ctx.fail(e); } };
   const debounced = debounce(gen => refetch(gen), 250);
   filter.oninput = () => { ctx.query.q = filter.value.trim(); debounced(++seq); };
   if (appSel) appSel.onchange = () => { ctx.query.app = appSel.value; refetch(++seq); };

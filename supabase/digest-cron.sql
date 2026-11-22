@@ -81,6 +81,7 @@ do $$ begin
                 when status_code between 200 and 299 and detail ~ '^sent to [1-9][0-9]*$' then 'sent'
                 when status_code between 200 and 299 and detail like 'skipped: %' then 'skipped'
                 when status_code is not null and status_code not between 200 and 299 then 'failed'
+                when status_code is null then 'failed'
                 else 'unknown' end
          where settled_at is not null and (outcome is null or outcome = 'unknown') and settled_at < now();
         insert into kova_private.settings (key, value) values ('digest_backfill_v1', now()::text);
