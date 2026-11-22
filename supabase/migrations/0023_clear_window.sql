@@ -48,11 +48,13 @@ begin
                        min(e.created_at) as first, max(e.created_at) as last,
                        (array_agg(e.url order by e.created_at desc))[1] as url,
                        (array_agg(e.user_agent order by e.created_at desc))[1] as user_agent,
-                       (array_agg(left(e.stack, 1500) order by e.created_at desc))[1] as stack
+                       (array_agg(left(e.stack, 1500) order by e.created_at desc))[1] as stack,
+                       -- Page and browser search covers every report in the group, not only the newest one.
+                       coalesce(bool_or(e.url ilike pat or e.user_agent ilike pat), false) as meta_hit
                   from public.client_errors e
                  where e.created_at > since and (admin_client_errors.app is null or e.app = admin_client_errors.app)
                  group by e.app, left(e.message, 300)),
-            m as (select * from w where pat is null or w.message ilike pat or w.url ilike pat or w.user_agent ilike pat),
+            m as (select * from w where pat is null or w.message ilike pat or w.meta_hit),
             top as (select * from m order by m.last desc limit 500),
             -- First report ever, only for the groups being returned.
             f as (select t.app, t.message, min(a.created_at) as first_ever

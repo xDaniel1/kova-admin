@@ -29,11 +29,14 @@ export default async function errors(ctx) {
   let rendered = { app: ctx.query.app || null, q: ctx.query.q || null };
   // Clear acts only on what is on screen: it is locked while the requested filters differ from the rendered ones.
   const pending = new Set(); // groups with a clear in flight
+  let stale = false;          // a refresh failed: the list on screen is out of date
+  const done = new Set();    // groups cleared since the last render: never actionable again until fresh results arrive
   const filtersMatch = () => (ctx.query.app || null) === rendered.app && (ctx.query.q || null) === rendered.q;
   const syncClear = () => { const same = filtersMatch();
-    qsa('[data-clear]', ctx.el).forEach(b => { b.disabled = !same || pending.has(b.dataset.key); b.title = !same ? 'Waiting for the new filter results' : pending.has(b.dataset.key) ? 'Clearing…' : ''; }); };
+    qsa('[data-clear]', ctx.el).forEach(b => { const k = b.dataset.key; b.disabled = stale || !same || pending.has(k) || done.has(k);
+      b.textContent = done.has(k) ? 'Cleared · refresh pending' : b.dataset.label || b.textContent; b.title = !same ? 'Waiting for the new filter results' : pending.has(k) ? 'Clearing…' : ''; }); };
   const render = (r, snap) => {
-    rendered = snap;
+    rendered = snap; done.clear(); stale = false;
     const groups = r.groups || [], since = Date.parse(r.since);
     const filtered = !!(snap.q || snap.app);
     // Before 0023 the total and chart cover all apps even when the list is filtered; say so.
@@ -45,7 +48,7 @@ export default async function errors(ctx) {
         <summary><strong>${g.message || '(no message)'}</strong> ${g.first_ever && Date.parse(g.first_ever) >= since ? badge('New', 'tone-new') : ''}<br><span class="muted small">${g.app || 'unknown app'} · ${fmtNum(g.n)} times · ${fmtNum(g.users)} signed-in users · last ${rel(g.last)} · first in window ${rel(g.first)}</span></summary>
         <dl class="kv" style="margin-top:10px"><dt>Page</dt><dd class="mono small">${g.url || '—'}</dd><dt>Browser</dt><dd class="small">${g.user_agent || '—'}</dd><dt>Last seen</dt><dd>${fmtDate(g.last)}</dd></dl>
         ${g.stack ? html`<pre class="mono small stack-trace">${g.stack}</pre>` : ''}
-        <div class="row" style="margin-top:8px"><button type="button" class="sm ghost" data-copy="${i}">Copy details</button>${canWrite && r.clear === 'ids' ? (Array.isArray(g.ids) ? html`<button type="button" class="sm danger" data-clear="${i}" data-key="${JSON.stringify([g.app, g.message])}">Clear ${fmtNum(g.n)} reports</button>` : html`<span class="muted small">Too many reports to clear at once (${fmtNum(g.n)}). Pick a shorter range, or clear in the database if this is already the 24-hour view.</span>`) : ''}</div></details>`)}</div>`
+        <div class="row" style="margin-top:8px"><button type="button" class="sm ghost" data-copy="${i}">Copy details</button>${canWrite && r.clear === 'ids' ? (Array.isArray(g.ids) ? html`<button type="button" class="sm danger" data-clear="${i}" data-key="${JSON.stringify([g.app, g.message])}" data-label="Clear ${fmtNum(g.n)} reports">Clear ${fmtNum(g.n)} reports</button>` : html`<span class="muted small">Too many reports to clear at once (${fmtNum(g.n)}). Pick a shorter range, or clear in the database if this is already the 24-hour view.</span>`) : ''}</div></details>`)}</div>`
         : empty(filtered ? 'No errors match.' : 'No errors in this window.')}`.s;
     syncClear();
     qsa('[data-copy]', list).forEach(b => b.onclick = async () => { const g = groups[+b.dataset.copy];
@@ -55,7 +58,7 @@ export default async function errors(ctx) {
       if (!canWrite || !filtersMatch() || pending.has(b.dataset.key)) return; const g = groups[+b.dataset.clear], key = b.dataset.key;
       if (!confirm(`Delete ${g.n} ${g.app || 'unknown app'} reports of "${(g.message || '').slice(0, 80)}"? Only these reports are deleted; any that arrived since are kept.`)) return;
       pending.add(key); syncClear();
-      try { const n = await api.clearErrorGroup(g.app, g.message, g.ids); pending.delete(key); if (!ctx.alive()) return; ctx.notice(n ? `Cleared ${n} reports.` : 'Nothing was cleared (already gone).'); refetch(++seq); }
+      try { const n = await api.clearErrorGroup(g.app, g.message, g.ids); pending.delete(key); done.add(key); if (!ctx.alive()) return; syncClear(); ctx.notice(n ? `Cleared ${n} reports.` : 'Nothing was cleared (already gone).'); refetch(++seq); }
       catch (e) { pending.delete(key); if (ctx.alive()) { syncClear(); ctx.fail(e); } }
     });
   };
@@ -67,7 +70,12 @@ export default async function errors(ctx) {
   const refetch = async gen => { const snap = { app: ctx.query.app || null, q: ctx.query.q || null };
     try { const r = await api.clientErrors(days, snap.app, snap.q); if (!ctx.alive() || gen !== seq) return; render(r, snap);
       try { history.replaceState(null, '', '#/errors?' + new URLSearchParams({ days, ...(snap.q ? { q: snap.q } : {}), ...(snap.app ? { app: snap.app } : {}) })); } catch {} }
-    catch (e) { if (!ctx.alive() || gen !== seq) return; if (e.needsUpgrade) ctx.el.innerHTML = NEEDS_UPGRADE; else ctx.fail(e); } };
+    catch (e) { if (!ctx.alive() || gen !== seq) return; if (e.needsUpgrade) { ctx.el.innerHTML = NEEDS_UPGRADE; return; }
+      // Keep the old list visible but inert, and offer to retry the read.
+      if (!qs('[data-retry]', list)) list.insertAdjacentHTML('afterbegin', html`<p class="alert alert-warn" data-retry-row style="margin:0 0 10px">Couldn't refresh: ${e.message || e} <button type="button" class="sm" data-retry>Retry</button></p>`.s);
+      qs('[data-retry]', list).onclick = () => refetch(++seq);
+      stale = true; syncClear();
+      ctx.fail(e); } };
   const debounced = debounce(gen => refetch(gen), 250);
   filter.oninput = () => { ctx.query.q = filter.value.trim(); syncClear(); debounced(++seq); };
   if (appSel) appSel.onchange = () => { ctx.query.app = appSel.value; syncClear(); refetch(++seq); };
