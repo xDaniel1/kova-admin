@@ -105,10 +105,10 @@ export async function updateFeed(url, patch) { return unwrap(await db.from('inci
 export async function notes(type, id) { return unwrap(await db.from('admin_notes').select('*').eq('target_type', type).eq('target_id', id).order('created_at', { ascending: false })); }
 export async function addNote(type, id, body, author) { return unwrap(await db.from('admin_notes').insert({ target_type: type, target_id: id, body, author }).select('*').single()); }
 export async function editNote(noteId, body) { return unwrap(await db.from('admin_notes').update({ body }).eq('id', noteId).select('*').single()); }
-export async function deleteNote(noteId) { return unwrap(await db.from('admin_notes').delete().eq('id', noteId)); }
+export async function deleteNote(noteId) { return unwrap(await db.from('admin_notes').delete().eq('id', noteId).select('id')); }
 export async function tags(type, id) { return unwrap(await db.from('admin_tags').select('*').eq('target_type', type).eq('target_id', id).order('tag')); }
 export async function addTag(type, id, tag, author) { return unwrap(await db.from('admin_tags').insert({ target_type: type, target_id: id, tag, author }).select('*').single()); }
-export async function removeTag(type, id, tag) { return unwrap(await db.from('admin_tags').delete().eq('target_type', type).eq('target_id', id).eq('tag', tag)); }
+export async function removeTag(type, id, tag) { return unwrap(await db.from('admin_tags').delete().eq('target_type', type).eq('target_id', id).eq('tag', tag).select('id')); }
 export async function tagsFor(type, ids) {
   if (!ids.length) return {};
   const rows = unwrap(await db.from('admin_tags').select('target_id,tag').eq('target_type', type).in('target_id', ids));

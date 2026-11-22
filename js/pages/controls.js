@@ -126,7 +126,7 @@ export default async function controls(ctx) {
   // Reach: counted installs seen in the last 7 days on builds that honour a switch (admin_live_builds,
   // one row per actual build). Reported readers take priority; estimates only fill in where none reported.
   const reachOf = (since, builds) => ['ios', 'web'].filter(p => since[p] != null).map(p => { const m = builds.filter(x => x.platform === p); const all = m.reduce((a, x) => a + +x.n, 0);
-    const ok = m.filter(x => p === 'ios' ? +x.build >= since.ios && +x.build <= (since.iosTo ?? Infinity) : !versionLess(x.version, since.web)).reduce((a, x) => a + +x.n, 0);
+    const ok = m.filter(x => !x.reports_keys).filter(x => p === 'ios' ? +x.build >= since.ios && +x.build <= (since.iosTo ?? Infinity) : !versionLess(x.version, since.web)).reduce((a, x) => a + +x.n, 0);
     return { label: p === 'ios' ? 'iOS' : 'web', ok, all }; });
   Promise.allSettled([api.configReaders(), api.liveBuilds()]).then(([rd, lb]) => { if (!ctx.alive()) return;
     const readers = rd.status === 'fulfilled' ? rd.value : null, builds = lb.status === 'fulfilled' ? lb.value : null;
@@ -135,15 +135,16 @@ export default async function controls(ctx) {
       const since = SINCE[key.replace(/^features\./, '')], reach = since && builds ? reachOf(since, builds) : null;
       const reached = reach?.some(x => x.ok > 0);
       if (r) el.textContent = 'Last seen reading this: ' + Object.entries(r).sort(([, a], [, b]) => a.test - b.test).map(([p, x]) => `${P[p] || (P[p.split(' ')[0]] + ' (test)')} ${x.version}${x.build ? ' (' + x.build + ')' : ''} ${rel(x.last_seen)}, ${x.installs_30d} installs`).join(' · ');
-      else if (reach) el.textContent = 'Estimated reach (counted installs on builds that honour it, 7 days): ' + reach.map(x => `${x.label} ${x.ok} of ${x.all}`).join(' · ');
+      else if (reach) el.textContent = 'Estimated reach (installs on older builds that honour it but don\'t report config_keys, 7 days): ' + reach.map(x => `${x.label} ${x.ok} of ${x.all}`).join(' · ');
       const u = el.parentElement?.querySelector('[data-unread]'); if (!u) return;
       u.classList.remove('pending');
-      if (real || reached) u.remove();
-      else if (!readers || (since && !builds)) { u.textContent = 'Reader check unavailable'; u.title = 'Could not load reader reports or live builds, so this is unknown'; }
+      if (real) u.remove();
+      else if (!readers) { u.textContent = 'Reader check unavailable'; u.title = 'Could not load config_keys reports, so this is unknown'; }
+      else if (reached) { u.textContent = 'Unconfirmed · estimated from build numbers'; u.title = 'Only older builds that do not report config_keys are thought to read it'; }
       else if (r) { u.textContent = 'Only test or inactive builds read this'; u.title = 'No counted install read it in 30 days'; }
       else { u.textContent = 'No app reads this yet'; u.title = 'No counted install reads it; flipping it changes nothing today'; } });
   });
-  if (state.role === 'viewer') qsa('[data-form] button[type=submit]', ctx.el).forEach(b => { b.disabled = true; b.title = 'Read-only access'; });
+  if (state.role === 'viewer') qsa('[data-form]', ctx.el).forEach(f => { f.querySelectorAll('input,select,textarea').forEach(i => { i.disabled = true; }); f.querySelector('button[type=submit]')?.remove(); });
   qsa('.control', ctx.el).forEach(card => {
     const key = card.dataset.key, s = SECTIONS[key], form = qs('[data-form]', card);
     form.onsubmit = async e => {

@@ -33,12 +33,13 @@ export default async function errors(ctx) {
     ctx.query.q = filter?.value || ''; ctx.query.app = a;
     try { history.replaceState(null, '', '#/errors?' + new URLSearchParams({ days, ...(q ? { q: filter.value } : {}), ...(a ? { app: a } : {}) })); } catch {} };
   apply();
-  if (filter) filter.oninput = debounce(apply, 120); if (appSel) appSel.onchange = apply;
+  const debounced = debounce(apply, 120);
+  if (filter) filter.oninput = () => { ctx.query.q = filter.value; debounced(); }; if (appSel) appSel.onchange = apply;
   qsa('[data-copy]', ctx.el).forEach(b => b.onclick = async () => { const g = groups[+b.dataset.copy];
     ctx.notice(await copy(`${g.message || '(no message)'}\n${g.app || 'unknown app'} · ${g.n} times · last ${g.last}\nPage: ${g.url || '-'}\nBrowser: ${g.user_agent || '-'}\n\n${g.stack || ''}`) ? 'Copied.' : 'Copy failed.'); });
   qsa('[data-days]', ctx.el).forEach(b => b.onclick = () => { location.hash = '/errors?' + new URLSearchParams({ days: b.dataset.days, ...(ctx.query.q ? { q: ctx.query.q } : {}), ...(ctx.query.app ? { app: ctx.query.app } : {}) }); });
   qsa('[data-clear]', ctx.el).forEach(b => b.onclick = async () => {
-    const g = groups[+b.dataset.clear]; if (!confirm(`Delete ${g.n} reports of "${(g.message || '').slice(0, 80)}"?`)) return;
+    if (!canWrite) return; const g = groups[+b.dataset.clear]; if (!confirm(`Delete ${g.n} reports of "${(g.message || '').slice(0, 80)}"?`)) return;
     b.disabled = true;
     try { const gone = await api.clearErrors(g.ids); ctx.notice(gone?.length ? `Cleared ${gone.length} reports.` : 'Nothing was cleared (no permission, or already gone).'); if (ctx.alive()) await errors(ctx); } catch (e) { ctx.fail(e); b.disabled = false; }
   });

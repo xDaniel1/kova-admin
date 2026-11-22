@@ -4,16 +4,16 @@ Tower uses the shared Kova version (semantic version plus a build number that on
 
 ## 1.0.0 (build 11) · 2026-11-22
 
-- App controls: every switch shows whether an app actually reads it. Switches no shipped build reads are marked "No app reads this yet", and switches only test builds read are marked "Only test builds read this". The check uses `config_keys` reports and the version mix. New switches: `map_trees` (iOS 19+, web 1.0.7+) and `route_road_matching` (iOS 53+).
+- App controls: every switch shows whether an app actually reads it. Only a counted, active build that reports reading a switch (`config_keys`) clears the badge. Otherwise it shows "No app reads this yet", "Only test or inactive builds read this", "Unconfirmed · estimated from build numbers", or "Reader check unavailable". Estimates count only older builds that don't report keys (`admin_live_builds`). Viewers see the values read-only. New switches: `map_trees` (iOS 19+, web 1.0.7+) and `route_road_matching` (iOS 53+).
 - Registry: iOS 1.0.0 build 73, web 1.0.8.
 - Live status: aggregated in the database (`admin_live_builds`), with no client-side row cap. It says so when it can't load. CarPlay keys are inferred only for builds 7–11.
 - Errors: text and app filters, kept in the URL across Clear and range changes. "New" is based on the first report ever. Copy details is on every group. Clear reports how many rows it removed.
 - Moderation: block by email (exact match, `admin_user_by_email`). Prompts name the account. Viewers no longer see block and unblock controls.
 - Map data: NYSDOT is labelled as state roads.
 - Daily digest: the schedule reads its secret from `kova_private.settings`, and the function checks it in constant time.
-- Viewer-role admins get no write controls on Controls, System, Errors, Moderation or record notes and tags (not only greyed out). The digest schedule logs each run (`admin_digest_runs`).
+- Viewer-role admins get no write controls on Controls, System (purge, test builds), Errors, Moderation or record notes and tags (add, edit, delete, remove tag). Read-only sections stay openable. Note and tag deletes report when nothing changed. The digest schedule logs each run (`admin_digest_runs`).
 - Light-theme contrast fixes. Migration 0021.
-- Daily digest is live: `tower-digest` deployed, Resend key and secret set, scheduled at 13:00 UTC. The Admins page shows recent sends and their HTTP result.
+- Daily digest is live: `tower-digest` deployed, Resend key and secret set, scheduled at 13:00 UTC. The Admins page shows recent sends and their outcomes, kept by a settle job every 10 minutes after pg_net's responses expire. A run that can't be sent is recorded with its reason. Live status reports announcements by the contract's rules (content, time window, per-platform override).
 - Database migration 0020 (already applied to production): `speed_limits_in_box` no longer times out for signed-out apps. Row-level security stopped Postgres from using the overlap index, so every call scanned 1.86 M rows (about 5.2 s, past the 3 s limit). It now takes 0.2–0.5 s, and the Speed limits region and source switches still apply. Fixes database speed limits on iPhone and web.
 
 ## 1.0.0 (build 10) · 2026-11-13

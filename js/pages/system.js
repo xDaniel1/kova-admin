@@ -38,8 +38,9 @@ export default async function system(ctx) {
   renderPush(ctx);
   renderSources(ctx);
   api.versions().then(v => { if (ctx.alive()) { const host = qs('[data-versions]', ctx.el); host.innerHTML = versionsCard(v, { detailed: true }).s; loadSiteLive(host, v.released); } }).catch(e => { if (!e.needsUpgrade) ctx.fail(e); });
-  qs('[data-purge]', ctx.el).onsubmit = async e => {
-    e.preventDefault(); const days = Number(new FormData(e.currentTarget).get('days'));
+  if (state.role === 'viewer') qs('[data-purge]', ctx.el)?.remove();
+  const purge = qs('[data-purge]', ctx.el); if (purge) purge.onsubmit = async e => {
+    e.preventDefault(); if (state.role === 'viewer') return; const days = Number(new FormData(e.currentTarget).get('days'));
     if (!confirm(`Permanently delete every traffic report older than ${days} days? This cannot be undone.`)) return;
     const b = e.currentTarget.querySelector('button'); b.disabled = true;
     try { const n = await api.purgeReports(days); ctx.notice(`${n} report${n === 1 ? '' : 's'} purged.`); await ctx.refreshStats(); if (ctx.alive()) await system(ctx); } catch (err) { ctx.fail(err); b.disabled = false; }

@@ -64,7 +64,7 @@ Returns an array of `{ "key": string, "value": object }`. Decode each key on its
 | `flat_turns` | Once an app reads it (none does yet): keep the driving map's tilt through turns instead of dropping to 2D. |
 | `rural_detail` | Web: draw minor roads, small towns and unpaved surfaces with the standard style. |
 
-The last six keys were added in Tower migration 0012 (Nov 11 2026). They are on in the live config, so an app that starts honouring them changes nothing until someone switches one off. A missing key means **enabled**. Check the switch where the feature starts its network work, not only in the UI.
+Switches after the first five were added by Tower migrations 0012, 0017, 0019 and 0021. Every switch is added as on in the live config, so an app that starts honouring them changes nothing until someone switches one off. A missing key means **enabled**. Check the switch where the feature starts its network work, not only in the UI.
 
 ### Platform overrides (`platform_overrides`)
 
@@ -148,16 +148,16 @@ Tells Tower how well our map data covers real drives. Send once at the end of a 
 - `miles`: distance driven in the cell. `limit_db`: miles where the speed limit shown came from `speed_limit_segments`; `limit_osm`: from OpenStreetMap; `limit_none`: no limit shown. `rural`: miles on rural roads (your own classification, e.g. outside urban areas or OSM `highway` classes unclassified/track/tertiary outside towns). `sparse`: miles where map detail was thin (no lanes, no name, or no limit tag). Each part is capped at `miles`; values are added up per install, day and cell.
 - Respect the `speed_limits` feature switch and the user's privacy settings: skip the report if location sharing for analytics is off.
 
-## Adoption status (Nov 12 2026)
+## Adoption status (Nov 22 2026)
 
 | | Global keys | Extended switches | `platform_overrides` | `report_client` | `channel` / `config_keys` | `report_coverage` |
 |---|---|---|---|---|---|---|
 | iOS 1.0.0 b5 | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| iOS 1.0.0 b6–b11 (b11 latest upload `ios-v1.0.0-b11`; public beta b8) | ✅ | ✅ speed_limits, traffic_coloring, transit, voice_guidance; carplay from b7 | ✅ | ✅ | ❌ (please add) | ❌ |
-| iOS 1.0.0 b12–b17 | ✅ | ✅ as b11; car screen reads `carplay` (b7–14), `carplay_safe` (b15–16), `carplay_b17` (b17+); sends channel and config_keys from b12 | ✅ | ✅ | ❌ (please add) | ❌ |
-| iOS 1.0.0 b18–b73 (latest `ios-v1.0.0-b73`) | ✅ | ✅ as b17; `map_trees` from b19, `route_road_matching` from b53 | ✅ | ✅ (channel, config_keys) | ✅ | ❌ |
+| iOS 1.0.0 b6–b11 | ✅ | ✅ speed_limits, traffic_coloring, transit, voice_guidance; carplay from b7 | ✅ | ✅ | ❌ (please add) | ❌ |
+| iOS 1.0.0 b12–b17 | ✅ | ✅ as b11; car screen reads `carplay` (b7–14), `carplay_safe` (b15–16), `carplay_b17` (b17+); | ✅ | ✅ | ✅ | ❌ |
+| iOS 1.0.0 b18–b73 (latest `ios-v1.0.0-b73`) | ✅ | ✅ as b17; `map_trees` from b19, `route_road_matching` from b53 | ✅ | ✅ | ✅ | ❌ |
 | iOS builds 3, 4 | read nothing | | | | | |
-| Web 1.0.3–1.0.8 | ✅ | ✅ as 1.0.2; `place_labels`, `rural_detail` from 1.0.3, `map_trees` from 1.0.7 | ✅ | ✅ (channel, config_keys) | ✅ | ❌ |
+| Web 1.0.3–1.0.8 | ✅ | ✅ as 1.0.2; `place_labels`, `rural_detail` from 1.0.3, `map_trees` from 1.0.7 | ✅ | ✅ | ✅ | ❌ |
 | Web 1.0.2 (deploy build 41) | ✅ | ✅ speed_limits, traffic_coloring, transit, voice_guidance | ✅ | ✅ (skips automated browsers) | ❌ (please add; CI runs are marked as test in Tower by hand until then) | ❌ |
 | Android 1.0.0 (1) | ❌ | ❌ (`android_auto` is its key) | ❌ | ❌ | ❌ | ❌ |
 

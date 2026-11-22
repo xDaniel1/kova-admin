@@ -31,7 +31,13 @@ export async function liveStatusCard() {
   }
   const globalOff = Object.entries(features).filter(([, v]) => v === false).map(([k]) => k);
   if (globalOff.length) alerts.push(['warn', `Off for everyone: ${globalOff.join(', ')}`]);
-  if (conf.announcement?.enabled) alerts.push(['info', 'Announcement is live']);
+  // Contract §announcement: live when enabled, has a title or body, and now is inside [starts_at, ends_at).
+  // A live platform announcement replaces the global one on that platform.
+  const isLive = x => { if (!x?.enabled || !((x.title || '').trim() || (x.body || '').trim())) return false;
+    const now = Date.now(), s = x.starts_at ? Date.parse(x.starts_at) : -Infinity, e = x.ends_at ? Date.parse(x.ends_at) : Infinity; return now >= s && now < e; };
+  const shown = Object.entries(PLATFORM).map(([p, label]) => isLive(overrides[p]?.announcement) ? `${label} (its own)` : isLive(conf.announcement) ? label : null).filter(Boolean);
+  if (shown.length) alerts.push(['info', `Announcement live on ${shown.join(', ')}`]);
+  else if (conf.announcement?.enabled) alerts.push(['info', 'Announcement is switched on but not showing (empty, scheduled or expired)']);
 
   rows = (rows || []).map(g => ({ ...g, keys: new Set(g.car_keys || []) }))
     .sort((a, b) => a.platform.localeCompare(b.platform) || (versionLess(a.version, b.version) ? 1 : versionLess(b.version, a.version) ? -1 : 0) || buildNum(b.build) - buildNum(a.build));

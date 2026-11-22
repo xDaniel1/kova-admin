@@ -54,7 +54,7 @@ export default async function admins(ctx) {
     } catch (e) { if (ctx.alive()) preview.innerHTML = e.needsUpgrade ? '<p class="muted small">Needs <code>supabase/migrations/0005_messages_roles.sql</code>.</p>' : html`<p class="muted small">${e.message}</p>`.s; }
   })();
   api.digestRuns().then(runs => { const host = qs('[data-runs]', ctx.el); if (!host || !ctx.alive()) return;
-    host.innerHTML = runs.length ? html`<dl class="kv">${runs.map(r => html`<dt>${rel(r.at)}</dt><dd>${r.status_code == null ? (r.timed_out ? badge('Timed out', 'danger') : badge('Sent, result expired')) : r.status_code < 300 ? badge(`OK · ${r.status_code}`, 'ok') : badge(`Failed · ${r.status_code}`, 'danger')} <span class="muted small">${r.detail || ''}</span></dd>`)}</dl>`.s : '<p class="muted small">No scheduled sends yet.</p>';
+    host.innerHTML = runs.length ? html`<dl class="kv">${runs.map(r => html`<dt>${rel(r.at)}</dt><dd>${r.status_code != null ? (r.status_code < 300 ? badge(`OK · ${r.status_code}`, 'ok') : badge(`Failed · ${r.status_code}`, 'danger')) : r.timed_out ? badge('Timed out', 'danger') : r.settled ? badge('Failed', 'danger') : badge('Sending…')} <span class="muted small">${r.detail || ''}</span></dd>`)}</dl>`.s : '<p class="muted small">No scheduled sends yet.</p>';
   }).catch(e => { const host = qs('[data-runs]', ctx.el); if (host) host.innerHTML = html`<p class="muted small">${e.needsUpgrade ? 'Needs supabase/digest-cron.sql.' : e.message}</p>`.s; });
   await load();
 }
