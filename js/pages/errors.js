@@ -28,8 +28,10 @@ export default async function errors(ctx) {
   // Heading and list always come from the same accepted response and its filter snapshot.
   let rendered = { app: ctx.query.app || null, q: ctx.query.q || null };
   // Clear acts only on what is on screen: it is locked while the requested filters differ from the rendered ones.
-  const syncClear = () => { const same = (ctx.query.app || null) === rendered.app && (ctx.query.q || null) === rendered.q;
-    qsa('[data-clear]', ctx.el).forEach(b => { b.disabled = !same; b.title = same ? '' : 'Waiting for the new filter results'; }); };
+  const pending = new Set(); // groups with a clear in flight
+  const filtersMatch = () => (ctx.query.app || null) === rendered.app && (ctx.query.q || null) === rendered.q;
+  const syncClear = () => { const same = filtersMatch();
+    qsa('[data-clear]', ctx.el).forEach(b => { b.disabled = !same || pending.has(b.dataset.key); b.title = !same ? 'Waiting for the new filter results' : pending.has(b.dataset.key) ? 'Clearing…' : ''; }); };
   const render = (r, snap) => {
     rendered = snap;
     const groups = r.groups || [], since = Date.parse(r.since);
@@ -43,18 +45,18 @@ export default async function errors(ctx) {
         <summary><strong>${g.message || '(no message)'}</strong> ${g.first_ever && Date.parse(g.first_ever) >= since ? badge('New', 'tone-new') : ''}<br><span class="muted small">${g.app || 'unknown app'} · ${fmtNum(g.n)} times · ${fmtNum(g.users)} signed-in users · last ${rel(g.last)} · first in window ${rel(g.first)}</span></summary>
         <dl class="kv" style="margin-top:10px"><dt>Page</dt><dd class="mono small">${g.url || '—'}</dd><dt>Browser</dt><dd class="small">${g.user_agent || '—'}</dd><dt>Last seen</dt><dd>${fmtDate(g.last)}</dd></dl>
         ${g.stack ? html`<pre class="mono small stack-trace">${g.stack}</pre>` : ''}
-        <div class="row" style="margin-top:8px"><button type="button" class="sm ghost" data-copy="${i}">Copy details</button>${canWrite && r.clear === 'ids' ? (Array.isArray(g.ids) ? html`<button type="button" class="sm danger" data-clear="${i}">Clear ${fmtNum(g.n)} reports</button>` : html`<span class="muted small">Too many reports to clear at once (${fmtNum(g.n)}). Pick a shorter range, or clear in the database if this is already the 24-hour view.</span>`) : ''}</div></details>`)}</div>`
+        <div class="row" style="margin-top:8px"><button type="button" class="sm ghost" data-copy="${i}">Copy details</button>${canWrite && r.clear === 'ids' ? (Array.isArray(g.ids) ? html`<button type="button" class="sm danger" data-clear="${i}" data-key="${JSON.stringify([g.app, g.message])}">Clear ${fmtNum(g.n)} reports</button>` : html`<span class="muted small">Too many reports to clear at once (${fmtNum(g.n)}). Pick a shorter range, or clear in the database if this is already the 24-hour view.</span>`) : ''}</div></details>`)}</div>`
         : empty(filtered ? 'No errors match.' : 'No errors in this window.')}`.s;
     syncClear();
     qsa('[data-copy]', list).forEach(b => b.onclick = async () => { const g = groups[+b.dataset.copy];
       const ok = await copy(`${g.message || '(no message)'}\n${g.app || 'unknown app'} · ${g.n} times · last ${g.last}\nPage: ${g.url || '-'}\nBrowser: ${g.user_agent || '-'}\n\n${g.stack || ''}`);
       if (ctx.alive()) ctx.notice(ok ? 'Copied.' : 'Copy failed.'); });
     qsa('[data-clear]', list).forEach(b => b.onclick = async () => {
-      if (!canWrite || b.disabled) return; const g = groups[+b.dataset.clear];
+      if (!canWrite || !filtersMatch() || pending.has(b.dataset.key)) return; const g = groups[+b.dataset.clear], key = b.dataset.key;
       if (!confirm(`Delete ${g.n} ${g.app || 'unknown app'} reports of "${(g.message || '').slice(0, 80)}"? Only these reports are deleted; any that arrived since are kept.`)) return;
-      b.disabled = true;
-      try { const n = await api.clearErrorGroup(g.app, g.message, g.ids); if (!ctx.alive()) return; ctx.notice(n ? `Cleared ${n} reports.` : 'Nothing was cleared (already gone).'); refetch(++seq); }
-      catch (e) { if (ctx.alive()) { ctx.fail(e); b.disabled = false; } }
+      pending.add(key); syncClear();
+      try { const n = await api.clearErrorGroup(g.app, g.message, g.ids); pending.delete(key); if (!ctx.alive()) return; ctx.notice(n ? `Cleared ${n} reports.` : 'Nothing was cleared (already gone).'); refetch(++seq); }
+      catch (e) { pending.delete(key); if (ctx.alive()) { syncClear(); ctx.fail(e); } }
     });
   };
   let seq = 0;

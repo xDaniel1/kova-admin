@@ -6,8 +6,9 @@ begin;
 
 -- Every Errors query filters by time.
 create index if not exists client_errors_created_at_idx on public.client_errors (created_at);
--- Group key (null-safe), so first-seen and id lookups per returned group are index scans.
-create index if not exists client_errors_group_idx on public.client_errors ((coalesce(app, '')), (coalesce(left(message, 300), '')), created_at);
+-- Group key (null-safe and collision-free: null and '' stay apart), so first-seen and id lookups per returned group are index scans.
+drop index if exists public.client_errors_group_idx;
+create index if not exists client_errors_group_key_idx on public.client_errors ((app is null), (coalesce(app, '')), (message is null), (coalesce(left(message, 300), '')), created_at);
 
 drop function if exists public.admin_clear_error_group(text, text, timestamptz);
 drop function if exists public.admin_clear_error_group(text, text, timestamptz, timestamptz);
@@ -56,12 +57,12 @@ begin
             -- First report ever, only for the groups being returned.
             f as (select t.app, t.message, min(a.created_at) as first_ever
                     from top t join public.client_errors a
-                      on coalesce(a.app, '') = coalesce(t.app, '') and coalesce(left(a.message, 300), '') = coalesce(t.message, '')
+                      on (a.app is null) = (t.app is null) and coalesce(a.app, '') = coalesce(t.app, '') and (a.message is null) = (t.message is null) and coalesce(left(a.message, 300), '') = coalesce(t.message, '')
                    group by t.app, t.message),
             -- Ids (one join, not one lookup per group) only for returned groups small enough for one clear.
             ids as (select t.app, t.message, array_agg(c.id order by c.created_at desc) as ids
                       from top t join public.client_errors c
-                        on coalesce(c.app, '') = coalesce(t.app, '') and coalesce(left(c.message, 300), '') = coalesce(t.message, '') and c.created_at > since
+                        on (c.app is null) = (t.app is null) and coalesce(c.app, '') = coalesce(t.app, '') and (c.message is null) = (t.message is null) and coalesce(left(c.message, 300), '') = coalesce(t.message, '') and c.created_at > since
                      where t.n <= 20000 group by t.app, t.message)
         select json_build_object(
             'since', since,

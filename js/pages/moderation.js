@@ -7,7 +7,7 @@ import { state } from '../app.js';
 
 export default async function moderation(ctx) {
   let d;
-  try { d = await api.moderation(); } catch (e) { if (e.needsUpgrade) { ctx.el.innerHTML = upgradeCard(); return; } throw e; }
+  try { d = await api.moderation(); } catch (e) { if (!ctx.alive()) return; if (e.needsUpgrade) { ctx.el.innerHTML = upgradeCard(); return; } throw e; }
   if (!ctx.alive()) return;
   const ids = [...(d.flagged || []).map(f => f.reporter), ...(d.flaggers || []).map(f => f.user_id), ...(d.blocked || []).map(b => b.user_id)];
   const label = await api.labels(ids); if (!ctx.alive()) return;
