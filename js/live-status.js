@@ -37,7 +37,9 @@ export async function liveStatusCard() {
   // A live platform announcement replaces the global one on that platform.
   // Apps hide it while that platform is in maintenance, and treat malformed values as absent.
   const now = Date.now();
-  const reach = announcementReach(conf, rows || [], now) || [];
+  // Only counted cohorts (n > 0) are claims about installs; platforms with no check-ins return a config-only
+  // fallback (n: null) that is not shown here.
+  const reach = (announcementReach(conf, rows || [], now) || []).filter(x => x.n > 0);
   const tag = x => `${x.label}${x.source === 'platform' ? ' (its own)' : ''}${x.n != null ? ` · ${fmtNum(x.n)}` : ''}`;
   const shown = reach.filter(x => x.state === 'live').map(tag), hidden = reach.filter(x => x.state === 'hidden').map(tag), blocked = reach.filter(x => x.state === 'blocked').map(tag);
   if (shown.length) alerts.push(['info', `Announcement live on ${shown.join(', ')}`]);
@@ -52,7 +54,7 @@ export async function liveStatusCard() {
     if (active && legacy) alerts.push(['warn', `${fmtNum(legacy)} ${label} install${legacy === 1 ? '' : 's'} on ${p === 'ios' ? 'build 5' : 'versions before 1.0.2'} ignore${legacy === 1 ? 's' : ''} ${label}-only settings and follow the global ones`]);
   }
   if (conf.announcement?.enabled === true && !announcementLive(conf.announcement, now)) alerts.push(['info', 'Announcement is switched on but not showing (empty, scheduled or expired)']);
-  else if (announcementLive(conf.announcement, now) && !reach.some(x => x.source === 'global')) alerts.push(['info', 'Announcement is live, but no active install shows it (none read it, or each platform shows its own)']);
+  else if (announcementLive(conf.announcement, now) && !reach.some(x => x.source === 'global')) alerts.push(['info', 'Announcement is live but reaches no counted installs (none read it, or each platform shows its own)']);
 
   rows = (rows || []).map(g => ({ ...g, keys: new Set(g.car_keys || []) }))
     .sort((a, b) => a.platform.localeCompare(b.platform) || (versionLess(a.version, b.version) ? 1 : versionLess(b.version, a.version) ? -1 : 0) || buildNum(b.build) - buildNum(a.build));

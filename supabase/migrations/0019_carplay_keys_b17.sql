@@ -10,11 +10,12 @@ update public.app_config
    set value = jsonb_build_object('carplay_safe', true, 'carplay_b17', true) || value
  where key = 'features';
 
-update public.app_config set value = value
-    || jsonb_build_object('ios', (value->'ios') || jsonb_build_object('version', '1.0.0', 'build', '17', 'tag', 'ios-v1.0.0-b17',
-                          'note', 'Build 17 fixes the CarPlay trip crash (builds 7-16)'))
-    || jsonb_build_object('web', jsonb_build_object('version', '1.0.4', 'build', '47'))
- where key = 'released_versions' and coalesce((value #>> '{ios,build}')::int, 0) <= 17 and coalesce((value #>> '{web,build}')::int, 0) <= 47;
+-- Each platform under its own guard, merged into its existing object (keeps tag, note, beta_build).
+update public.app_config set value = jsonb_set(value, '{ios}', coalesce(value->'ios', '{}') || jsonb_build_object('version', '1.0.0', 'build', '17', 'tag', 'ios-v1.0.0-b17',
+        'note', 'Build 17 fixes the CarPlay trip crash (builds 7-16)'))
+ where key = 'released_versions' and coalesce((value #>> '{ios,build}')::int, 0) < 17;
+update public.app_config set value = jsonb_set(value, '{web}', coalesce(value->'web', '{}') || jsonb_build_object('version', '1.0.4', 'build', '47'))
+ where key = 'released_versions' and coalesce((value #>> '{web,build}')::int, 0) < 47;
 update public.app_config set value = jsonb_set(value, '{web}', '"1.0.4"') where key = 'latest_version' and value->>'web' in ('1.0.0', '1.0.1', '1.0.2', '1.0.3');
 
 -- The NY import registered its source but not its region.
