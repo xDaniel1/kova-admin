@@ -165,9 +165,8 @@ export default async function controls(ctx) {
   const P = { ios: 'iOS', android: 'Android', web: 'Web' };
   // Reach: counted installs seen in the last 7 days on builds that honour a switch (admin_live_builds,
   // one row per actual build). Reported readers take priority; estimates only fill in where none reported.
-  const eligible = switchEligible;
   const reachOf = (since, builds) => ['ios', 'web'].filter(p => since[p] != null).map(p => { const m = builds.filter(x => x.platform === p); const all = m.reduce((a, x) => a + +x.n, 0);
-    const ok = m.filter(x => eligible(x, since)).reduce((a, x) => a + (x.no_keys != null ? +x.no_keys : x.reports_keys ? 0 : +x.n), 0); // only installs that send no config_keys are estimated
+    const ok = m.filter(x => switchEligible(x, since)).reduce((a, x) => a + (x.no_keys != null ? +x.no_keys : x.reports_keys ? 0 : +x.n), 0); // only installs that send no config_keys are estimated
     return { label: p === 'ios' ? 'iOS' : 'web', ok, all }; });
   const readerEls = qsa('[data-reader]', ctx.el); // this render's cards only
   Promise.allSettled([api.configReaders(), builds ? Promise.resolve(builds) : Promise.reject(new Error('live builds unavailable'))]).then(([rd, lb]) => { if (!ctx.alive() || myRender !== RENDER) return;
@@ -177,7 +176,7 @@ export default async function controls(ctx) {
       const since = SINCE[key.replace(/^features\./, '')], reach = since && builds ? reachOf(since, builds) : null;
       // Before 0023, admin_live_builds has no per-install no_keys count; a build where some installs report
       // keys then can't be estimated, so the estimate is unavailable rather than a false zero.
-      const partial = since && builds ? builds.some(x => x.reports_keys && x.no_keys == null && eligible(x, since)) : false;
+      const partial = since && builds ? builds.some(x => x.reports_keys && x.no_keys == null && switchEligible(x, since)) : false;
       const reached = !partial && reach?.some(x => x.ok > 0);
       // Reported readers first; when none is a counted, active install, the estimate is shown too.
       const est = partial ? 'Estimated reach unavailable (some installs on these builds report keys; needs migration 0023)' : reach ? 'Estimated reach (installs that honour it but haven\'t reported config_keys, 7 days): ' + reach.map(x => `${x.label} ${x.ok} of ${x.all}`).join(' · ') : '';

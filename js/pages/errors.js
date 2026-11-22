@@ -11,7 +11,7 @@ const RANGES = [[1, '24 hours'], [7, '7 days'], [30, '30 days']];
 const inflight = new Set();
 let onClearSettled = null;
 let clearRev = 0;            // bumped whenever a Clear settles; a first read that overlaps one is repeated
-const settled = () => { clearRev++; onClearSettled?.(); };
+const settled = outcome => { clearRev++; onClearSettled?.(outcome); };
 const NEEDS_UPGRADE = html`<section class="card setup"><h2>Database update needed</h2><p>The Errors page needs <code>supabase/migrations/0022_error_filters.sql</code> (and <code>0023_clear_window.sql</code> for Clear).</p></section>`.s;
 
 export default async function errors(ctx) {
@@ -73,8 +73,8 @@ export default async function errors(ctx) {
       if (!canWrite || !filtersMatch() || pending.has(b.dataset.key)) return; const g = groups[+b.dataset.clear], key = b.dataset.key;
       if (!confirm(`Delete ${g.n} ${(g.app || '').trim() || 'unknown app'} reports of "${(g.message || '').slice(0, 80)}"? Only these reports are deleted; any that arrived since are kept.`)) return;
       pending.add(key); syncClear();
-      try { const n = await api.clearErrorGroup(g.app, g.message, g.ids); pending.delete(key); done.add(key); if (!ctx.alive()) { settled(); return; } clearRev++; if (clearErrKey === key) { clearBanner(); clearErrKey = null; } const gen = ++seq; syncClear(); ctx.notice(n ? `Cleared ${n} reports.` : 'Nothing was cleared (already gone).'); refetch(gen); }
-      catch (e) { pending.delete(key); if (ctx.alive()) { clearErrKey = key; syncClear(); ctx.fail(e); clearRev++; } else settled(); }
+      try { const n = await api.clearErrorGroup(g.app, g.message, g.ids); pending.delete(key); done.add(key); if (!ctx.alive()) { settled({ n }); return; } clearRev++; if (clearErrKey === key) { clearBanner(); clearErrKey = null; } const gen = ++seq; syncClear(); ctx.notice(n ? `Cleared ${n} reports.` : 'Nothing was cleared (already gone).'); refetch(gen); }
+      catch (e) { pending.delete(key); if (ctx.alive()) { clearErrKey = key; syncClear(); ctx.fail(e); clearRev++; } else settled({ error: e }); }
     });
   };
   let seq = 0;
@@ -94,7 +94,10 @@ export default async function errors(ctx) {
     } };
   const debounced = debounce(gen => refetch(gen), 250);
   // This render is now the current one: a clear started by an earlier render refreshes it when it ends.
-  onClearSettled = () => { if (!ctx.alive()) return; const gen = ++seq; syncClear(); refetch(gen); };
+  onClearSettled = outcome => { if (!ctx.alive()) return;
+    // The outcome of a Clear started on an earlier render is reported here, on the page now showing.
+    if (outcome?.error) ctx.fail(outcome.error); else if (outcome && 'n' in outcome) ctx.notice(outcome.n ? `Cleared ${outcome.n} reports.` : 'Nothing was cleared (already gone).');
+    const gen = ++seq; syncClear(); refetch(gen); };
   filter.oninput = () => { ctx.query.q = filter.value.trim(); const gen = ++seq; syncClear(); debounced(gen); };
   appSel.onchange = () => { ctx.query.app = appSel.value; const gen = ++seq; syncClear(); refetch(gen); };
   qsa('[data-days]', ctx.el).forEach(b => b.onclick = () => { location.hash = '/errors?' + new URLSearchParams({ days: b.dataset.days, ...(ctx.query.q ? { q: ctx.query.q } : {}), ...(ctx.query.app ? { app: ctx.query.app } : {}) }); });

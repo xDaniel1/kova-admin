@@ -108,6 +108,7 @@ console.log('unhandled/errs:', errs.map(e=>e.message));
   finish(); await tick(10);
   ok(api.calls.list.length > before, 'range change: current render refreshes when the old Clear ends');
   ok(btns().every(b => !b.disabled), 'range change: unlocked after fresh results');
+  ok(notices.includes('Cleared 2 reports.'), 'range change: the Clear outcome is reported on the current page');
   api.ctl.clearImpl = null;
 }
 // 10. Big ids reach the RPC as strings, unchanged.
