@@ -37,7 +37,7 @@ export async function liveStatusCard() {
   // A live platform announcement replaces the global one on that platform.
   // Apps hide it while that platform is in maintenance, and treat malformed values as absent.
   const now = Date.now();
-  const reach = announcementReach(conf, rows, now);
+  const reach = announcementReach(conf, rows || [], now) || [];
   const tag = x => `${x.label}${x.source === 'platform' ? ' (its own)' : ''}${x.n != null ? ` · ${fmtNum(x.n)}` : ''}`;
   const shown = reach.filter(x => x.state === 'live').map(tag), hidden = reach.filter(x => x.state === 'hidden').map(tag), blocked = reach.filter(x => x.state === 'blocked').map(tag);
   if (shown.length) alerts.push(['info', `Announcement live on ${shown.join(', ')}`]);
@@ -50,7 +50,8 @@ export async function liveStatusCard() {
     const o = overrides[p] || {};
     const active = (o.maintenance?.enabled === true && conf.maintenance?.enabled !== true) || Object.values(o.features || {}).includes(false) || announcementLive(o.announcement, now);
     // iOS builds 3 and 4 read no config at all, and an unknown build can't be placed, so only b5 counts.
-    const legacy = (rows || []).filter(g => g.platform === p && (p === 'ios' ? buildNum(g.build) === 5 : !OVERRIDES_FROM[p](g))).reduce((a, g) => a + +g.n, 0);
+    const minV = conf.min_version?.[p];
+    const legacy = (rows || []).filter(g => g.platform === p && (p === 'ios' ? buildNum(g.build) === 5 : !OVERRIDES_FROM[p](g)) && !(typeof minV === 'string' && minV && versionLess(g.version, minV))).reduce((a, g) => a + +g.n, 0);
     if (active && legacy) alerts.push(['warn', `${fmtNum(legacy)} ${label} install${legacy === 1 ? '' : 's'} on ${p === 'ios' ? 'builds before 6' : 'versions before 1.0.2'} ignore${legacy === 1 ? 's' : ''} ${label}-only settings and follow the global ones`]);
   }
   if (!reach.length && conf.announcement?.enabled === true) alerts.push(['info', 'Announcement is switched on but not showing (empty, scheduled or expired)']);

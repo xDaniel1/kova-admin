@@ -107,7 +107,7 @@ const SECTIONS = {
         ${toggle(label + ' maintenance mode', p + '_maint', m.enabled === true, 'Pauses network features on ' + label + ' only.')}
         <label>Maintenance message<input name="${p}_maint_msg" maxlength="300" value="${m.message || ''}"></label>
         <details class="collapse"><summary>Features on ${label} (${FEATURES.filter(([k]) => f[k] === false).length} off)</summary><div class="switches" style="margin-top:8px">${FEATURES.map(([k, l]) => toggle(l, p + '_f_' + k, f[k] !== false))}</div></details>
-        <details class="collapse"><summary>${label} announcement ${!announcementLive(a) ? (a.enabled === true ? '(on, not showing)' : '') : (() => { if (p === 'android') return '(set, Android does not read it yet)'; const r = announcementReach({ ...CONF, platform_overrides: v }, BUILDS).filter(x => x.platform === p && x.source === 'platform'); return r.some(x => x.state === 'live') ? '(live)' : r.some(x => x.state === 'hidden') ? '(set, hidden by maintenance)' : r.some(x => x.state === 'blocked') ? '(set, installs need the required update)' : '(set, not reaching anyone)'; })()}</summary><div class="stack" style="margin-top:8px">
+        <details class="collapse"><summary>${label} announcement ${!announcementLive(a) ? (a.enabled === true ? '(on, not showing)' : '') : (() => { if (p === 'android') return '(set, Android does not read it yet)'; const all = announcementReach({ ...CONF, platform_overrides: v }, BUILDS); if (!all) return '(install reach unavailable)'; const r = all.filter(x => x.platform === p && x.source === 'platform'); return r.some(x => x.state === 'live') ? '(live)' : r.some(x => x.state === 'hidden') ? '(set, hidden by maintenance)' : r.some(x => x.state === 'blocked') ? '(set, installs need the required update)' : '(set, not reaching anyone)'; })()}</summary><div class="stack" style="margin-top:8px">
           ${toggle('Show on ' + label, p + '_ann', a.enabled === true, 'Replaces the global announcement on ' + label + ' while live.')}
           <div class="form-grid"><label>Title<input name="${p}_ann_title" maxlength="80" value="${a.title || ''}"></label><label>Level<select name="${p}_ann_level">${['info', 'warning', 'critical'].map(l => html`<option ${raw(l === (a.level || 'info') ? 'selected' : '')}>${l}</option>`)}</select></label></div>
           <label>Body<textarea name="${p}_ann_body" maxlength="500">${a.body || ''}</textarea></label>
@@ -120,7 +120,7 @@ const SECTIONS = {
       maintenance: { enabled: f.get(p + '_maint') === 'on', message: f.get(p + '_maint_msg').trim() },
       announcement: { ...(prev.announcement || {}), enabled: f.get(p + '_ann') === 'on', title: f.get(p + '_ann_title').trim(), body: f.get(p + '_ann_body').trim(), level: f.get(p + '_ann_level'), url: f.get(p + '_ann_url').trim() || null },
     }]; })),
-    status: v => { const bits = PLATFORMS.flatMap(([p, l]) => { const o = v[p] || {}; return [p !== 'android' && o.maintenance?.enabled === true && l + ' paused', Object.values(o.features || {}).includes(false) && l + ' ' + Object.values(o.features).filter(x => x === false).length + ' off', announcementReach({ ...CONF, platform_overrides: v }, BUILDS).some(x => x.platform === p && x.source === 'platform' && x.state === 'live') && l + ' announcing'].filter(Boolean); }); return bits.length ? badge(bits.join(' · '), bits.some(b => b.includes('paused')) ? 'danger' : 'tone-seen') : badge('None', 'ok'); },
+    status: v => { const bits = PLATFORMS.flatMap(([p, l]) => { const o = v[p] || {}; return [p !== 'android' && o.maintenance?.enabled === true && l + ' paused', Object.values(o.features || {}).includes(false) && l + ' ' + Object.values(o.features).filter(x => x === false).length + ' off', (announcementReach({ ...CONF, platform_overrides: v }, BUILDS) || []).some(x => x.platform === p && x.source === 'platform' && x.state === 'live') && l + ' announcing'].filter(Boolean); }); return bits.length ? badge(bits.join(' · '), bits.some(b => b.includes('paused')) ? 'danger' : 'tone-seen') : badge('None', 'ok'); },
   },
   announcement: {
     title: 'Announcement banner', blurb: 'A banner in the apps. Leave the window empty to show it whenever it is enabled.',
@@ -129,7 +129,9 @@ const SECTIONS = {
     status: v => {
       if (!announcementLive(v)) return v.enabled === true ? badge('On · not showing (empty, scheduled or expired)', 'tone-seen') : badge('Hidden');
       // Counted by install cohort: older builds that read only global settings can still see it.
-      const r = announcementReach({ ...CONF, announcement: v }, BUILDS).filter(x => x.source === 'global');
+      const all = announcementReach({ ...CONF, announcement: v }, BUILDS);
+      if (!all) return badge('On · install reach unavailable', 'tone-seen');
+      const r = all.filter(x => x.source === 'global');
       return r.some(x => x.state === 'live') ? badge('Live', 'accent') : r.some(x => x.state === 'hidden') ? badge('On · hidden by maintenance', 'tone-seen')
         : r.some(x => x.state === 'blocked') ? badge('On · installs need the required update', 'tone-seen') : badge('On · replaced by platform announcements', 'tone-seen');
     },
@@ -138,7 +140,7 @@ const SECTIONS = {
 
 export default async function controls(ctx) {
   let rows;
-  try { [rows, BUILDS] = await Promise.all([api.config(), api.liveBuilds().catch(() => null)]); } catch (e) { if (!ctx.alive()) return; if (e.needsUpgrade) { ctx.el.innerHTML = upgradeCard(); return; } throw e; }
+  try { [rows, BUILDS] = await Promise.all([api.config(), api.liveBuilds().catch(() => null) /* null = unknown, never zero installs */]); } catch (e) { if (!ctx.alive()) return; if (e.needsUpgrade) { ctx.el.innerHTML = upgradeCard(); return; } throw e; }
   if (!ctx.alive()) return;
   CONF = Object.fromEntries(rows.map(r => [r.key, r.value]));
   const label = await api.labels(rows.map(r => r.updated_by)); if (!ctx.alive()) return;
@@ -159,7 +161,7 @@ export default async function controls(ctx) {
   const reachOf = (since, builds) => ['ios', 'web'].filter(p => since[p] != null).map(p => { const m = builds.filter(x => x.platform === p); const all = m.reduce((a, x) => a + +x.n, 0);
     const ok = m.filter(x => !x.reports_keys).filter(x => p === 'ios' ? +x.build >= since.ios && +x.build <= (since.iosTo ?? Infinity) : !versionLess(x.version, since.web)).reduce((a, x) => a + +x.n, 0);
     return { label: p === 'ios' ? 'iOS' : 'web', ok, all }; });
-  Promise.allSettled([api.configReaders(), api.liveBuilds()]).then(([rd, lb]) => { if (!ctx.alive()) return;
+  Promise.allSettled([api.configReaders(), BUILDS ? Promise.resolve(BUILDS) : api.liveBuilds()]).then(([rd, lb]) => { if (!ctx.alive()) return;
     const readers = rd.status === 'fulfilled' ? rd.value : null, builds = lb.status === 'fulfilled' ? lb.value : null;
     qsa('[data-reader]', ctx.el).forEach(el => { const key = el.dataset.reader, r = readers?.[key];
       const real = r && Object.entries(r).some(([p, x]) => P[p] && !x.test && +x.installs_30d > 0);

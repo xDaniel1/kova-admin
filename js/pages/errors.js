@@ -11,7 +11,7 @@ const NEEDS_UPGRADE = html`<section class="card setup"><h2>Database update neede
 export default async function errors(ctx) {
   const days = +ctx.query.days || 7;
   // A blank app in the URL means All apps (blank names can't be picked or filtered on).
-  if (typeof ctx.query.app === 'string') ctx.query.app = ctx.query.app.trim() || undefined;
+  if (typeof ctx.query.app === 'string' && !ctx.query.app.trim()) ctx.query.app = undefined; // non-blank values stay verbatim
   const canWrite = state.role !== 'viewer';
   let d;
   try { d = await api.clientErrors(days, ctx.query.app || null, ctx.query.q || null); } catch (e) { if (!ctx.alive()) return; if (e.needsUpgrade) { ctx.el.innerHTML = NEEDS_UPGRADE; return; } throw e; }
@@ -54,13 +54,13 @@ export default async function errors(ctx) {
     list.innerHTML = html`<p class="muted small" style="margin:0 0 8px">${fmtNum(r.matching)} ${filtered ? 'matching ' : ''}distinct ${r.matching === 1 ? 'message' : 'messages'}${r.capped ? ' · showing the newest 500' : ''}</p>
       ${groups.length ? html`<div class="stack">${groups.map((g, i) => html`<details class="collapse error-group">
         <summary><strong>${g.message || '(no message)'}</strong> ${g.first_ever && Date.parse(g.first_ever) >= since ? badge('New', 'tone-new') : ''}<br><span class="muted small">${(g.app || '').trim() || 'unknown app'} · ${fmtNum(g.n)} times · ${fmtNum(g.users)} signed-in users · last ${rel(g.last)} · first in window ${rel(g.first)}</span></summary>
-        ${snap.q && g.search_hit === true && g.newest_hit === false ? html`<p class="muted small" style="margin:8px 0 0">Matched an earlier report in this group (its message, page or browser); the newest report is shown below.</p>` : ''}<dl class="kv" style="margin-top:10px">${g.full_message && g.full_message.length > (g.message || '').length ? html`<dt>Full message</dt><dd class="small" style="white-space:pre-wrap">${g.full_message}${g.full_message.length >= 2000 ? '…' : ''}</dd>` : ''}<dt>Page</dt><dd class="mono small">${g.url || '—'}</dd><dt>Browser</dt><dd class="small">${g.user_agent || '—'}</dd><dt>Last seen</dt><dd>${fmtDate(g.last)}</dd></dl>
+        ${snap.q && g.search_hit === true && g.newest_hit === false ? html`<p class="muted small" style="margin:8px 0 0">Matched an earlier report in this group (its message, page or browser); the newest report is shown below.</p>` : ''}<dl class="kv" style="margin-top:10px">${g.full_message && (g.message_truncated || g.full_message.length > (g.message || '').length) ? html`<dt>Full message</dt><dd class="small" style="white-space:pre-wrap">${g.full_message}${g.message_truncated ? '…' : ''}</dd>` : ''}<dt>Page</dt><dd class="mono small">${g.url || '—'}</dd><dt>Browser</dt><dd class="small">${g.user_agent || '—'}</dd><dt>Last seen</dt><dd>${fmtDate(g.last)}</dd></dl>
         ${g.stack ? html`<pre class="mono small stack-trace">${g.stack}</pre>` : ''}
         <div class="row" style="margin-top:8px"><button type="button" class="sm ghost" data-copy="${i}">Copy details</button>${canWrite && r.clear === 'ids' ? (Array.isArray(g.ids) ? html`<button type="button" class="sm danger" data-clear="${i}" data-key="${JSON.stringify([g.app, g.message])}" data-label="Clear ${fmtNum(g.n)} reports">Clear ${fmtNum(g.n)} reports</button>` : html`<span class="muted small">Too many reports to clear at once (${fmtNum(g.n)}). Pick a shorter range, or clear in the database if this is already the 24-hour view.</span>`) : ''}</div></details>`)}</div>`
         : empty(filtered ? 'No errors match.' : 'No errors in this window.')}`.s;
     syncClear();
     qsa('[data-copy]', list).forEach(b => b.onclick = async () => { const g = groups[+b.dataset.copy];
-      const ok = await copy(`${g.full_message || g.message || '(no message)'}\n${(g.app || '').trim() || 'unknown app'} · ${g.n} times · last ${g.last}\nPage: ${g.url || '-'}\nBrowser: ${g.user_agent || '-'}\n\n${g.stack || ''}`);
+      const ok = await copy(`${(g.full_message || g.message || '(no message)') + (g.message_truncated ? '…' : '')}\n${(g.app || '').trim() || 'unknown app'} · ${g.n} times · last ${g.last}\nPage: ${g.url || '-'}\nBrowser: ${g.user_agent || '-'}\n\n${g.stack || ''}`);
       if (ctx.alive()) ctx.notice(ok ? 'Copied.' : 'Copy failed.'); });
     qsa('[data-clear]', list).forEach(b => b.onclick = async () => {
       if (!canWrite || !filtersMatch() || pending.has(b.dataset.key)) return; const g = groups[+b.dataset.clear], key = b.dataset.key;

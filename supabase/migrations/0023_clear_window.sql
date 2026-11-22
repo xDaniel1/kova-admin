@@ -50,6 +50,7 @@ begin
                        (array_agg(e.user_agent order by e.created_at desc, e.id desc))[1] as user_agent,
                        (array_agg(left(e.stack, 1500) order by e.created_at desc, e.id desc))[1] as stack,
                        (array_agg(left(e.message, 2000) order by e.created_at desc, e.id desc))[1] as full_message,
+                       (array_agg(char_length(e.message) > 2000 order by e.created_at desc, e.id desc))[1] as message_truncated,
                        -- Search covers every report in the group: its full message (not only the first 300
                        -- characters used to group), page and browser, not only the newest report.
                        coalesce(bool_or(e.message ilike pat or e.url ilike pat or e.user_agent ilike pat), false) as search_hit,
