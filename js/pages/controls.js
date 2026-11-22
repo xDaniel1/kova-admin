@@ -8,7 +8,8 @@ import { annotations, auditList } from '../records.js';
 const field = (label, name, value, opts = {}) => html`<label>${label}<input name="${name}" type="${opts.type || 'text'}" value="${value ?? ''}" ${raw(opts.attrs || '')} placeholder="${opts.placeholder || ''}"></label>`;
 const toggle = (label, name, on, hint) => html`<label class="inline switch"><input type="checkbox" name="${name}" ${raw(on ? 'checked' : '')}><span><strong>${label}</strong>${hint ? html`<br><span class="muted small">${hint}</span>` : ''}</span></label>`;
 const VER = 'pattern="[0-9]+(\\.[0-9]+)*" title="Numbers separated by dots, e.g. 1.2.0"';
-const local = iso => iso ? new Date(iso).toISOString().slice(0, 16) : '';
+// datetime-local fields hold local wall-clock time; convert from the stored UTC instant.
+const local = iso => { if (!iso) return ''; const d = new Date(iso); return isNaN(d) ? '' : new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
 
 // Every switch the apps can read. Who reads it today is in the hint; a switch an app does not read yet is harmless.
 export const FEATURES = [
@@ -140,6 +141,7 @@ export default async function controls(ctx) {
       u.classList.remove('pending');
       if (real) u.remove();
       else if (!readers) { u.textContent = 'Reader check unavailable'; u.title = 'Could not load config_keys reports, so this is unknown'; }
+      else if (since && !builds) { u.textContent = 'No reported readers · estimate unavailable'; u.title = 'Live builds could not be loaded'; }
       else if (reached) { u.textContent = 'Unconfirmed · estimated from build numbers'; u.title = 'Only older builds that do not report config_keys are thought to read it'; }
       else if (r) { u.textContent = 'Only test or inactive builds read this'; u.title = 'No counted install read it in 30 days'; }
       else { u.textContent = 'No app reads this yet'; u.title = 'No counted install reads it; flipping it changes nothing today'; } });

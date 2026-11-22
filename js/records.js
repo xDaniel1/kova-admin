@@ -45,7 +45,7 @@ export async function annotations(el, type, id, ctx) {
     try { await api.addTag(type, id, tag, ctx.user.id); ctx.notice('Tag added.'); await rerender(); }
     catch (err) { if (/duplicate|unique/i.test(err.message)) ctx.notice('That tag is already on this record.'); else ctx.fail(err); e.currentTarget.querySelector('button').disabled = false; }
   };
-  qsa('[data-untag]', el).forEach(b => b.onclick = async () => { if (viewer) return; b.disabled = true; try { const gone = await api.removeTag(type, id, b.dataset.untag); if (!gone?.length) ctx.notice('Nothing changed (no permission).'); await rerender(); } catch (err) { ctx.fail(err); b.disabled = false; } });
+  qsa('[data-untag]', el).forEach(b => b.onclick = async () => { if (viewer) return; b.disabled = true; try { const gone = await api.removeTag(type, id, b.dataset.untag); if (!gone?.length) ctx.notice('Nothing changed (no permission, or already removed).'); await rerender(); } catch (err) { ctx.fail(err); b.disabled = false; } });
   const noteForm = qs('[data-note-form]', el); if (noteForm) noteForm.onsubmit = async e => {
     e.preventDefault(); const body = e.currentTarget.elements.namedItem('body').value.trim(); if (!body) return;
     e.currentTarget.querySelector('button').disabled = true;
@@ -55,7 +55,7 @@ export async function annotations(el, type, id, ctx) {
   qsa('[data-note]', el).forEach(card => {
     const noteId = card.dataset.note, note = notes.find(n => n.id === noteId);
     if (viewer) return;
-    qs('[data-delete]', card).onclick = async () => { if (!confirm('Delete this note?')) return; try { const gone = await api.deleteNote(noteId); ctx.notice(gone?.length ? 'Note deleted.' : 'Nothing changed (no permission).'); await rerender(); } catch (err) { ctx.fail(err); } };
+    qs('[data-delete]', card).onclick = async () => { if (!confirm('Delete this note?')) return; try { const gone = await api.deleteNote(noteId); ctx.notice(gone?.length ? 'Note deleted.' : 'Nothing changed (no permission, or already deleted).'); await rerender(); } catch (err) { ctx.fail(err); } };
     qs('[data-edit]', card).onclick = () => {
       const body = qs('.body', card);
       body.replaceWith(Object.assign(document.createElement('form'), { className: 'stack', innerHTML: html`<textarea name="body" maxlength="8000" required>${note.body}</textarea><div class="row"><button class="primary" type="submit">Save</button><button type="button" class="ghost" data-cancel>Cancel</button></div>`.s }));

@@ -108,7 +108,7 @@ export async function editNote(noteId, body) { return unwrap(await db.from('admi
 export async function deleteNote(noteId) { return unwrap(await db.from('admin_notes').delete().eq('id', noteId).select('id')); }
 export async function tags(type, id) { return unwrap(await db.from('admin_tags').select('*').eq('target_type', type).eq('target_id', id).order('tag')); }
 export async function addTag(type, id, tag, author) { return unwrap(await db.from('admin_tags').insert({ target_type: type, target_id: id, tag, author }).select('*').single()); }
-export async function removeTag(type, id, tag) { return unwrap(await db.from('admin_tags').delete().eq('target_type', type).eq('target_id', id).eq('tag', tag).select('id')); }
+export async function removeTag(type, id, tag) { return unwrap(await db.from('admin_tags').delete().eq('target_type', type).eq('target_id', id).eq('tag', tag).select('tag')); }
 export async function tagsFor(type, ids) {
   if (!ids.length) return {};
   const rows = unwrap(await db.from('admin_tags').select('target_id,tag').eq('target_type', type).in('target_id', ids));
@@ -156,8 +156,8 @@ export async function bulkDeleteFeedback(rows) {
 export const versions = () => rpc('admin_versions');
 export const platformUsers = () => rpc('admin_platform_users');
 export const mapData = () => rpc('admin_map_data');
-export const clientErrors = (days = 7) => rpc('admin_client_errors', { days });
-export async function clearErrors(ids) { return unwrap(await db.from('client_errors').delete().in('id', ids).select('id')); }
+export const clientErrors = (days = 7, app = null, q = null) => rpc('admin_client_errors', { days, app, q });
+export const clearErrorGroup = (app, message, until) => rpc('admin_clear_error_group', { app, message, until });
 export const moderation = () => rpc('admin_moderation');
 export const blockReporter = (target, reason) => rpc('admin_block_reporter', { target, reason });
 export const unblockReporter = target => rpc('admin_unblock_reporter', { target });

@@ -17,6 +17,9 @@ alter table kova_private.digest_runs add column if not exists id bigint generate
 alter table kova_private.digest_runs add column if not exists status_code integer;
 alter table kova_private.digest_runs add column if not exists detail text;
 alter table kova_private.digest_runs add column if not exists settled_at timestamptz;
+alter table kova_private.digest_runs add column if not exists timed_out boolean;
+-- sent | skipped | failed | timed_out | not_sent
+alter table kova_private.digest_runs add column if not exists outcome text;
 alter table kova_private.digest_runs drop constraint if exists digest_runs_pkey;
 alter table kova_private.digest_runs alter column request_id drop not null;
 do $$ begin
@@ -30,13 +33,21 @@ revoke all on kova_private.digest_runs from public, anon, authenticated;
 create or replace function kova_private.settle_digest_runs()
 returns void language plpgsql security definer set search_path = ''
 as $$ begin
+    -- Copies each response before pg_net expires it (about six hours).
     update kova_private.digest_runs r
-       set status_code = h.status_code, settled_at = now(),
-           detail = left(coalesce(h.error_msg, case when h.timed_out then 'timed out' end, h.content::text), 300)
+       set status_code = h.status_code, timed_out = coalesce(h.timed_out, false), settled_at = now(),
+           outcome = case when h.timed_out then 'timed_out'
+                          when h.status_code between 200 and 299 and h.content::text like '%"skipped"%' then 'skipped'
+                          when h.status_code between 200 and 299 then 'sent'
+                          else 'failed' end,
+           detail = left(case when h.timed_out then 'timed out after 20 s'
+                              when h.content::text like '%"skipped"%' then 'skipped: ' || coalesce(substring(h.content::text from '"skipped":"([^"]*)"'), '')
+                              when h.content::text like '%"sent"%' then 'sent to ' || coalesce(substring(h.content::text from '"sent":([0-9]+)'), '?')
+                              else coalesce(h.error_msg, h.content::text) end, 300)
       from net._http_response h
      where h.id = r.request_id and r.settled_at is null;
-    -- Requests whose response expired before being settled.
-    update kova_private.digest_runs set settled_at = now(), detail = coalesce(detail, 'no response recorded')
+    -- Requests whose response expired before being settled (should not happen with a 10-minute settle).
+    update kova_private.digest_runs set settled_at = now(), outcome = 'failed', detail = coalesce(detail, 'no response recorded')
      where settled_at is null and request_id is not null and at < now() - interval '5 hours';
     delete from kova_private.digest_runs where at < now() - interval '60 days';
 end $$;
@@ -51,7 +62,7 @@ begin
     select coalesce((select value from kova_private.settings where key = 'digest_url'),
                     'https://fbumdslhguoytlhlrkyr.supabase.co/functions/v1/tower-digest') into u;
     if coalesce(trim(s), '') = '' then
-        insert into kova_private.digest_runs (status_code, detail, settled_at) values (null, 'not sent: digest_secret is not set in kova_private.settings', now());
+        insert into kova_private.digest_runs (outcome, detail, settled_at) values ('not_sent', 'digest_secret is not set in kova_private.settings', now());
         return;
     end if;
     select net.http_post(url := u, body := '{}'::jsonb, timeout_milliseconds := 20000,
@@ -71,8 +82,10 @@ returns json language plpgsql stable security definer set search_path = ''
 as $$ begin
     if not public.is_admin() then raise exception 'Not an admin' using errcode = '42501'; end if;
     return (select coalesce(json_agg(x order by x.at desc), '[]'::json) from (
-        select r.at, coalesce(r.status_code, h.status_code) as status_code, coalesce(h.timed_out, false) as timed_out,
-               r.settled_at is not null or h.id is not null as settled,
+        select r.at, case when r.settled_at is not null then r.status_code else h.status_code end as status_code,
+               coalesce(r.outcome, case when h.id is null then 'sending' when h.timed_out then 'timed_out'
+                                        when h.status_code between 200 and 299 and h.content::text like '%"skipped"%' then 'skipped'
+                                        when h.status_code between 200 and 299 then 'sent' else 'failed' end) as outcome,
                coalesce(r.detail, left(coalesce(h.error_msg, h.content::text), 300)) as detail
           from kova_private.digest_runs r left join net._http_response h on h.id = r.request_id
          order by r.at desc limit 10) x);

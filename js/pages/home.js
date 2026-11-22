@@ -53,7 +53,7 @@ export default async function home(ctx) {
     </div>`.s;
 
   const tasks = [];
-  tasks.push((async () => { const host = qs('[data-live]', ctx.el); try { const c = await liveStatusCard(); if (ctx.alive()) host.innerHTML = c.s; } catch (e) { if (ctx.alive()) host.innerHTML = ''; console.warn(e); } })());
+  tasks.push((async () => { const host = qs('[data-live]', ctx.el); try { const c = await liveStatusCard(); if (ctx.alive()) host.innerHTML = c.s; } catch (e) { if (ctx.alive()) host.innerHTML = html`<section class="card"><p class="alert alert-warn" style="margin:0">Live status could not be shown: ${e.message || e}</p></section>`.s; console.warn(e); } })());
   tasks.push((async () => { const host = qs('[data-platform-users]', ctx.el); try { const d = await api.platformUsers(); if (ctx.alive()) host.innerHTML = platformUsersCard(d, { charts: false }).s + '<div style="height:18px"></div>'; } catch (e) { if (!e.needsUpgrade) console.warn(e); } })());
   tasks.push((async () => { const host = qs('[data-versions]', ctx.el); try { const v = await api.versions(); if (ctx.alive()) host.innerHTML = versionsCard(v).s + '<div style="height:18px"></div>'; loadSiteLive(host, v.released); } catch (e) { if (!e.needsUpgrade) console.warn(e); } })());
   tasks.push((async () => {

@@ -33,11 +33,21 @@ export async function liveStatusCard() {
   if (globalOff.length) alerts.push(['warn', `Off for everyone: ${globalOff.join(', ')}`]);
   // Contract §announcement: live when enabled, has a title or body, and now is inside [starts_at, ends_at).
   // A live platform announcement replaces the global one on that platform.
-  const isLive = x => { if (!x?.enabled || !((x.title || '').trim() || (x.body || '').trim())) return false;
-    const now = Date.now(), s = x.starts_at ? Date.parse(x.starts_at) : -Infinity, e = x.ends_at ? Date.parse(x.ends_at) : Infinity; return now >= s && now < e; };
-  const shown = Object.entries(PLATFORM).map(([p, label]) => isLive(overrides[p]?.announcement) ? `${label} (its own)` : isLive(conf.announcement) ? label : null).filter(Boolean);
+  // Apps hide it while that platform is in maintenance, and treat malformed values as absent.
+  const now = Date.now();
+  const text = v => typeof v === 'string' ? v.trim() : '';
+  const bound = (v, dflt) => { if (v == null || v === '') return dflt; const t = Date.parse(v); return Number.isNaN(t) ? NaN : t; };
+  const isLive = x => { if (!x || x.enabled !== true || !(text(x.title) || text(x.body))) return false;
+    const s = bound(x.starts_at, -Infinity), e = bound(x.ends_at, Infinity); return !Number.isNaN(s) && !Number.isNaN(e) && now >= s && now < e; };
+  const inMaint = p => conf.maintenance?.enabled === true || overrides[p]?.maintenance?.enabled === true;
+  const shown = [], hidden = [];
+  for (const [p, label] of Object.entries(PLATFORM)) {
+    const own = isLive(overrides[p]?.announcement), any = own || isLive(conf.announcement);
+    if (any) (inMaint(p) ? hidden : shown).push(own ? `${label} (its own)` : label);
+  }
   if (shown.length) alerts.push(['info', `Announcement live on ${shown.join(', ')}`]);
-  else if (conf.announcement?.enabled) alerts.push(['info', 'Announcement is switched on but not showing (empty, scheduled or expired)']);
+  if (hidden.length) alerts.push(['warn', `Announcement set for ${hidden.join(', ')} but hidden by maintenance there`]);
+  else if (!hidden.length && conf.announcement?.enabled) alerts.push(['info', 'Announcement is switched on but not showing (empty, scheduled or expired)']);
 
   rows = (rows || []).map(g => ({ ...g, keys: new Set(g.car_keys || []) }))
     .sort((a, b) => a.platform.localeCompare(b.platform) || (versionLess(a.version, b.version) ? 1 : versionLess(b.version, a.version) ? -1 : 0) || buildNum(b.build) - buildNum(a.build));
