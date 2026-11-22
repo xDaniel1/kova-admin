@@ -183,6 +183,9 @@ export default async function controls(ctx) {
       else if (since && !builds) { u.textContent = 'No reported readers · estimate unavailable'; u.title = 'Live builds could not be loaded'; }
       else if (reached) { u.textContent = 'Unconfirmed · estimated from build numbers'; u.title = 'Only older builds that do not report config_keys are thought to read it'; }
       else if (r) { u.textContent = 'Only test or inactive builds read this'; u.title = 'No counted install read it in 30 days'; }
+      // A switch documented as read by some builds is never called unread: missing reports only mean
+      // nothing has been confirmed recently (for example right after the 0023 reset, or for idle installs).
+      else if (since) { u.textContent = 'No recent readers confirmed'; u.title = 'Builds documented to read it exist, but none reported it in the last 30 days or is active this week'; }
       else { u.textContent = 'No app reads this yet'; u.title = 'No counted install reads it; flipping it changes nothing today'; } });
   });
   if (state.role === 'viewer') qsa('[data-form]', ctx.el).forEach(f => { f.querySelectorAll('input,select,textarea').forEach(i => { i.disabled = true; }); f.querySelector('button[type=submit]')?.remove(); });
