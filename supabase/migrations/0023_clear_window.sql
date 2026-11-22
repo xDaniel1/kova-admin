@@ -4,6 +4,9 @@
 -- the total follows the app filter, and first_ever is looked up only for the returned groups. Rerunnable.
 begin;
 
+-- Every Errors query filters by time.
+create index if not exists client_errors_created_at_idx on public.client_errors (created_at);
+
 drop function if exists public.admin_clear_error_group(text, text, timestamptz);
 drop function if exists public.admin_clear_error_group(text, text, timestamptz, timestamptz);
 -- Editors only. Deletes exactly the report ids Tower showed for one group (ids that belong to another
@@ -52,7 +55,12 @@ begin
             f as (select t.app, t.message, min(a.created_at) as first_ever
                     from top t join public.client_errors a
                       on a.app is not distinct from t.app and left(a.message, 300) is not distinct from t.message
-                   group by t.app, t.message)
+                   group by t.app, t.message),
+            -- Ids (one join, not one lookup per group) only for returned groups small enough for one clear.
+            ids as (select t.app, t.message, array_agg(c.id order by c.created_at desc) as ids
+                      from top t join public.client_errors c
+                        on c.created_at > since and c.app is not distinct from t.app and left(c.message, 300) is not distinct from t.message
+                     where t.n <= 20000 group by t.app, t.message)
         select json_build_object(
             'since', since,
             'total', (select count(*) from public.client_errors x where x.created_at > since and (admin_client_errors.app is null or x.app = admin_client_errors.app)),
@@ -61,11 +69,9 @@ begin
             'capped', (select count(*) from m) > 500,
             'clear', 'ids',  -- this read pairs with admin_clear_error_group(app, message, ids)
             'groups', (select coalesce(json_agg(g order by g.last desc), '[]'::json) from (
-                select top.*, f.first_ever,
-                       -- Ids only for returned groups small enough for one clear (the clear RPC's limit).
-                       case when top.n <= 20000 then (select array_agg(c.id order by c.created_at desc) from public.client_errors c
-                              where c.created_at > since and c.app is not distinct from top.app and left(c.message, 300) is not distinct from top.message) end as ids
-                  from top left join f on f.app is not distinct from top.app and f.message is not distinct from top.message) g),
+                select top.*, f.first_ever, ids.ids
+                  from top left join f on f.app is not distinct from top.app and f.message is not distinct from top.message
+                  left join ids on ids.app is not distinct from top.app and ids.message is not distinct from top.message) g),
             'daily', (select coalesce(json_agg(json_build_object('day', to_char(g.day, 'YYYY-MM-DD'), 'n', coalesce(x.n, 0)) order by g.day), '[]'::json)
                         from (select gs::date as day from generate_series(current_date - 29, current_date, interval '1 day') gs) g
                         left join (select c.created_at::date as day, count(*) as n from public.client_errors c
