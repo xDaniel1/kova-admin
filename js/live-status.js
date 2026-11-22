@@ -89,7 +89,7 @@ export async function liveStatusCard() {
       <td class="muted small">${rel(g.last)}</td></tr>`);
 
   if (risky.length) {
-    const n = risky.reduce((a, g) => a + g.n, 0);
+    const n = risky.reduce((a, g) => a + +g.n, 0);
     alerts.unshift(['danger', raw(html`CarPlay is on for ${risky.length === 1 ? 'a build' : 'builds'} that crash when a trip starts (${risky.map(g => 'b' + g.build).join(', ')}, ${fmtNum(n)} installs). <a href="#/controls">Switch off in App controls</a>`.s)]);
   }
   const pill = ([tone, text]) => html`<li class="alert alert-${tone}">${text}</li>`;
