@@ -8,7 +8,7 @@ update public.app_config set value = jsonb_set(value, '{ios}', (case when jsonb_
         || jsonb_build_object('version', '1.0.0', 'build', '79', 'tag', 'ios-v1.0.0-b79',
                               -- never lower a pending build someone set higher
                               'pending_build', case when (case when (value #>> '{ios,pending_build}') ~ '^[0-9]+$' then (value #>> '{ios,pending_build}')::numeric > 80 else false end) then value #>> '{ios,pending_build}' else '80' end,
-                              'note', 'Builds 76-79: CarPlay speed sign, tolls and traffic cameras (b78 reads toll_traffic_cameras), indoor plans; build 80 prepared (lanes at exits, 34 more indoor venues)'))
+                              'note', 'Builds 76-79: CarPlay speed sign, tolls and traffic cameras (b78 reads toll_traffic_cameras), indoor plans; build 80 prepared after it (lanes at exits, 34 more indoor venues)'))
  where key = 'released_versions' and coalesce(jsonb_typeof(value->'ios'), 'null') in ('object', 'null')
    and ((value #>> '{ios,build}') is null or case when (value #>> '{ios,build}') ~ '^[0-9]+$' then (value #>> '{ios,build}')::numeric < 79 else false end);
 

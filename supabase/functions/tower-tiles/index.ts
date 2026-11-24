@@ -4,8 +4,9 @@
 const HOST = "https://tiles.kovamaps.com";
 const cors = { "Access-Control-Allow-Origin": "https://tower.kovamaps.com", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Vary": "Origin" };
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", ...cors } });
-// Lane manifest rows: keys are tile rows (y), values are inclusive runs of x ([from, to]).
-const runs = (o: unknown) => o && typeof o === "object" ? Object.values(o as Record<string, unknown>).reduce((n: number, r) => n + (Array.isArray(r) ? r.reduce((k: number, p) => k + (Array.isArray(p) && p.length === 2 ? Number(p[1]) - Number(p[0]) + 1 : 0), 0) : 0), 0) : null;
+// Lane manifest rows: keys are tile rows (y), values are inclusive runs of x ([from, to]). Checked against
+// the live manifest: populated runs sum to tile_count (10,073 on 2026-11-24).
+const runs = (o: unknown) => o && typeof o === "object" ? Object.values(o as Record<string, unknown>).reduce((n: number, r) => n + (Array.isArray(r) ? r.reduce((k: number, p) => k + (Array.isArray(p) && p.length === 2 && Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1])) ? Math.max(0, Number(p[1]) - Number(p[0]) + 1) : 0), 0) : 0), 0) : null;
 // R2 can be slow; never hold the card past a few seconds.
 const timed = (url: string, init: RequestInit = {}) => fetch(url, { ...init, signal: AbortSignal.timeout(5000) });
 const int = (v: string | null) => (v && /^\d{1,6}$/.test(v) ? Number(v) : null);

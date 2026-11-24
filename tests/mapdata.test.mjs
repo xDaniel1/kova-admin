@@ -13,6 +13,7 @@ const expr = /const runs = (\(o: unknown\)[\s\S]*?: null;)/.exec(src)[1].replace
 const runs = eval(expr.replace(/;$/, ''));
 ok(runs({ 10: [[5, 7]], 11: [[1, 1]] }) === 4, 'lane coverage counts tiles in runs (4)');
 ok(runs(null) === null, 'no coverage object: null');
+ok(runs({ 1: [[7, 5]], 2: [], 3: [['a', 'b']] }) === 0, 'reversed, empty and non-numeric runs count 0');
 ok(/x-client-info/.test(src), 'CORS allows x-client-info (supabase-js sends it)');
 
 // 2. The card.
@@ -39,3 +40,6 @@ ok(card().includes('past their fresh-until date'), 'stale lane tiles warned');
 api.ctl.tileData = null; api.ctl.tileDataErr = Object.assign(new Error('permission denied'), { code: '42501' });
 await mapData(ctx()); await tick(30);
 ok(!card().includes('migration 0026') && card().includes('unavailable: permission denied'), 'non-upgrade error is not called a missing migration');
+api.ctl.tileDataErr = Object.assign(new Error('missing'), { needsUpgrade: true });
+await mapData(ctx()); await tick(30);
+ok(card().includes('needs migration 0026'), 'missing function says it needs migration 0026');
