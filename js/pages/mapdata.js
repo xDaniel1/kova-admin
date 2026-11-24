@@ -77,20 +77,21 @@ export default async function mapData(ctx) {
   api.coverage(30).then(c => { const host = ctx.el.querySelector('[data-coverage]'); if (!host || !ctx.alive()) return; host.innerHTML = coverageView(c).s; })
     .catch(e => { const host = ctx.el.querySelector('[data-coverage]'); if (host) host.innerHTML = e.needsUpgrade ? '<p class="muted small">Needs migration 0013.</p>' : html`<p class="muted small">${e.message}</p>`.s; });
   (async () => { const host = ctx.el.querySelector('[data-tiles]'); if (!host) return;
-    let td = null; try { td = await api.tileData(); } catch (e) { if (!e.needsUpgrade) console.warn(e); }
+    let td = null, tdErr = null; try { td = await api.tileData(); } catch (e) { tdErr = e; }
     let ts = null, tsErr = null; try { ts = await api.tileStatus(td?.trees?.sample); } catch (e) { tsErr = e; }
     if (!ctx.alive()) return;
     const L = ts?.lanes, fresh = L?.fresh_until ? Date.parse(L.fresh_until) : NaN, stale = Number.isFinite(fresh) && fresh < Date.now();
     const probe = p => !p ? '—' : p.status === 200 ? html`${badge('Served', 'ok')} <span class="muted small">${p.last_modified ? 'updated ' + rel(p.last_modified) : ''}</span>` : p.status === 404 ? badge('No file for the sample tile', 'tone-seen') : badge(`Error ${p.status}`, 'danger');
     const T = td?.trees, IR = td?.indoor_reports;
+    const tdNote = !tdErr ? '—' : tdErr.needsUpgrade ? 'needs migration 0026' : 'unavailable: ' + (tdErr.message || tdErr);
     host.innerHTML = html`<div class="tiles">
         ${tile(L?.tile_count != null ? fmtNum(L.tile_count) : '—', 'Lane tiles', L?.generation ? html`${stale ? html`<span style="color:var(--danger)">stale since ${rel(L.fresh_until)}</span>` : 'fresh until ' + fmtDate(L.fresh_until)}` : (tsErr ? 'status unavailable' : 'no manifest'))}
-        ${tile(T ? fmtNum(T.tiles) : '—', 'Tree tiles (database)', T ? html`${fmtNum(T.with_single_trees)} with single trees · updated ${rel(T.updated_at)}` : 'needs migration 0026')}
-        ${tile(IR ? fmtNum(IR.new) : '—', 'New indoor reports', IR ? html`${fmtNum(IR.total)} total · ${fmtNum(IR.last_30d)} in 30 days` : 'needs migration 0026', href('/feedback', { q: '[indoor]', kind: 'map_data' }))}
+        ${tile(T ? fmtNum(T.tiles) : '—', 'Tree tiles (database)', T ? html`${fmtNum(T.with_single_trees)} with single trees · updated ${rel(T.updated_at)}` : tdNote)}
+        ${tile(IR ? fmtNum(IR.new) : '—', 'New indoor reports', IR ? html`${fmtNum(IR.total)} total · ${fmtNum(IR.last_30d)} in 30 days` : tdNote, href('/feedback', { q: '[indoor]', kind: 'map_data', status: 'new' }))}
       </div>
       <dl class="kv" style="margin-top:12px">
         <dt>Lane generation</dt><dd class="mono small">${L?.generation || '—'}${L?.built ? html` <span class="muted">built ${fmtDate(L.built)}</span>` : ''}</dd>
-        <dt>Lane coverage</dt><dd>${L?.covered != null ? html`${fmtNum(L.covered)} covered areas, ${fmtNum(L.populated)} with lane data` : '—'}</dd>
+        <dt>Lane coverage</dt><dd>${L?.covered != null ? html`${fmtNum(L.covered)} tiles covered, ${fmtNum(L.populated)} with lane data` : '—'}</dd>
         <dt>Tree files</dt><dd>${probe(ts?.sample?.trees)}</dd>
         <dt>Building files</dt><dd>${probe(ts?.sample?.buildings)}</dd>
       </dl>
