@@ -55,7 +55,7 @@ export const FEATURES = [
   ['flat_turns', 'Flat map for turns', 'Driving map drops to 2D before each turn · iOS build 9+ draws it, ignores the switch'],
   ['rural_detail', 'Rural map detail', 'Minor roads, small towns and unpaved surfaces drawn clearer · web 1.0.3+'],
   ['map_trees', '3D trees', 'Trees planted from satellite tree cover (Florida) · iOS build 19+, web 1.0.7+'],
-  ['toll_traffic_cameras', 'Tolls and traffic cameras', 'Toll points and NYC DOT traffic cameras on the driving map · Android (next release, branch android/cameras-tolls); iOS not yet. Off: neither layer is drawn or fetched. Not paused by maintenance (it calls OpenStreetMap and NYC DOT, not Kova).'],
+  ['toll_traffic_cameras', 'Tolls and traffic cameras', 'Toll points and NYC DOT traffic cameras on the driving map · iOS build 78+, Android (next release). Off: neither layer is drawn or fetched. Not paused by maintenance (it calls OpenStreetMap and NYC DOT, not Kova).'],
   ['route_road_matching', 'Routes on map roads', 'Driving routes matched to Mapbox roads so the line is on the right carriageway · iOS build 53+'],
 ];
 // Earliest build (iOS, Android) or version (web) that honours each switch, for the reach estimate shown until
@@ -63,7 +63,7 @@ export const FEATURES = [
 const SINCE = {
   speed_limits: { ios: 6, web: '1.0.2', android: 3 }, traffic_coloring: { ios: 6, web: '1.0.2', android: 3 }, transit: { ios: 6, web: '1.0.2', android: 3 },
   voice_guidance: { ios: 6, web: '1.0.2', android: 3 }, android_auto: { android: 3 }, carplay: { ios: 7, iosTo: 14 }, carplay_safe: { ios: 15, iosTo: 16 }, carplay_b17: { ios: 17 },
-  place_labels: { web: '1.0.3' }, rural_detail: { web: '1.0.3' }, map_trees: { ios: 19, web: '1.0.7' }, route_road_matching: { ios: 53 }, platform_overrides: { ios: 6, web: '1.0.2', android: 3 },
+  place_labels: { web: '1.0.3' }, rural_detail: { web: '1.0.3' }, map_trees: { ios: 19, web: '1.0.7' }, route_road_matching: { ios: 53 }, toll_traffic_cameras: { ios: 78 }, platform_overrides: { ios: 6, web: '1.0.2', android: 3 },
   indoor_maps: { ios: 5, web: '1.0.0', android: 3 }, traffic_reports: { ios: 5, web: '1.0.0', android: 3 }, feedback: { ios: 5, web: '1.0.0' },
   incident_feeds: { ios: 5, web: '1.0.0' }, sync: { ios: 5, web: '1.0.0', android: 3 },
 };

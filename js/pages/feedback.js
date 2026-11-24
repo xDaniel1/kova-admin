@@ -10,7 +10,7 @@ export default async function feedback(ctx) {
   const q = { kind: ctx.query.kind || '', status: ctx.query.status || '', search: ctx.query.q || '' };
   ctx.el.innerHTML = html`<section class="card">
     <form class="toolbar" data-filter>
-      <label>Search<input name="q" type="search" value="${q.search}" placeholder="Message contains…"></label>
+      <label>Search<input name="q" type="search" value="${q.search}" placeholder="Message contains…"></label><a class="chip" style="align-self:center" href="${href('/feedback', { q: '[indoor]', kind: 'map_data' })}" title="Indoor floor-plan problems reported from the iPhone app">Indoor reports</a>
       <label class="narrow">Kind<select name="kind"><option value="">All kinds</option>${KINDS.map(k => html`<option value="${k}" ${raw(k === q.kind ? 'selected' : '')}>${kindLabel[k]}</option>`)}</select></label>
       <label class="narrow">Status<select name="status"><option value="">All statuses</option>${STATUSES.map(s => html`<option value="${s}" ${raw(s === q.status ? 'selected' : '')}>${s}</option>`)}</select></label>
       <button type="submit">Apply</button><button type="button" class="ghost" data-export title="Download the loaded rows as CSV">Export CSV</button>
@@ -32,7 +32,7 @@ export default async function feedback(ctx) {
     let tags = {}; try { tags = await api.tagsFor('feedback', rows.map(r => r.id)); } catch (e) { if (!e.needsUpgrade) throw e; }
     if (!ctx.alive()) return;
     list.innerHTML = rows.length ? rows.map(r => { const d = r.diagnostics || {}; return html`<div class="selectable"><input type="checkbox" data-pick="${r.id}" aria-label="Select"><a class="feedback-item" href="${href('/feedback/' + r.id)}">
-      <div class="top">${badge(kindLabel[r.kind] || r.kind)}${badge(r.status, statusTone[r.status])}<span title="${fmtDate(r.created_at)}">${rel(r.created_at)}</span>${r.contact ? html`<span>· ${r.contact}</span>` : ''}${d.app_version || d.appVersion ? html`<span>· v${d.app_version || d.appVersion}</span>` : ''}${r.screenshot_path ? html`<span>· 📎 screenshot</span>` : ''}${tagChips(tags[r.id])}</div>
+      <div class="top">${badge(kindLabel[r.kind] || r.kind)}${(r.message || '').startsWith('[indoor]') ? badge('Indoor', 'tone-new') : ''}${badge(r.status, statusTone[r.status])}<span title="${fmtDate(r.created_at)}">${rel(r.created_at)}</span>${r.contact ? html`<span>· ${r.contact}</span>` : ''}${d.app_version || d.appVersion ? html`<span>· v${d.app_version || d.appVersion}</span>` : ''}${r.screenshot_path ? html`<span>· 📎 screenshot</span>` : ''}${tagChips(tags[r.id])}</div>
       <p class="text">${r.message}</p>${r.admin_note ? html`<p class="muted small" style="margin:4px 0 0">Triage: ${r.admin_note}</p>` : ''}</a></div>`; }).join('') : empty('No feedback matches these filters.').s;
     more.hidden = page.length < api.PAGE; more.disabled = false; status.textContent = `${rows.length} shown`;
     bulk.hidden = !rows.length; selected.clear(); syncBulk();
