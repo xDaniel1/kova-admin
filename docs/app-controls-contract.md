@@ -25,6 +25,7 @@ Returns an array of `{ "key": string, "value": object }`. Decode each key on its
 | `latest_version` | `{ "ios": "1.0.0", "android": "1.0.0", "web": "0.1.0", "message": string, "store_urls": { "ios": url, "android": url, "web": url } }` |
 | `released_versions` | `{ "ios": { "version": "1.0.0", "build": "4" }, "android": { "version": "1.0.0", "build": "1" }, "web": { "version": "1.0.0", "build": null }, "site": {…} }`. Informational record of what shipped; apps may ignore it. |
 | `features` | `{ "indoor_maps": bool, "traffic_reports": bool, "feedback": bool, "incident_feeds": bool, "sync": bool, "speed_limits": bool, "traffic_coloring": bool, "transit": bool, "voice_guidance": bool, "carplay": bool, "carplay_safe": bool, "carplay_b17": bool, "android_auto": bool, "place_labels": bool, "flat_turns": bool, "rural_detail": bool, "map_trees": bool, "route_road_matching": bool, "toll_traffic_cameras": bool }` |
+| `google` | `{ "enabled": bool, "daily_budget": int, "daily_photo_budget": int }`: Google Maps Platform spend guard, per device per day (iOS, `GoogleCallGate`). `enabled: false` means no Google calls. Missing or invalid budgets fall back to the app defaults. |
 | `platform_overrides` | `{ "ios" \| "android" \| "web": { "features": { <feature key>: false, … }, "maintenance": { "enabled": bool, "message": string }, "announcement": { same shape as announcement } } }` (added in migration 0012; optional to adopt) |
 | `announcement` | `{ "enabled": bool, "title": string, "body": string, "level": "info" \| "warning" \| "critical", "url": url \| null, "starts_at": ISO-8601 \| null, "ends_at": ISO-8601 \| null }` |
 
@@ -177,3 +178,10 @@ Tower controls every key above, including those no app reads yet; each control s
 ## Reference implementation
 
 iOS: `Waypoint/Models/RemoteConfig.swift` and `Waypoint/Services/RemoteConfigService.swift` in the waypoint-ios repo (branch `feat/remote-app-controls`, PR #33), with tests in `WaypointTests/RemoteConfigTests.swift`.
+
+## Data switches the apps don't read
+
+Some Tower switches act in the database, so they need no app support:
+
+- `data_regions` speed-limit regions and sources hide rows through RLS.
+- Enforcement camera sources (`camera_sources`, migration 0026) are filtered inside `cameras_in_box(p_south, p_west, p_north, p_east)`. The function's signature and its `{id, kind, lat, lon, bearing, mph, name}` JSON shape never change.

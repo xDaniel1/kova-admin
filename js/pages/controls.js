@@ -61,6 +61,7 @@ export const FEATURES = [
 // Earliest build (iOS, Android) or version (web) that honours each switch, for the reach estimate shown until
 // apps send config_keys.
 const SINCE = {
+  google: { ios: 83 },
   speed_limits: { ios: 6, web: '1.0.2', android: 3 }, traffic_coloring: { ios: 6, web: '1.0.2', android: 3 }, transit: { ios: 6, web: '1.0.2', android: 3 },
   voice_guidance: { ios: 6, web: '1.0.2', android: 3 }, android_auto: { android: 3 }, carplay: { ios: 7, iosTo: 14 }, carplay_safe: { ios: 15, iosTo: 16 }, carplay_b17: { ios: 17 },
   place_labels: { web: '1.0.3' }, rural_detail: { web: '1.0.3' }, map_trees: { ios: 19, web: '1.0.7' }, route_road_matching: { ios: 53 }, platform_overrides: { ios: 6, web: '1.0.2', android: 3 },
@@ -69,8 +70,17 @@ const SINCE = {
 };
 const PLATFORMS = [['ios', 'iOS'], ['android', 'Android'], ['web', 'Web']];
 const REL = [['ios', 'iOS', 'build'], ['android', 'Android', 'versionCode'], ['web', 'Web app', 'build'], ['site', 'Site']];
-const ORDER = ['maintenance', 'released_versions', 'min_version', 'latest_version', 'features', 'platform_overrides', 'announcement'];
+const ORDER = ['maintenance', 'released_versions', 'min_version', 'latest_version', 'features', 'platform_overrides', 'announcement', 'google'];
 const SECTIONS = {
+  google: {
+    title: 'Google spend guard', blurb: 'Caps Google Maps Platform calls per device per day (iOS; GoogleCallGate). Place cards now load all ten photos when they open, so photo calls will rise: watch the photo budget. Usage is counted on each device only; Tower has no usage view yet.',
+    form: v => html`${toggle('Google calls allowed', 'enabled', v.enabled !== false, 'Off: iOS makes no Google Maps Platform calls (places, photos) and falls back to Apple/Mapbox data.')}<div class="form-grid">${field('Daily data calls per device', 'daily_budget', v.daily_budget, { type: 'number', attrs: 'min="1" step="1" required' })}${field('Daily photo calls per device', 'daily_photo_budget', v.daily_photo_budget, { type: 'number', attrs: 'min="1" step="1" required' })}</div>`,
+    read: (f, cur = {}) => {
+      const n = k => { const x = Number(f.get(k)); if (!Number.isInteger(x) || x < 1) throw new Error('Budgets must be whole numbers of at least 1.'); return x; };
+      return { ...cur, enabled: f.get('enabled') === 'on', daily_budget: n('daily_budget'), daily_photo_budget: n('daily_photo_budget') };
+    },
+    status: v => v.enabled === false ? badge('Off · no Google calls', 'danger') : badge(`On · ${v.daily_budget ?? '–'} data / ${v.daily_photo_budget ?? '–'} photos per device per day`, 'ok'),
+  },
   maintenance: {
     title: 'Maintenance mode', blurb: 'Stops network features in the apps and shows a message. Use it during a bad deploy or a Supabase incident.',
     form: v => html`${toggle('Maintenance mode is on', 'enabled', v.enabled === true, 'Apps show the message and pause sync, reports and feedback. On Android it needs Tower’s answer in the current launch, never gates during navigation, and stops network requests only.')}<label>Message<textarea name="message" maxlength="300">${v.message || ''}</textarea></label>`,

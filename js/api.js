@@ -171,5 +171,6 @@ export async function markTestBuild(platform, app_version, build, note) { return
 export async function unmarkTestBuild(platform, app_version, build) { return unwrap(await db.from('test_builds').delete().eq('platform', platform).eq('app_version', app_version).eq('build', build)); }
 export const coverage = (days = 30) => rpc('admin_coverage', { days });
 export const speedLimitCounties = () => rpc('admin_speed_limit_counties');
+export const cameras = () => rpc('admin_cameras');
 export async function setDataRegion(dataset, region, enabled) { return unwrap(await db.from('data_regions').update({ enabled }).eq('dataset', dataset).eq('region', region).select('*').single()); }
 export async function userDevices(userId) { return unwrap(await db.from('app_clients').select('platform,app_version,build,os_version,first_seen,last_seen').eq('user_id', userId).order('last_seen', { ascending: false }).limit(20)); }

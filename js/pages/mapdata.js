@@ -46,6 +46,10 @@ export default async function mapData(ctx) {
 
     <section class="card" style="margin-top:18px"><div class="card-head"><h2>Coverage from drives</h2><span class="muted small">Last 30 days · reported by the apps</span></div><div data-coverage><p class="loading">Loading…</p></div></section>
 
+    <section class="card" style="margin-top:18px"><div class="card-head"><h2>Enforcement cameras</h2><span class="muted small">enforcement_cameras · cameras_in_box</span></div>
+      <div data-cameras><p class="loading">Loading…</p></div>
+      <p class="muted small" style="margin:10px 0 0">Official speed and red-light cameras from city and state open data, shown on the driving map by iOS. Turning a source off hides its cameras from every app at once (enforced inside <code>cameras_in_box</code>). New sources appear here automatically when imported.</p></section>
+
     <section class="card" style="margin-top:18px"><div class="card-head"><h2>Transit</h2><span class="muted small">transit_stops · transit_lines</span></div>
       ${table(['Region', 'Stops', 'Rail stops', 'Rail lines', 'Agencies', 'Updated', 'Status', ''], tr.map(r => [
         html`<strong>${r.region}</strong>`, fmtNum(r.stops), fmtNum(r.rail_stops), fmtNum(r.lines), fmtNum(r.agencies), rel(r.updated_at), state(r.enabled), regionSwitch('transit', r)]),
@@ -58,19 +62,26 @@ export default async function mapData(ctx) {
       <p class="muted small" style="margin:10px 0 0">Airports draw Mapbox's floor plans; stations, malls and others draw OpenStreetMap plans that a nightly job publishes to kovamaps.com/indoor (<span data-cells-line>checking…</span>). A venue switched off disappears from the apps' venue list. The Indoor maps switch on App controls turns the whole feature off.</p>
       <h3 class="eyebrow" style="margin-top:16px">To do: airports without Mapbox floor plans</h3><div data-indoor-todo><p class="loading">Loading…</p></div></section>`.s;
 
-  qsa('[data-region]', ctx.el).forEach(b => b.onclick = async () => {
+  const bindRegionSwitches = root => qsa('[data-region]', root).forEach(b => b.onclick = async () => {
     const [dataset, region] = b.dataset.region.split('|'), on = !b.dataset.enabled;
-    const what = { speed_limits: 'speed limits', speed_limit_sources: 'this speed-limit source', transit: 'transit' }[dataset];
+    const what = { speed_limits: 'speed limits', speed_limit_sources: 'this speed-limit source', transit: 'transit', camera_sources: 'this camera source' }[dataset];
     if (!on && !confirm(`Turn off ${what} for ${region}? Every app stops showing this data for ${region} right away.`)) return;
     b.disabled = true;
     try { await api.setDataRegion(dataset, region, on); ctx.notice(`${region} ${what} turned ${on ? 'on' : 'off'}.`); if (ctx.alive()) await mapData(ctx); }
     catch (e) { ctx.fail(e); b.disabled = false; }
   });
+  bindRegionSwitches(ctx.el);
   const details = ctx.el.querySelector('[data-counties-wrap]');
   details.ontoggle = () => { if (!details.open || details.dataset.loaded) return; details.dataset.loaded = '1';
     api.speedLimitCounties().then(res => { const host = details.querySelector('[data-counties]'); if (!host || !ctx.alive()) return; const rows = res.rows || [];
       host.innerHTML = html`<p class="muted small">Computed ${rel(res.computed_at)}; refreshed every six hours.</p>`.s + table(['Region', 'County', 'Road miles', 'Segments', 'Sources', 'Limits', '55 mph and up'], rows.map(r => [r.region, r.county, fmtNum(r.miles), fmtNum(r.segments), html`<span class="mono small">${r.sources}</span>`, html`${r.min_mph}–${r.max_mph} <span class="muted small">avg ${r.avg_mph}</span>`, fmtNum(r.highway_segments)])).s; })
       .catch(e => { const host = details.querySelector('[data-counties]'); if (host) host.innerHTML = html`<p class="muted small">${e.message}</p>`.s; }); };
+  api.cameras().then(rows => { const host = ctx.el.querySelector('[data-cameras]'); if (!host || !ctx.alive()) return;
+    const total = rows.reduce((n, r) => n + (+r.cameras || 0), 0);
+    host.innerHTML = html`<p class="muted small" style="margin:0 0 8px">${fmtNum(total)} cameras from ${fmtNum(rows.length)} sources</p>${table(['Source', 'Cameras', 'Speed', 'Red light', 'Kinds', 'Updated', 'Status', ''], rows.map(r => [
+      html`<span class="mono">${r.source}</span>`, fmtNum(r.cameras), fmtNum(r.speed), fmtNum(r.redlight), html`<span class="small">${r.kinds || '—'}</span>`, rel(r.updated_at), state(r.enabled), regionSwitch('camera_sources', { region: r.source, enabled: r.enabled })]), { emptyText: 'No cameras imported yet.' })}`.s;
+    bindRegionSwitches(host);
+  }).catch(e => { const host = ctx.el.querySelector('[data-cameras]'); if (host) host.innerHTML = e.needsUpgrade ? '<p class="muted small">Needs migration 0026.</p>' : html`<p class="muted small">${e.message}</p>`.s; });
   api.coverage(30).then(c => { const host = ctx.el.querySelector('[data-coverage]'); if (!host || !ctx.alive()) return; host.innerHTML = coverageView(c).s; })
     .catch(e => { const host = ctx.el.querySelector('[data-coverage]'); if (host) host.innerHTML = e.needsUpgrade ? '<p class="muted small">Needs migration 0013.</p>' : html`<p class="muted small">${e.message}</p>`.s; });
   api.venues().then(vs => { const host = ctx.el.querySelector('[data-indoor-todo]'); if (!host || !ctx.alive()) return;
