@@ -55,7 +55,7 @@ export const FEATURES = [
   ['flat_turns', 'Flat map for turns', 'Driving map drops to 2D before each turn · iOS build 9+ draws it, ignores the switch'],
   ['rural_detail', 'Rural map detail', 'Minor roads, small towns and unpaved surfaces drawn clearer · web 1.0.3+'],
   ['map_trees', '3D trees', 'Trees planted from satellite tree cover (Florida) · iOS build 19+, web 1.0.7+'],
-  ['toll_traffic_cameras', 'Tolls and traffic cameras', 'Toll points and NYC DOT traffic cameras on the driving map · Android (next release, branch android/cameras-tolls); iOS not yet. Off: neither layer is drawn or fetched. Not paused by maintenance (it calls OpenStreetMap and NYC DOT, not Kova).'],
+  ['toll_traffic_cameras', 'Tolls and traffic cameras', 'Toll points and NYC DOT traffic cameras on the driving map · Android (next release, branch android/cameras-tolls), iOS build 83+. Off: neither layer is drawn or fetched. Not paused by maintenance (it calls OpenStreetMap and NYC DOT, not Kova).'],
   ['route_road_matching', 'Routes on map roads', 'Driving routes matched to Mapbox roads so the line is on the right carriageway · iOS build 53+'],
 ];
 // Earliest build (iOS, Android) or version (web) that honours each switch, for the reach estimate shown until
